@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/server"
+    },
+    {
+      "path": "./packages/ui"
+    },
+    {
+      "path": "./apps/desktop"
+    }
+  ]
+}

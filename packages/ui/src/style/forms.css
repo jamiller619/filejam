@@ -1,0 +1,25 @@
+input,
+button {
+  background: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+
+  &:hover {
+    background: var(--hover);
+  }
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgba(var(--ink), 0.6);
+  outline-offset: 3px;
+}

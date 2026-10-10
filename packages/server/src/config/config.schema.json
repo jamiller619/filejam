@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Files App Config Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "x-xon-ui": {
+    "categories": [
+      {
+        "namespace": "app",
+        "title": "Application"
+      },
+      {
+        "namespace": "log",
+        "title": "Logging"
+      },
+      {
+        "namespace": "appdata",
+        "title": "Application Data"
+      },
+      {
+        "namespace": "network",
+        "title": "Network"
+      },
+      {
+        "namespace": "session",
+        "title": "Sessions"
+      }
+    ]
+  },
+  "required": [
+    "app.locale",
+    "log.level",
+    "log.retentionDays",
+    "appdata.path",
+    "appdata.dbPath",
+    "appdata.cachePath",
+    "appdata.cacheQuota",
+    "appdata.logsPath"
+  ],
+  "properties": {
+    "app.locale": {
+      "title": "Application Locale",
+      "type": "string",
+      "default": "en-US",
+      "readOnly": true,
+      "description": "A [BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag#List_of_major_primary_language_subtags) used throughout the application."
+    },
+    "log.level": {
+      "title": "Logging Level",
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info",
+      "description": "The level of detail recorded by the logger."
+    },
+    "log.retentionDays": {
+      "title": "Logging Retention Days",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 365,
+      "default": 7,
+      "description": "The number of days to retain log files."
+    },
+    "appdata.path": {
+      "title": "Application Data Path",
+      "type": "string",
+      "description": "The file system path where application data is stored. This makes Xon highly portable across systems."
+    },
+    "appdata.dbPath": {
+      "title": "Application Database Path",
+      "type": "string",
+      "description": "The file system path where application databases are stored."
+    },
+    "appdata.cachePath": {
+      "title": "Application Cache Path",
+      "type": "string",
+      "description": "The file system path where application cache is stored."
+    },
+    "appdata.cacheQuota": {
+      "title": "Application Cache Quota",
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "The amount of local disk space to use for storing cache files."
+    },
+    "appdata.logsPath": {
+      "title": "Application Logs Path",
+      "type": "string",
+      "description": "The file system path where application logs are stored."
+    }
+  }
+}

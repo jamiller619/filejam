@@ -1,0 +1,30 @@
+{
+  "name": "@files/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -b --noEmit",
+    "clean": "tsc -b --clean",
+    "copy:assets": "node scripts/copy-assets.mjs"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "clsx": "^2.1.1",
+    "inline-css-modules": "^0.3.0",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
+  }
+}

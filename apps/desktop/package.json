@@ -1,0 +1,42 @@
+{
+  "name": "@files/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b && pnpm --filter @files/server copy:migrations && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -b --noEmit",
+    "clean": "tsc -b --clean",
+    "start": "pnpm build && node scripts/start.mjs",
+    "copy:assets": "node scripts/copy-assets.mjs",
+    "test": "pnpm build && node tests/run-smoke.mjs",
+    "dev": "tsc -b && pnpm --filter @files/server copy:migrations && node scripts/dev.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.7.0",
+    "vite": "^8.3.4"
+  },
+  "dependencies": {
+    "@files/server": "workspace:*",
+    "@files/ui": "workspace:*",
+    "inline-css-modules": "^0.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "^8.4.0",
+    "react-router-dom": "^7.18.4"
+  },
+  "main": "dist/index.js"
+}

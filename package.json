@@ -1,0 +1,32 @@
+{
+  "name": "files",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "tsc -b && pnpm --filter @files/server copy:migrations && pnpm --filter @files/desktop copy:assets",
+    "typecheck": "tsc -b --noEmit",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "clean": "tsc -b --clean",
+    "start": "pnpm --filter @files/desktop start",
+    "dev": "pnpm --filter @files/desktop dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.10.1",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.10.1",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "typescript": "^7.0.2"
+  }
+}
