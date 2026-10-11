@@ -36,7 +36,17 @@ const server = await createServer({
     },
     dedupe: ['react', 'react-dom'],
   },
-  server: { host: '127.0.0.1', port: 5173, strictPort: true },
+  server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+    watch: {
+      // Windows editors do not emit reliable file events into WSL mounts.
+      usePolling: process.platform === 'linux' && /^\/mnt\/[a-z]\//i.test(fileURLToPath(import.meta.url)),
+      interval: 200,
+      ignored: ['**/dist/**', '**/*.tsbuildinfo'],
+    },
+  },
 })
 await server.listen()
 server.printUrls()

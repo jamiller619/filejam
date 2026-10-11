@@ -3,10 +3,10 @@
   --base: #101113;
   --ink: 235, 237, 242;
   --glass: 255, 255, 255;
-  --surface: rgba(var(--glass), 0.035);
-  --raised: rgba(var(--glass), 0.055);
-  --hover: rgba(var(--glass), 0.085);
-  --selected: rgba(var(--glass), 0.115);
+  --surface: rgba(var(--glass), 0.1);
+  --raised: rgba(var(--glass), 0.18);
+  --hover: rgba(var(--glass), 0.15);
+  --selected: rgba(var(--glass), 0.12);
   --text: rgba(var(--ink), 0.92);
   --muted: rgba(var(--ink), 0.59);
   --faint: rgba(var(--ink), 0.42);

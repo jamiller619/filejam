@@ -12,5 +12,8 @@
     "**/dist": true
   },
   "files.insertFinalNewline": true,
-  "files.trimTrailingWhitespace": true
+  "files.trimTrailingWhitespace": true,
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "TypeScriptTeam.native-preview"
+  }
 }

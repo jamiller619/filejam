@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { css } from 'inline-css-modules'
 import type { HTMLAttributes } from 'react'
 
-const styles = css`
+export const styles = css`
   .surface {
     background: var(--surface);
     backdrop-filter: blur(24px);

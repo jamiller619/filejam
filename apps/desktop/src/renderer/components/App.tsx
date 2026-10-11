@@ -1,10 +1,13 @@
 import { HashRouter } from 'react-router-dom'
 import Router from './Router.js'
+import { Theme } from '@files/ui';
 
 export default function App() {
   return (
-    <HashRouter>
-      <Router />
-    </HashRouter>
+    <Theme>
+      <HashRouter>
+        <Router />
+      </HashRouter>
+    </Theme>
   )
 }
