@@ -101,9 +101,11 @@ export default function Navbar() {
             <span>Home</span>
           </NavLink>
         </li>
-        <li>
-          <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
-        </li>
+        {favoriteFolders.length > 0 && (
+          <li>
+            <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
+          </li>
+        )}
         {favoriteFolders.map(({ path, library, relativePath }) => (
           <li key={path}>
             <NavLink
