@@ -80,6 +80,11 @@ const styles = css`
     th, td {
       vertical-align: middle;
     }
+    .emptyState {
+      padding: var(--suzy-space-6) var(--suzy-space-3);
+      text-align: center;
+      font-size: 1.125em;
+    }
     th {
       font-weight: 400;
       white-space: nowrap;
@@ -333,9 +338,6 @@ function FolderContents({
           This folder has not finished scanning. Files may be missing.
         </p>
       )}
-      {listing.scanned && listing.entries.length === 0 && (
-        <p role="status">No files to display.</p>
-      )}
       <Surface className={styles.scroll}>
         <table
           className={styles.table}
@@ -372,6 +374,17 @@ function FolderContents({
             </tr>
           </thead>
           <tbody>
+            {listing.scanned && listing.entries.length === 0 && (
+              <tr>
+                <td
+                  className={styles.emptyState}
+                  role="status"
+                  colSpan={table.getVisibleLeafColumns().length}
+                >
+                  No files to display.
+                </td>
+              </tr>
+            )}
             {table.getRowModel().rows.map((row) => {
               const entry = row.original
               return (

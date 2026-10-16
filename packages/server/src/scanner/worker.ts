@@ -108,26 +108,55 @@ async function scan(input: string) {
     status.total = orderedPaths.length
     status.phase = 'checking'
     reportProgress()
-    for (const [index, path] of orderedPaths.entries()) {
+    for (let index = 0; index < orderedPaths.length; index += 64) {
       // Give incoming status/cancel messages a chance to run during checking.
       if (index % 100 === 0) await setImmediate()
       if (cancelled) break
-      if (index % 64 === 0)
-        await database.prepareTags(orderedPaths.slice(index, index + 64))
+      const batch = orderedPaths.slice(index, index + 64)
+      const savePaths: string[] = []
+      const changes = new Map<string, 'added' | 'changed' | 'unchanged'>()
+      for (const path of batch) {
+        if (cancelled) break
+        const key = relative(root, path)
+        if (!previous.has(key)) {
+          savePaths.push(path)
+          changes.set(path, 'added')
+          continue
+        }
+        const descriptor = cache.getFileDescriptor(key)
+        if (descriptor.err) throw descriptor.err
+        if (descriptor.notFound)
+          throw new Error(`File disappeared during scan: ${path}`)
+        if (descriptor.changed) {
+          savePaths.push(path)
+          changes.set(path, 'changed')
+          continue
+        }
+        // A cache hit is safe to skip only when its database row still exists.
+        // This also repairs the database if it was cleared independently.
+        if (await database.skipUnchanged(path)) {
+          previous.delete(key)
+          changes.set(path, 'unchanged')
+          status.processed++
+        } else {
+          savePaths.push(path)
+          changes.set(path, 'unchanged')
+        }
+      }
       if (cancelled) break
-      // Save even cache hits: the database may need rebuilding independently
-      // of the file-change cache.
-      const kind = await database.save(path)
-      status.processed++
-      if (kind !== 'file') continue
-      const key = relative(root, path)
-      const descriptor = cache.getFileDescriptor(key)
-      if (descriptor.err) throw descriptor.err
-      if (descriptor.notFound)
-        throw new Error(`File disappeared during scan: ${path}`)
-      if (!previous.has(key)) next.added.push(key)
-      else if (descriptor.changed) next.changed.push(key)
-      previous.delete(key)
+      await database.prepareTags(savePaths)
+      for (const path of savePaths) {
+        if (cancelled) break
+        const kind = await database.save(path)
+        if (kind === 'file') {
+          const key = relative(root, path)
+          const change = changes.get(path)
+          if (change === 'added') next.added.push(key)
+          else if (change === 'changed') next.changed.push(key)
+          previous.delete(key)
+        }
+        status.processed++
+      }
     }
     if (cancelled) {
       // Keep incremental DB updates, but do not prune unseen entries or advance

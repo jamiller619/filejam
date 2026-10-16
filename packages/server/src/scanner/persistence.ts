@@ -16,6 +16,7 @@ export async function openScanDatabase(databasePath: string, root: string) {
     // Start with all stored paths; save() removes those encountered this time.
     // Remaining rows are deletion candidates only if the entire scan succeeds.
     const unseen = new Map(previous.map((entry) => [entry.path, entry.id]))
+    const persisted = new Set(unseen.keys())
     const directories = new Map<string, number>()
     const pathKey = (path: string) => relative(root, path).split(sep).join('/')
 
@@ -25,6 +26,16 @@ export async function openScanDatabase(databasePath: string, root: string) {
         await tagReader.close()
       },
       prepareTags: (paths: string[]) => tagReader.prepare(paths),
+      async skipUnchanged(path: string) {
+        const key = pathKey(path)
+        const metadata = await lstat(path)
+        const exists =
+          persisted.has(key) &&
+          !metadata.isDirectory() &&
+          !metadata.isSymbolicLink()
+        if (exists) unseen.delete(key)
+        return exists
+      },
       async save(path: string) {
         // lstat records the link itself rather than its target.
         const metadata = await lstat(path)
@@ -57,6 +68,7 @@ export async function openScanDatabase(databasePath: string, root: string) {
         } as const
         const entry = await api.entries.upsert(values)
         unseen.delete(key)
+        persisted.add(key)
         if (kind === 'directory') directories.set(key, entry.id)
         return kind
       },
