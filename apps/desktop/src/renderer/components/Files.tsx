@@ -66,7 +66,6 @@ const styles = css`
     }
   }
   .scroll {
-    overflow-x: auto;
     padding-inline: var(--suzy-space-2);
     padding-block-end: var(--suzy-space-2);
     border-radius: var(--suzy-radius-4);
@@ -88,6 +87,10 @@ const styles = css`
     th {
       font-weight: 400;
       white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--suzy-surface);
     }
     .file {
       display: flex;
