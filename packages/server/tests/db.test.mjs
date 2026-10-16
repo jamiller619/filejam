@@ -3,9 +3,9 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { initDatabase } from '../dist/db/index.js'
 import { entries } from '../dist/db/schemas/entry.js'
 import { libraries } from '../dist/db/schemas/library.js'
-import { initDatabase } from '../dist/db/index.js'
 
 test('creates a database, preserves data on reopen, and enforces constraints', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'files-db-'))
@@ -41,7 +41,7 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     const migrations = await connection.db.all(
       'SELECT * FROM __drizzle_migrations',
     )
-    assert.equal(migrations.length, 1)
+    assert.equal(migrations.length, 3)
     await connection.db.delete(libraries)
     assert.deepEqual(await connection.db.select().from(entries), [])
   } finally {

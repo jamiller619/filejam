@@ -33,9 +33,18 @@ export interface ScannerApi {
 // rejects that call; a background scan error is instead reported in ScanStatus.
 export type ScannerRequest = {
   id: number
-  method: keyof ScannerApi
+  method: keyof ScannerApi | 'shutdown'
   root?: string
 }
 export type ScannerResponse =
   | { id: number; result: ScanStatus | ScanResults }
   | { id: number; error: string }
+
+// Unsolicited snapshots let the parent log progress without polling the worker.
+export type ScanProgress = {
+  type: 'progress'
+  status: ScanStatus
+  elapsedMs: number
+  entriesPerSecond: number
+  changes: { added: number; changed: number; removed: number }
+}

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import { app, BrowserWindow } from 'electron'
 
@@ -20,7 +21,7 @@ async function run() {
       const window = BrowserWindow.getAllWindows()[0]
       if (window && !window.webContents.isLoading()) {
         text = await window.webContents.executeJavaScript(
-          'document.querySelector("#root h1")?.textContent',
+          'document.querySelector("#root h2")?.textContent',
         )
         if (text === 'Home') {
           assert.equal(window.webContents.getLastWebPreferences().sandbox, true)
@@ -35,9 +36,56 @@ async function run() {
     }
     assert.equal(text, 'Home')
     const window = BrowserWindow.getAllWindows()[0]
-    const scanner = await window.webContents.executeJavaScript('window.scanner.status()')
+    // Exercise the same renderer-initiated reload that Vite uses as its fallback.
+    await Promise.all([
+      once(window.webContents, 'did-finish-load', {
+        signal: AbortSignal.timeout(10000),
+      }),
+      window.webContents.executeJavaScript(
+        'setTimeout(() => location.reload(), 0); undefined',
+      ),
+    ])
+    const scanner = await window.webContents.executeJavaScript(
+      'window.scanner.status()',
+    )
     assert.equal(scanner.state, 'idle')
-    console.log('Desktop smoke test passed: Home renders and scanner bridge responds')
+    const libraries = await window.webContents.executeJavaScript(
+      'window.files.libraries.list()',
+    )
+    assert.ok(Array.isArray(libraries))
+    for (const library of libraries) {
+      assert.equal(typeof library.id, 'number')
+      assert.equal(typeof library.name, 'string')
+      assert.equal(typeof library.rootPath, 'string')
+    }
+    if (libraries[0]) {
+      const library = libraries[0]
+      await window.webContents.executeJavaScript(
+        `location.hash = ${JSON.stringify('#/libraries/')} + ${library.id}; undefined`,
+      )
+      let heading
+      for (let attempt = 0; attempt < 100; attempt++) {
+        heading = await window.webContents.executeJavaScript(
+          'document.querySelector("#root h2")?.textContent',
+        )
+        if (heading === library.name) break
+        await delay(50)
+      }
+      assert.equal(
+        heading,
+        library.name,
+        'Library route renders the selected folder',
+      )
+      assert.equal(
+        await window.webContents.executeJavaScript(
+          `Boolean(document.querySelector('nav[aria-label="Folder breadcrumbs"]'))`,
+        ),
+        true,
+      )
+    }
+    console.log(
+      'Desktop smoke test passed: Home renders, renderer reloads, and scanner bridge responds',
+    )
     app.once('will-quit', () => clearTimeout(timeout))
     app.quit()
   } catch (error) {

@@ -38,7 +38,22 @@ export const entries = sqliteTable(
     // File metadata; nullable for directories or unknown values.
     size: integer('size'),
     mimeType: text('mime_type'),
+    // Sources stay separate so importing metadata never overwrites user tags.
+    appTags: text('app_tags', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    osTags: text('os_tags', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    embeddedTags: text('embedded_tags', { mode: 'json' })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    tagReadError: text('tag_read_error'),
     modifiedAt: integer('modified_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 
     // When this entry's filesystem metadata was last refreshed.
     indexedAt: integer('indexed_at', {

@@ -1,6 +1,6 @@
+import { Theme } from '@files/ui'
 import { HashRouter } from 'react-router-dom'
 import Router from './Router.js'
-import { Theme } from '@files/ui';
 
 export default function App() {
   return (

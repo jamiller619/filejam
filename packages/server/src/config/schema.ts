@@ -37,6 +37,10 @@ export type ApplicationCacheQuota = number;
  * The file system path where application logs are stored.
  */
 export type ApplicationLogsPath = string;
+/**
+ * The IDs of the user's favorite libraries.
+ */
+export type FavoriteLibraries = number[];
 
 export interface FilesAppConfigSchema {
   "app.locale": ApplicationLocale;
@@ -47,4 +51,5 @@ export interface FilesAppConfigSchema {
   "appdata.cachePath": ApplicationCachePath;
   "appdata.cacheQuota": ApplicationCacheQuota;
   "appdata.logsPath": ApplicationLogsPath;
+  "user.favoriteLibraries": FavoriteLibraries;
 }

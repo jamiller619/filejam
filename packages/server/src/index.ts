@@ -1,4 +1,6 @@
 import { join } from 'node:path'
+import type { ResolveDefaultFolder } from './api/defaultLibraries.js'
+import { createApi } from './api/index.js'
 import { initConfig } from './config/index.js'
 import { initDatabase } from './db/index.js'
 import { closeLogger, createLogger, initLogger } from './logger.js'
@@ -7,9 +9,14 @@ import { FileScanner } from './scanner/index.js'
 // Keep the startup promise so callers also share initialization while it is in flight.
 let running: ReturnType<typeof start> | undefined
 
+export type { Library, ServerApi } from './api/index.js'
+export type { Config, ConfigKey } from './config/config.js'
+
 /** Initialize the server once; concurrent callers share the same instance. */
-export function boot() {
-  running ??= start().catch((error: unknown) => {
+export function boot(
+  options: { resolveDefaultFolder?: ResolveDefaultFolder } = {},
+) {
+  running ??= start(options).catch((error: unknown) => {
     // A failed boot must not prevent a later retry.
     running = undefined
     throw error
@@ -18,7 +25,7 @@ export function boot() {
   return running
 }
 
-async function start() {
+async function start(options: { resolveDefaultFolder?: ResolveDefaultFolder }) {
   const config = await initConfig()
 
   await initLogger(config)
@@ -32,19 +39,32 @@ async function start() {
     const databasePath = join(config.get('appdata.dbPath'), 'files.sqlite')
 
     database = await initDatabase(databasePath)
+    const api = createApi(database.db, config)
+    if (options.resolveDefaultFolder) {
+      await api.libraries.initializeDefaults(
+        options.resolveDefaultFolder,
+        (message, error) => logger.warn(message, error),
+      )
+    }
     scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
 
     // A round trip confirms the worker loaded before exposing the server.
     await scanner.status()
 
-    logger.info('Server started')
+    // Include previously seeded libraries: their setup marker may predate
+    // automatic scanning. A batch acknowledges its start without delaying boot
+    // until indexing finishes, and the worker processes roots sequentially.
+    const libraries = await api.libraries.list()
+    await scanner.startAll(libraries.map((library) => library.rootPath))
+
+    logger.info('Server started', { queuedLibraries: libraries.length })
 
     let closing: Promise<void> | undefined
 
     return {
+      api,
       config,
       logger,
-      db: database.db,
       scanner,
       close(): Promise<void> {
         // Share shutdown too: stop worker writes before closing the main DB,

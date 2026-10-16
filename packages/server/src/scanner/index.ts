@@ -1,11 +1,15 @@
 import { Worker } from 'node:worker_threads'
+import { createLogger } from '../logger.js'
 import type {
   ScannerApi,
   ScannerRequest,
   ScannerResponse,
+  ScanProgress,
   ScanResults,
   ScanStatus,
 } from './types.js'
+
+const logger = createLogger('scanner')
 
 export type { ScannerApi, ScanResults, ScanStatus } from './types.js'
 
@@ -17,7 +21,9 @@ export type { ScannerApi, ScanResults, ScanStatus } from './types.js'
 export class FileScanner implements ScannerApi {
   readonly #worker: Worker
   #sequence = 0
+  #queuedRoots: string[] = []
   #failure: Error | undefined
+  #closing: Promise<void> | undefined
   // Match responses to callers by ID; several status/result requests may be in flight.
   readonly #pending = new Map<
     number,
@@ -31,7 +37,19 @@ export class FileScanner implements ScannerApi {
     this.#worker = new Worker(new URL('./worker.js', import.meta.url), {
       workerData: { cacheDirectory, databasePath },
     })
-    this.#worker.on('message', (message: ScannerResponse) => {
+    this.#worker.on('message', (message: ScannerResponse | ScanProgress) => {
+      if ('type' in message) {
+        const { status, elapsedMs, entriesPerSecond, changes } = message
+        const level = status.state === 'failed' ? 'error' : 'info'
+        logger[level](
+          status.state === 'scanning'
+            ? 'Scan progress'
+            : `Scan ${status.state}`,
+          { ...status, elapsedMs, entriesPerSecond, ...changes },
+        )
+        if (status.state !== 'scanning') void this.#startNext()
+        return
+      }
       const pending = this.#pending.get(message.id)
       if (!pending) return
       this.#pending.delete(message.id)
@@ -49,15 +67,18 @@ export class FileScanner implements ScannerApi {
   #fail(error: Error) {
     // A dead or closed worker cannot answer any outstanding or future requests.
     this.#failure ??= error
+    this.#queuedRoots = []
     for (const pending of this.#pending.values()) pending.reject(error)
     this.#pending.clear()
   }
 
   #request<T extends ScanStatus | ScanResults>(
-    method: keyof ScannerApi,
+    method: ScannerRequest['method'],
     root?: string,
   ): Promise<T> {
     if (this.#failure) return Promise.reject(this.#failure)
+    if (this.#closing && method !== 'shutdown')
+      return Promise.reject(new Error('Scanner is closed'))
     const id = ++this.#sequence
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(id, { resolve: (value) => resolve(value as T), reject })
@@ -74,6 +95,27 @@ export class FileScanner implements ScannerApi {
     })
   }
 
+  /** Start a batch in the background, one root at a time. Call while idle. */
+  async startAll(roots: string[]): Promise<void> {
+    if (this.#failure) throw this.#failure
+    if (this.#queuedRoots.length || (await this.status()).state === 'scanning')
+      throw new Error('A scan is already running')
+    this.#queuedRoots = [...new Set(roots)]
+    await this.#startNext()
+  }
+
+  async #startNext(): Promise<void> {
+    const root = this.#queuedRoots.shift()
+    if (root === undefined || this.#failure) return
+    try {
+      await this.start(root)
+    } catch (error) {
+      if (this.#failure) return
+      logger.error('Unable to start queued scan', { root }, error)
+      await this.#startNext()
+    }
+  }
+
   start(root: string) {
     return this.#request<ScanStatus>('start', root)
   }
@@ -84,12 +126,21 @@ export class FileScanner implements ScannerApi {
     return this.#request<ScanResults>('results')
   }
   cancel() {
+    this.#queuedRoots = []
     return this.#request<ScanStatus>('cancel')
   }
 
-  /** Immediately terminate the worker, rather than waiting for cooperative cancellation. */
-  async close(): Promise<void> {
-    this.#fail(new Error('Scanner is closed'))
-    await this.#worker.terminate()
+  /** Cancel pending work and release the worker's database before termination. */
+  close(): Promise<void> {
+    this.#queuedRoots = []
+    this.#closing ??= (async () => {
+      try {
+        if (!this.#failure) await this.#request<ScanStatus>('shutdown')
+      } finally {
+        this.#fail(new Error('Scanner is closed'))
+        await this.#worker.terminate()
+      }
+    })()
+    return this.#closing
   }
 }

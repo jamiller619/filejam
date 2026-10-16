@@ -4,10 +4,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createClient } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
 import { migrate } from 'drizzle-orm/libsql/migrator'
+import * as collectionSchema from './schemas/collection.js'
 import * as entrySchema from './schemas/entry.js'
+import * as initializationSchema from './schemas/initialization.js'
 import * as librarySchema from './schemas/library.js'
 
-const schema = { ...librarySchema, ...entrySchema }
+const schema = {
+  ...collectionSchema,
+  ...librarySchema,
+  ...entrySchema,
+  ...initializationSchema,
+}
 // Resolve beside the compiled module; the build copies SQL migrations there.
 const migrationsFolder = fileURLToPath(
   new URL('./migrations/', import.meta.url),

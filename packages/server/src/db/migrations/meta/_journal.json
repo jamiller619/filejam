@@ -8,6 +8,34 @@
       "when": 1791625315830,
       "tag": "0000_fancy_sleepwalker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791944380764,
+      "tag": "0001_default_libraries_setup",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791982434634,
+      "tag": "0002_brainy_shooting_star",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792024591625,
+      "tag": "0003_blushing_ravenous",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792120550412,
+      "tag": "0004_bored_wendigo",
+      "breakpoints": true
     }
   ]
 }

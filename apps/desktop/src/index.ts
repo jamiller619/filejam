@@ -1,7 +1,14 @@
 import { fileURLToPath } from 'node:url'
 import { boot } from '@files/server'
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, net, protocol } from 'electron'
+import { registerApiIpc } from './api/main.js'
+import { registerWindowIpc } from './ipc/window.js'
+import { createPreviewHandler } from './preview/handler.js'
 import { registerScannerIpc } from './scanner/main.js'
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'files-preview', privileges: { standard: true, secure: true } },
+])
 
 if (!app.isPackaged && process.env.FILES_RENDERER_URL) {
   process.on('message', (message) => {
@@ -12,6 +19,7 @@ if (!app.isPackaged && process.env.FILES_RENDERER_URL) {
 let server: Awaited<ReturnType<typeof boot>> | undefined
 let window: BrowserWindow | undefined
 let removeScannerIpc: (() => void) | undefined
+let removeApiIpc: (() => void) | undefined
 let startup: Promise<void> | undefined
 let quitting = false
 let shutdownComplete = false
@@ -26,6 +34,18 @@ async function createWindow() {
     minWidth: 600,
     minHeight: 400,
     show: false,
+    frame: false,
+    // Windows needs a non-layered window for native rounded corners and Mica.
+    transparent: process.platform !== 'win32',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#00000000',
+      height: 36,
+    },
+    backgroundMaterial: 'mica',
+    vibrancy: 'window',
+    visualEffectState: 'followWindow',
+    roundedCorners: true,
     webPreferences: {
       preload: fileURLToPath(new URL('./scanner/preload.cjs', import.meta.url)),
       contextIsolation: true,
@@ -34,12 +54,20 @@ async function createWindow() {
     },
   })
   window = current
+  const removeWindowIpc = registerWindowIpc(current)
   removeScannerIpc = registerScannerIpc(server.scanner, current.webContents)
+  removeApiIpc = registerApiIpc(server.api, current.webContents)
 
   // The scanner bridge is privileged: this window only hosts local app content.
   current.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  current.webContents.on('will-navigate', (event) => event.preventDefault())
+  current.webContents.on('will-navigate', (event) => {
+    // Vite's full-reload fallback reloads the current page from the renderer.
+    if (event.url !== current.webContents.getURL()) event.preventDefault()
+  })
   current.once('closed', () => {
+    removeWindowIpc()
+    removeApiIpc?.()
+    removeApiIpc = undefined
     removeScannerIpc?.()
     removeScannerIpc = undefined
     window = undefined
@@ -56,7 +84,12 @@ async function createWindow() {
       fileURLToPath(new URL('./renderer/index.html', import.meta.url)),
     )
   }
-  if (!quitting && !current.isDestroyed()) current.show()
+  if (!quitting && !current.isDestroyed()) {
+    current.show()
+    if (!app.isPackaged && rendererUrl) {
+      current.webContents.openDevTools({ mode: 'detach' })
+    }
+  }
 }
 
 function reportFailure(error: unknown) {
@@ -92,6 +125,8 @@ if (!app.requestSingleInstanceLock()) {
         await startup?.catch(() => undefined)
         removeScannerIpc?.()
         removeScannerIpc = undefined
+        removeApiIpc?.()
+        removeApiIpc = undefined
         await server?.close()
       } catch (error) {
         console.error('Desktop shutdown failed', error)
@@ -112,7 +147,13 @@ if (!app.requestSingleInstanceLock()) {
 
   startup = app.whenReady().then(async () => {
     if (quitting) return
-    server = await boot()
+    server = await boot({
+      resolveDefaultFolder: (folder) => app.getPath(folder),
+    })
+    protocol.handle(
+      'files-preview',
+      createPreviewHandler(server.api.entries, (url) => net.fetch(url)),
+    )
     await createWindow()
   })
   void startup.catch(reportFailure)

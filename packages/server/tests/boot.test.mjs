@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { setTimeout } from 'node:timers/promises'
 import * as server from '../dist/index.js'
 
 test('boot owns initialization, concurrent startup, shutdown, and restart', async () => {
   assert.deepEqual(Object.keys(server), ['boot'])
   const directory = await mkdtemp(join(tmpdir(), 'files-boot-'))
-  const previous = process.env.XON_CONFIG_FILE
+  const previous = process.env.FILES_CONFIG_FILE
   const configFile = join(directory, 'config.json')
-  process.env.XON_CONFIG_FILE = configFile
+  process.env.FILES_CONFIG_FILE = configFile
   let instance
   try {
     // A failed boot must release resources and allow a retry.
@@ -24,24 +25,61 @@ test('boot owns initialization, concurrent startup, shutdown, and restart', asyn
         'appdata.cachePath': join(directory, 'cache'),
       }),
     )
-    const first = server.boot()
+    const desktop = join(directory, 'Desktop')
+    const documents = join(directory, 'Documents')
+    await mkdir(desktop)
+    await mkdir(documents)
+    await writeFile(join(desktop, 'desktop.txt'), 'desktop')
+    await writeFile(join(documents, 'document.txt'), 'document')
+    const first = server.boot({
+      resolveDefaultFolder: (folder) =>
+        folder === 'desktop' ? desktop : documents,
+    })
     assert.equal(server.boot(), first)
     instance = await first
-    assert.equal((await instance.scanner.status()).state, 'idle')
-    await instance.db.run('SELECT 1')
+    assert.equal((await instance.api.libraries.list()).length, 2)
+    assert.equal('db' in instance, false)
+    await waitForIndexed(instance, 'Desktop', 'desktop.txt')
+    await waitForIndexed(instance, 'Documents', 'document.txt')
+    // Persist an unavailable library before valid roots to verify failure does
+    // not prevent the rest of the startup batch from running on restart.
+    await instance.api.libraries.ensureRoot(join(directory, '000-missing'))
     instance.logger.info('boot test log')
     await Promise.all([instance.close(), instance.close()])
     assert.match(
       await readFile(join(directory, 'logs/current.jsonl'), 'utf8'),
       /boot test log/,
     )
+    await writeFile(join(desktop, 'new.txt'), 'new')
+    await writeFile(join(documents, 'new.txt'), 'new')
+    // No resolver on restart: scan the libraries already in the database.
     const restarted = await server.boot()
     assert.notEqual(restarted, instance)
     instance = restarted
+    await waitForIndexed(instance, 'Desktop', 'new.txt')
+    await waitForIndexed(instance, 'Documents', 'new.txt')
   } finally {
     await instance?.close()
-    if (previous === undefined) delete process.env.XON_CONFIG_FILE
-    else process.env.XON_CONFIG_FILE = previous
-    await rm(directory, { recursive: true, force: true })
+    if (previous === undefined) delete process.env.FILES_CONFIG_FILE
+    else process.env.FILES_CONFIG_FILE = previous
+    await rm(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    })
   }
 })
+
+async function waitForIndexed(instance, name, path) {
+  const library = (await instance.api.libraries.list()).find(
+    (item) => item.name === name,
+  )
+  assert.ok(library)
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const entries = await instance.api.entries.listPaths(library.id)
+    if (entries.some((entry) => entry.path === path)) return
+    await setTimeout(10)
+  }
+  assert.fail(`Startup did not index ${name}/${path}`)
+}

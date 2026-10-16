@@ -17,7 +17,7 @@ try {
       'appdata.logsPath': join(directory, 'logs'),
     }),
   )
-  const env = { ...process.env, XON_CONFIG_FILE: config }
+  const env = { ...process.env, FILES_CONFIG_FILE: config }
   delete env.ELECTRON_RUN_AS_NODE
   const child = spawn(
     electron,

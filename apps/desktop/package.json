@@ -18,7 +18,7 @@
     "clean": "tsc -b --clean",
     "start": "pnpm build && node scripts/start.mjs",
     "copy:assets": "node scripts/copy-assets.mjs",
-    "test": "pnpm build && node tests/run-smoke.mjs",
+    "test": "pnpm build && node --test tests/*.test.mjs && node tests/run-smoke.mjs",
     "dev": "tsc -b && pnpm --filter @files/server copy:migrations && node scripts/dev.mjs"
   },
   "devDependencies": {
@@ -32,6 +32,8 @@
   "dependencies": {
     "@files/server": "workspace:*",
     "@files/ui": "workspace:*",
+    "@tanstack/react-table": "^8.21.3",
+    "date-fns": "^4.4.0",
     "inline-css-modules": "^0.3.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

@@ -4,9 +4,8 @@ import type { HTMLAttributes } from 'react'
 
 export const styles = css`
   .surface {
-    background: var(--surface);
+    background: var(--suzy-surface);
     backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
   }
 `
 

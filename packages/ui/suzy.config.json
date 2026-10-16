@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/suzy/suzy.schema.json",
+  "density": "compact",
+  "colors": {
+    "accent": "sky",
+    "gray": "mauve"
+  }
+}

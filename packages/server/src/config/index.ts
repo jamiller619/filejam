@@ -14,9 +14,7 @@ export const configSchema = z.fromJSONSchema(
   schema as z.core.JSONSchema.JSONSchema,
 )
 
-// Configuration currently uses the Xon app-data directory and XON_CONFIG_FILE
-// environment variable, even though this package is named @files/server.
-const paths = envPaths('xon', {
+const paths = envPaths('@files', {
   suffix: '',
 })
 
@@ -30,7 +28,7 @@ export async function initConfig(): Promise<ConfigStore> {
   }
 
   const configFilePath =
-    process.env.XON_CONFIG_FILE ?? path.join(paths.data, 'config.json')
+    process.env.FILES_CONFIG_FILE ?? path.join(paths.data, 'config.json')
   await fsp.mkdir(path.dirname(configFilePath), { recursive: true })
 
   let savedConfig: Partial<Config> = {}
@@ -124,7 +122,7 @@ async function parseEnvFile(
 
     // No coercion is applied to the strings returned by parseEnv. An invalid
     // .env contributes no config settings, though loadEnvFile already loaded it
-    // into process.env for values such as XON_CONFIG_FILE.
+    // into process.env for values such as FILES_CONFIG_FILE.
     const parsed = configSchema.safeParse(raw)
 
     if (!parsed.success) {

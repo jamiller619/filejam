@@ -13,13 +13,6 @@ const server = await createServer({
     inlineCssModules(),
     react(),
     {
-      name: 'reload-renderer-on-edit',
-      handleHotUpdate({ server }) {
-        server.ws.send({ type: 'full-reload' })
-        return []
-      },
-    },
-    {
       name: 'development-csp',
       transformIndexHtml(html) {
         return html.replace(
@@ -143,7 +136,7 @@ server.watcher.on('all', (event, file) => {
   if (path.split('/').some((part) => ['node_modules', 'dist', '.git'].includes(part))) return
   if (path.endsWith('.tsbuildinfo')) return
   if (path.startsWith('apps/desktop/src/renderer/') || path.startsWith('packages/ui/src/')) {
-    server.ws.send({ type: 'full-reload' })
+    // Vite handles renderer and shared UI updates after invalidating its cache.
     return
   }
   pending = true

@@ -3,7 +3,7 @@
   "title": "Files App Config Schema",
   "type": "object",
   "additionalProperties": false,
-  "x-xon-ui": {
+  "x-ui": {
     "categories": [
       {
         "namespace": "app",
@@ -24,6 +24,10 @@
       {
         "namespace": "session",
         "title": "Sessions"
+      },
+      {
+        "namespace": "user",
+        "title": "User"
       }
     ]
   },
@@ -35,7 +39,8 @@
     "appdata.dbPath",
     "appdata.cachePath",
     "appdata.cacheQuota",
-    "appdata.logsPath"
+    "appdata.logsPath",
+    "user.favoriteLibraries"
   ],
   "properties": {
     "app.locale": {
@@ -86,6 +91,17 @@
       "title": "Application Logs Path",
       "type": "string",
       "description": "The file system path where application logs are stored."
+    },
+    "user.favoriteLibraries": {
+      "title": "Favorite Libraries",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "The IDs of the user's favorite libraries."
     }
   }
 }

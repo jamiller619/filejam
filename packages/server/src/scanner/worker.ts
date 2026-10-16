@@ -5,10 +5,12 @@ import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
 import { fdir } from 'fdir'
 import { create } from 'file-entry-cache'
+import { isIgnoredScanPath } from './ignore.js'
 import { openScanDatabase } from './persistence.js'
 import type {
   ScannerRequest,
   ScannerResponse,
+  ScanProgress,
   ScanResults,
   ScanStatus,
 } from './types.js'
@@ -26,12 +28,33 @@ let status: ScanStatus = {
 }
 let results: ScanResults = { added: [], changed: [], removed: [] }
 let cancelled = false
+let activeScan: Promise<void> | undefined
 
 // SQLite stores the browsable tree; file-entry-cache tracks file changes across
 // scans. Each entry is saved immediately, but results and the cache baseline are
 // published only after a complete pass.
 async function scan(input: string) {
   let database: Awaited<ReturnType<typeof openScanDatabase>> | undefined
+  let finalState: 'completed' | 'cancelled' | 'failed' = 'completed'
+  const startedAt = performance.now()
+  const next: ScanResults = { added: [], changed: [], removed: [] }
+  const reportProgress = () => {
+    const elapsedMs = Math.round(performance.now() - startedAt)
+    port?.postMessage({
+      type: 'progress',
+      status,
+      elapsedMs,
+      entriesPerSecond:
+        elapsedMs > 0 ? Math.round((status.processed * 1000) / elapsedMs) : 0,
+      changes: {
+        added: next.added.length,
+        changed: next.changed.length,
+        removed: next.removed.length,
+      },
+    } satisfies ScanProgress)
+  }
+  reportProgress()
+  const progressTimer = setInterval(reportProgress, 1000)
   try {
     // Canonicalize aliases so the same directory shares a library and cache key.
     const root = await realpath(input)
@@ -54,6 +77,7 @@ async function scan(input: string) {
       // live under the scan root.
       .filter(
         (path) =>
+          !isIgnoredScanPath(path) &&
           ![
             databasePath,
             `${databasePath}-wal`,
@@ -61,9 +85,10 @@ async function scan(input: string) {
             `${databasePath}-journal`,
           ].includes(resolve(path)),
       )
-      .exclude((_name, path) => {
+      .exclude((name, path) => {
         const rel = relative(cacheDirectory, resolve(path))
         return (
+          isIgnoredScanPath(name) ||
           rel === '' ||
           (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel))
         )
@@ -82,10 +107,13 @@ async function scan(input: string) {
     orderedPaths.unshift(root)
     status.total = orderedPaths.length
     status.phase = 'checking'
-    const next: ScanResults = { added: [], changed: [], removed: [] }
+    reportProgress()
     for (const [index, path] of orderedPaths.entries()) {
       // Give incoming status/cancel messages a chance to run during checking.
       if (index % 100 === 0) await setImmediate()
+      if (cancelled) break
+      if (index % 64 === 0)
+        await database.prepareTags(orderedPaths.slice(index, index + 64))
       if (cancelled) break
       // Save even cache hits: the database may need rebuilding independently
       // of the file-change cache.
@@ -104,7 +132,7 @@ async function scan(input: string) {
     if (cancelled) {
       // Keep incremental DB updates, but do not prune unseen entries or advance
       // the cache baseline after an incomplete pass.
-      status.state = 'cancelled'
+      finalState = 'cancelled'
     } else {
       // Only a full traversal can establish that an unseen entry was removed.
       // DB reconciliation and cache writing are separate, not one transaction.
@@ -113,18 +141,26 @@ async function scan(input: string) {
       for (const key of previous) cache.removeEntry(key)
       cache.reconcile()
       results = next
-      status.state = 'completed'
+      finalState = 'completed'
     }
   } catch (error) {
-    status.state = cancelled ? 'cancelled' : 'failed'
+    finalState = cancelled ? 'cancelled' : 'failed'
     status.error = error instanceof Error ? error.message : String(error)
   } finally {
-    database?.close()
+    clearInterval(progressTimer)
+    try {
+      await database?.close()
+    } catch (error) {
+      finalState = 'failed'
+      status.error = error instanceof Error ? error.message : String(error)
+    }
+    status.state = finalState
     status.phase = 'idle'
+    reportProgress()
   }
 }
 
-port.on('message', (request: ScannerRequest) => {
+port.on('message', async (request: ScannerRequest) => {
   try {
     let result: ScanStatus | ScanResults
     switch (request.method) {
@@ -145,7 +181,12 @@ port.on('message', (request: ScannerRequest) => {
         }
         // Reply immediately; awaiting the full scan would make start() a wait
         // for completion instead of an acknowledgement.
-        void scan(request.root)
+        activeScan = scan(request.root)
+        result = status
+        break
+      case 'shutdown':
+        cancelled = true
+        await activeScan
         result = status
         break
       case 'status':

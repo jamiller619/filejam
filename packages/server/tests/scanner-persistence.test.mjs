@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -51,6 +51,8 @@ test('persists parents and metadata incrementally, repairs cache hits, and remov
     const file = rows.find((row) => row.relativePath === 'nested/0.txt')
     assert.equal(file.parentId, parent.id)
     assert.equal(file.size, 5)
+    const metadata = await stat(join(root, 'nested', '0.txt'))
+    assert.equal(file.modifiedAt.getTime(), metadata.mtime.getTime())
     assert.equal(parent.childrenDirty, false)
     assert.ok(parent.childrenScannedAt)
     await connection.db.delete(entries)
