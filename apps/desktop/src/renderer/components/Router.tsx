@@ -15,6 +15,8 @@ const Collection = lazyRoute(
 
 const Home = lazyRoute('/', () => import('~/pages/Home.jsx'))
 
+const Settings = lazyRoute('/settings', () => import('~/pages/Settings.js'))
+
 export default function Router() {
   return (
     <Routes>
@@ -30,6 +32,7 @@ export default function Router() {
             element={<Navigate to="/collections/favorites" replace />}
           />
           <Route path={Home.path} element={<Home.Component />} />
+          <Route path={Settings.path} element={<Settings.Component />} />
           <Route path={Library.path} element={<Library.Component />} />
         </Route>
       </Route>

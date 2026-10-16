@@ -4,12 +4,16 @@ import { NavLink } from 'react-router-dom'
 import { useConfig } from '~/hooks/useConfig.js'
 import { useCollections } from '../hooks/useCollections.js'
 import { useLibraries } from '../hooks/useLibraries.js'
+import { folderUrl } from '../utils/folderUrl.js'
 import { getLibraryIcon } from '../utils/libraryIcon.js'
 
 const styles = css`
   .navbar {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: 0;
     padding: var(--suzy-space-2);
     border-radius: var(--suzy-radius-3);
 
@@ -19,7 +23,8 @@ const styles = css`
 
     ol {
       display: flex;
-      flex: 1 0 auto;
+      flex: 1 1 auto;
+      min-height: 0;
       flex-direction: column;
       gap: var(--suzy-space-1);
       list-style: none;
@@ -63,16 +68,28 @@ export default function Navbar() {
     (item) => !['recents', 'favorites'].includes(item.id),
   )
 
-  const {
-    values,
-  } = useConfig(['user.favoriteLibraries'])
-  const favoriteLibraryIds = values?.['user.favoriteLibraries'] ?? []
-  const favoriteLibraryIdSet = new Set(favoriteLibraryIds)
-  const favoriteLibraries = favoriteLibraryIds
-    .map((id) => libraries.find((library) => library.id === id))
-    .filter((library) => library !== undefined)
+  const { values } = useConfig(['user.favoriteFolders'])
+  const favoritePaths = values?.['user.favoriteFolders'] ?? []
+  const favoriteFolders = favoritePaths.flatMap((path) => {
+    const library = libraries.find((item) => {
+      const root = item.rootPath.replace(/[\\/]+$/, '')
+      return (
+        path === item.rootPath ||
+        path.startsWith(`${root}/`) ||
+        path.startsWith(`${root}\\`)
+      )
+    })
+    if (!library) return []
+    const root = library.rootPath.replace(/[\\/]+$/, '')
+    const relativePath = path
+      .slice(root.length)
+      .replace(/^[\\/]+/, '')
+      .replaceAll('\\', '/')
+    return [{ path, library, relativePath }]
+  })
+  const favoritePathSet = new Set(favoritePaths)
   const otherLibraries = libraries.filter(
-    (library) => !favoriteLibraryIdSet.has(library.id),
+    (library) => !favoritePathSet.has(library.rootPath),
   )
 
   return (
@@ -87,11 +104,19 @@ export default function Navbar() {
         <li>
           <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
         </li>
-        {favoriteLibraries.map((library) => (
-          <li key={library.id}>
-            <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>
-              <Icon name={getLibraryIcon(library.name)} size="20" />
-              <span>{library.name}</span>
+        {favoriteFolders.map(({ path, library, relativePath }) => (
+          <li key={path}>
+            <NavLink
+              to={folderUrl({ libraryId: library.id, relativePath })}
+              title={path}
+            >
+              <Icon
+                name={relativePath ? 'folder' : getLibraryIcon(library.name)}
+                size="20"
+              />
+              <span>
+                {relativePath.split('/').filter(Boolean).at(-1) ?? library.name}
+              </span>
             </NavLink>
           </li>
         ))}

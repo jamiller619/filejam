@@ -40,7 +40,7 @@
     "appdata.cachePath",
     "appdata.cacheQuota",
     "appdata.logsPath",
-    "user.favoriteLibraries"
+    "user.favoriteFolders"
   ],
   "properties": {
     "app.locale": {
@@ -92,16 +92,15 @@
       "type": "string",
       "description": "The file system path where application logs are stored."
     },
-    "user.favoriteLibraries": {
-      "title": "Favorite Libraries",
+    "user.favoriteFolders": {
+      "title": "Favorite Folders",
       "type": "array",
       "items": {
-        "type": "integer",
-        "minimum": 1
+        "type": "string"
       },
-      "uniqueItems": true,
       "default": [],
-      "description": "The IDs of the user's favorite libraries."
+      "uniqueItems": true,
+      "description": "The absolute paths of the user's favorite folders."
     }
   }
 }

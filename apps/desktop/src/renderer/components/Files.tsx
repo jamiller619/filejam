@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
+import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import {
   type FileColumn,
@@ -55,8 +56,21 @@ export type FilesProps = {
 }
 
 const styles = css`
-  .toolbar { display: flex; justify-content: flex-end; }
+  .toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
+  }
   .columnSetting {
+    display: flex;
+    min-height: 36px;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--suzy-space-3);
+    padding-inline: var(--suzy-space-2);
+    white-space: nowrap;
+  }
+  .favoriteSetting {
     display: flex;
     min-height: 36px;
     align-items: center;
@@ -207,12 +221,21 @@ function FolderContents({
   const api = useApi()
   const detailsPane = useDetailsPane()
   const { libraries, loadFailed: librariesFailed } = useLibraries()
+  const { values: configValues, loading: configLoading, updateConfig } = useConfig(['user.favoriteFolders'])
   const libraryRoots = useMemo(
     () => new Map(libraries.map((library) => [library.id, library.rootPath])),
     [libraries],
   )
   const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
+  const rootPath = libraryId === undefined ? undefined : libraryRoots.get(libraryId)
+  const separator = rootPath?.includes('\\') ? '\\' : '/'
+  const currentFolderPath = rootPath
+    ? `${rootPath.replace(/[\\/]+$/, '')}${relativePath ? `${separator}${relativePath.replaceAll('/', separator)}` : ''}`
+    : undefined
+  const favoritePaths = Array.isArray(configValues?.['user.favoriteFolders'])
+    ? configValues['user.favoriteFolders'].filter((path): path is string => typeof path === 'string')
+    : []
   const [preferences, setPreferences] = useState(() =>
     readTablePreferences(preferencesKey),
   )
@@ -223,6 +246,8 @@ function FolderContents({
   }, [preferencesKey, preferences])
 
   const [viewError, setViewError] = useState('')
+  const [favoriteError, setFavoriteError] = useState('')
+  const [favoriteBusy, setFavoriteBusy] = useState(false)
   const tableColumns = useMemo(
     () =>
       [
@@ -318,9 +343,31 @@ function FolderContents({
   return (
     <div>
       {viewError && <p role="alert">{viewError}</p>}
+      {favoriteError && <p role="alert">{favoriteError}</p>}
       {librariesFailed && <p role="status">Unable to load full file paths.</p>}
       <div className={styles.toolbar}>
         <Menu label="More options" trigger={<Icon name="ellipsis" size={20} />}>
+          {currentFolderPath && !collectionId && !configLoading && (
+            <div className={styles.favoriteSetting}>
+              <span>Favorite</span>
+              <Switch
+                aria-label="Favorite"
+                checked={favoritePaths.includes(currentFolderPath)}
+                disabled={favoriteBusy}
+                onCheckedChange={(checked) => {
+                  if (favoriteBusy) return
+                  setFavoriteBusy(true)
+                  setFavoriteError('')
+                  const updatedPaths = checked
+                    ? [...favoritePaths, currentFolderPath]
+                    : favoritePaths.filter((path) => path !== currentFolderPath)
+                  void updateConfig('user.favoriteFolders', updatedPaths)
+                    .catch(() => setFavoriteError('Unable to update favorites.'))
+                    .finally(() => setFavoriteBusy(false))
+                }}
+              />
+            </div>
+          )}
           <MenuSubmenu label="Columns">
             {table.getAllLeafColumns().map((column) => (
               // biome-ignore lint/a11y/noLabelWithoutControl: the switch is the input

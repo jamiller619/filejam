@@ -28,7 +28,7 @@ export async function initializeDefaultLibraries(
     .select()
     .from(initialization)
     .where(eq(initialization.key, key))
-  if (completed.length) return
+  if (completed.length) return false
 
   const defaults: (typeof libraries.$inferInsert)[] = []
   for (const folder of Object.keys(defaultFolders) as DefaultFolder[]) {
@@ -51,4 +51,5 @@ export async function initializeDefaultLibraries(
     // Commit the marker with the libraries, including when none are available.
     await tx.insert(initialization).values({ key }).onConflictDoNothing()
   })
+  return true
 }

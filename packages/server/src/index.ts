@@ -40,11 +40,20 @@ async function start(options: { resolveDefaultFolder?: ResolveDefaultFolder }) {
 
     database = await initDatabase(databasePath)
     const api = createApi(database.db, config)
+    let firstStart = false
     if (options.resolveDefaultFolder) {
-      await api.libraries.initializeDefaults(
+      firstStart = await api.libraries.initializeDefaults(
         options.resolveDefaultFolder,
         (message, error) => logger.warn(message, error),
       )
+    }
+    if (firstStart && config.get('user.favoriteFolders').length === 0) {
+      const favorites = (await api.libraries.list())
+        .filter((library) =>
+          ['desktop', 'downloads'].includes(library.name.toLowerCase()),
+        )
+        .map((library) => library.rootPath)
+      await config.set('user.favoriteFolders', favorites)
     }
     scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
 

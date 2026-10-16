@@ -18,25 +18,25 @@ test('config API reads, validates, and persists config values', async () => {
     'appdata.cachePath': join(directory, 'cache'),
     'appdata.cacheQuota': 0,
     'appdata.logsPath': join(directory, 'logs'),
-    'user.favoriteLibraries': [],
+    'user.favoriteFolders': [],
   })
   const config = createConfigApi(store)
 
   try {
-    assert.deepEqual(await config.get('user.favoriteLibraries'), [])
+    assert.deepEqual(await config.get('user.favoriteFolders'), [])
 
-    await config.set('user.favoriteLibraries', [2, 5])
-    assert.deepEqual(await config.get('user.favoriteLibraries'), [2, 5])
+    await config.set('user.favoriteFolders', [2, 5])
+    assert.deepEqual(await config.get('user.favoriteFolders'), [2, 5])
     assert.deepEqual(
-      JSON.parse(await readFile(file, 'utf8'))['user.favoriteLibraries'],
+      JSON.parse(await readFile(file, 'utf8'))['user.favoriteFolders'],
       [2, 5],
     )
 
     await assert.rejects(
-      config.set('user.favoriteLibraries', [2, 2]),
+      config.set('user.favoriteFolders', [2, 2]),
       /Invalid config value/,
     )
-    assert.deepEqual(await config.get('user.favoriteLibraries'), [2, 5])
+    assert.deepEqual(await config.get('user.favoriteFolders'), [2, 5])
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

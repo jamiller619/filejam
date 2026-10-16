@@ -8,48 +8,48 @@
 /**
  * A [BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag#List_of_major_primary_language_subtags) used throughout the application.
  */
-export type ApplicationLocale = string;
+export type ApplicationLocale = string
 /**
  * The level of detail recorded by the logger.
  */
-export type LoggingLevel = "debug" | "info" | "warn" | "error";
+export type LoggingLevel = 'debug' | 'info' | 'warn' | 'error'
 /**
  * The number of days to retain log files.
  */
-export type LoggingRetentionDays = number;
+export type LoggingRetentionDays = number
 /**
  * The file system path where application data is stored. This makes Xon highly portable across systems.
  */
-export type ApplicationDataPath = string;
+export type ApplicationDataPath = string
 /**
  * The file system path where application databases are stored.
  */
-export type ApplicationDatabasePath = string;
+export type ApplicationDatabasePath = string
 /**
  * The file system path where application cache is stored.
  */
-export type ApplicationCachePath = string;
+export type ApplicationCachePath = string
 /**
  * The amount of local disk space to use for storing cache files.
  */
-export type ApplicationCacheQuota = number;
+export type ApplicationCacheQuota = number
 /**
  * The file system path where application logs are stored.
  */
-export type ApplicationLogsPath = string;
+export type ApplicationLogsPath = string
 /**
- * The IDs of the user's favorite libraries.
+ * The absolute paths of the user's favorite folders.
  */
-export type FavoriteLibraries = number[];
+export type FavoriteLibraries = string[]
 
 export interface FilesAppConfigSchema {
-  "app.locale": ApplicationLocale;
-  "log.level": LoggingLevel;
-  "log.retentionDays": LoggingRetentionDays;
-  "appdata.path": ApplicationDataPath;
-  "appdata.dbPath": ApplicationDatabasePath;
-  "appdata.cachePath": ApplicationCachePath;
-  "appdata.cacheQuota": ApplicationCacheQuota;
-  "appdata.logsPath": ApplicationLogsPath;
-  "user.favoriteLibraries": FavoriteLibraries;
+  'app.locale': ApplicationLocale
+  'log.level': LoggingLevel
+  'log.retentionDays': LoggingRetentionDays
+  'appdata.path': ApplicationDataPath
+  'appdata.dbPath': ApplicationDatabasePath
+  'appdata.cachePath': ApplicationCachePath
+  'appdata.cacheQuota': ApplicationCacheQuota
+  'appdata.logsPath': ApplicationLogsPath
+  'user.favoriteFolders': FavoriteLibraries
 }
