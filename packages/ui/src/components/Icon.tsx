@@ -142,6 +142,12 @@ const icons = {
       fill="currentColor"
     />
   ),
+  ellipsis: (
+    <path
+      d="M5 12a1.75 1.75 0 1 0 0-3.5A1.75 1.75 0 0 0 5 12Zm7 0a1.75 1.75 0 1 0 0-3.5A1.75 1.75 0 0 0 12 12Zm7 0a1.75 1.75 0 1 0 0-3.5A1.75 1.75 0 0 0 19 12Z"
+      fill="currentColor"
+    />
+  ),
 } as const
 
 export type IconName = keyof typeof icons

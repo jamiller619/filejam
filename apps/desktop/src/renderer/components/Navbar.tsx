@@ -66,6 +66,14 @@ export default function Navbar() {
   const {
     values,
   } = useConfig(['user.favoriteLibraries'])
+  const favoriteLibraryIds = values?.['user.favoriteLibraries'] ?? []
+  const favoriteLibraryIdSet = new Set(favoriteLibraryIds)
+  const favoriteLibraries = favoriteLibraryIds
+    .map((id) => libraries.find((library) => library.id === id))
+    .filter((library) => library !== undefined)
+  const otherLibraries = libraries.filter(
+    (library) => !favoriteLibraryIdSet.has(library.id),
+  )
 
   return (
     <nav className={styles.navbar}>
@@ -79,15 +87,18 @@ export default function Navbar() {
         <li>
           <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
         </li>
-        {values?.['user.favoriteLibraries'].map((library) => (
-          <li key={library}>
-
+        {favoriteLibraries.map((library) => (
+          <li key={library.id}>
+            <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>
+              <Icon name={getLibraryIcon(library.name)} size="20" />
+              <span>{library.name}</span>
+            </NavLink>
           </li>
         ))}
         <li>
           <Eyebrow className={styles.eyebrow}>Libraries</Eyebrow>
         </li>
-        {libraries.map((library) => (
+        {otherLibraries.map((library) => (
           <li key={library.id}>
             <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>
               <Icon name={getLibraryIcon(library.name)} size="20" />

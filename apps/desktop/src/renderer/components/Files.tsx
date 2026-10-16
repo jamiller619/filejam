@@ -1,4 +1,10 @@
-import { Surface } from '@files/ui'
+import {
+  Icon,
+  Menu,
+  MenuSubmenu,
+  Surface,
+  Switch,
+} from '@files/ui'
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -49,21 +55,15 @@ export type FilesProps = {
 }
 
 const styles = css`
-  .columns {
-    margin-block-end: var(--suzy-space-2);
-    summary {
-      cursor: pointer;
-    }
-    fieldset {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--suzy-space-3);
-    }
-    label {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--suzy-space-1);
-    }
+  .toolbar { display: flex; justify-content: flex-end; }
+  .columnSetting {
+    display: flex;
+    min-height: 36px;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--suzy-space-3);
+    padding-inline: var(--suzy-space-2);
+    white-space: nowrap;
   }
   .scroll {
     padding-inline: var(--suzy-space-2);
@@ -319,23 +319,25 @@ function FolderContents({
     <div>
       {viewError && <p role="alert">{viewError}</p>}
       {librariesFailed && <p role="status">Unable to load full file paths.</p>}
-      <details className={styles.columns}>
-        <summary>Columns</summary>
-        <fieldset>
-          <legend>Visible columns</legend>
-          {table.getAllLeafColumns().map((column) => (
-            <label key={column.id}>
-              <input
-                type="checkbox"
-                disabled={column.id === 'name'}
-                checked={column.getIsVisible()}
-                onChange={column.getToggleVisibilityHandler()}
-              />
-              {fileColumnLabels[column.id as FileColumn]}
-            </label>
-          ))}
-        </fieldset>
-      </details>
+      <div className={styles.toolbar}>
+        <Menu label="More options" trigger={<Icon name="ellipsis" size={20} />}>
+          <MenuSubmenu label="Columns">
+            {table.getAllLeafColumns().map((column) => (
+              // biome-ignore lint/a11y/noLabelWithoutControl: the switch is the input
+              <label key={column.id} className={styles.columnSetting}>
+                <span>{fileColumnLabels[column.id as FileColumn]}</span>
+                <Switch
+                  disabled={column.id === 'name'}
+                  checked={column.getIsVisible()}
+                  onCheckedChange={(checked) =>
+                    column.toggleVisibility(checked)
+                  }
+                />
+              </label>
+            ))}
+          </MenuSubmenu>
+        </Menu>
+      </div>
       {!listing.scanned && (
         <p role="status">
           This folder has not finished scanning. Files may be missing.
