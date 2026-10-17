@@ -8,13 +8,14 @@ import { FileScanner } from './scanner/index.js'
 
 // Keep the startup promise so callers also share initialization while it is in flight.
 let running: ReturnType<typeof start> | undefined
+type BootOptions = { resolveDefaultFolder?: ResolveDefaultFolder; trashRoots?: string[] }
 
 export type { Library, ServerApi } from './api/index.js'
 export type { Config, ConfigKey } from './config/config.js'
 
 /** Initialize the server once; concurrent callers share the same instance. */
 export function boot(
-  options: { resolveDefaultFolder?: ResolveDefaultFolder } = {},
+  options: BootOptions = {},
 ) {
   running ??= start(options).catch((error: unknown) => {
     // A failed boot must not prevent a later retry.
@@ -25,7 +26,7 @@ export function boot(
   return running
 }
 
-async function start(options: { resolveDefaultFolder?: ResolveDefaultFolder }) {
+async function start(options: BootOptions) {
   const config = await initConfig()
 
   await initLogger(config)
@@ -55,6 +56,7 @@ async function start(options: { resolveDefaultFolder?: ResolveDefaultFolder }) {
         .map((library) => library.rootPath)
       await config.set('user.favoriteFolders', favorites)
     }
+    await api.libraries.ensureTrashRoots(options.trashRoots ?? [])
     scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
 
     // A round trip confirms the worker loaded before exposing the server.

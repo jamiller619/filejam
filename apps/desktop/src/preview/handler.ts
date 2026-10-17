@@ -17,7 +17,7 @@ export function createPreviewHandler(
     try {
       const source = await entries.getFileSource(Number(url.pathname.slice(1)))
       if (!source) return new Response(null, { status: 404 })
-      const mimeType = previewMimeType(source.relativePath)
+      const mimeType = previewMimeType(source.name || source.relativePath)
       if (!mimeType) return new Response(null, { status: 415 })
       const root = await realpath(source.rootPath)
       const file = await realpath(resolve(root, source.relativePath))

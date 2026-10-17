@@ -1,5 +1,7 @@
 import { Eyebrow, Icon } from '@files/ui'
+import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
+import type { HTMLAttributes } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useConfig } from '~/hooks/useConfig.js'
 import { useCollections } from '../hooks/useCollections.js'
@@ -15,7 +17,6 @@ const styles = css`
     height: 100%;
     min-height: 0;
     padding: var(--suzy-space-2);
-    border-radius: var(--suzy-radius-3);
 
     .eyebrow {
       margin-block-start: var(--suzy-space-3);
@@ -28,19 +29,20 @@ const styles = css`
       flex-direction: column;
       gap: var(--suzy-space-1);
       list-style: none;
-      margin: 0;
+      margin: var(--suzy-space-6) 0 0;
       padding: 0;
+
       a {
         display: flex;
         align-items: center;
         text-decoration: none;
         gap: var(--suzy-space-2);
-        color: var(--suzy-gray-11);
+        color: var(--suzy-gray-12);
         line-height: 0;
         padding: var(--suzy-space-1) var(--suzy-space-2);
 
         &:hover {
-          background: var(--suzy-gray-5);
+          background: var(--suzy-gray-7);
           color: var(--suzy-gray-12);
           border-radius: var(--suzy-radius-2);
         }
@@ -59,7 +61,7 @@ const styles = css`
   }
 `
 
-export default function Navbar() {
+export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   const { libraries, loadFailed } = useLibraries()
 
   const { collections: allCollections, loadFailed: collectionsFailed } =
@@ -72,6 +74,7 @@ export default function Navbar() {
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
   const favoriteFolders = favoritePaths.flatMap((path) => {
     const library = libraries.find((item) => {
+      if (item.isTrash) return false
       const root = item.rootPath.replace(/[\\/]+$/, '')
       return (
         path === item.rootPath ||
@@ -89,11 +92,11 @@ export default function Navbar() {
   })
   const favoritePathSet = new Set(favoritePaths)
   const otherLibraries = libraries.filter(
-    (library) => !favoritePathSet.has(library.rootPath),
+    (library) => !library.isTrash && !favoritePathSet.has(library.rootPath),
   )
 
   return (
-    <nav className={styles.navbar}>
+    <nav {...props} className={clsx(styles.navbar, props.className)}>
       <ol>
         <li>
           <NavLink to="/" end title="Home">
@@ -134,12 +137,14 @@ export default function Navbar() {
           </li>
         ))}
         {loadFailed && <li role="status">Unable to load folders.</li>}
-        <li>
-          <NavLink to="/trash" title="Trash">
-            <Icon name="trash" size="20" />
-            <span>Trash</span>
-          </NavLink>
-        </li>
+        {libraries.filter((library) => library.isTrash).map((library) => (
+          <li key={library.id}>
+            <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>
+              <Icon name="trash" size="20" />
+              <span>{library.name}</span>
+            </NavLink>
+          </li>
+        ))}
         <li>
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
 import { fdir } from 'fdir'
@@ -78,6 +78,7 @@ async function scan(input: string) {
       .filter(
         (path) =>
           !isIgnoredScanPath(path) &&
+          !isTrashMetadata(root, path) &&
           ![
             databasePath,
             `${databasePath}-wal`,
@@ -89,6 +90,7 @@ async function scan(input: string) {
         const rel = relative(cacheDirectory, resolve(path))
         return (
           isIgnoredScanPath(name) ||
+          isTrashMetadata(root, path) ||
           rel === '' ||
           (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel))
         )
@@ -187,6 +189,15 @@ async function scan(input: string) {
     status.phase = 'idle'
     reportProgress()
   }
+}
+
+function isTrashMetadata(root: string, path: string) {
+  if (
+    process.platform !== 'win32' ||
+    basename(resolve(root, '..')).toLowerCase() !== '$recycle.bin'
+  ) return false
+  const relativePath = relative(root, path)
+  return !relativePath.includes(sep) && basename(path).startsWith('$I')
 }
 
 port.on('message', async (request: ScannerRequest) => {

@@ -80,7 +80,7 @@ const styles = css`
     white-space: nowrap;
   }
   .scroll {
-    padding-inline: var(--suzy-space-2);
+    margin-inline: calc(0px - var(--suzy-space-2));
     padding-block-end: var(--suzy-space-2);
     border-radius: var(--suzy-radius-4);
   }
@@ -90,14 +90,17 @@ const styles = css`
     border-collapse: separate;
     border-spacing: 0;
     text-align: left;
+
     th, td {
       vertical-align: middle;
     }
+
     .emptyState {
       padding: var(--suzy-space-6) var(--suzy-space-3);
       text-align: center;
       font-size: 1.125em;
     }
+
     th {
       font-weight: 400;
       white-space: nowrap;

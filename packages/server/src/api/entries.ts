@@ -14,6 +14,7 @@ export function createEntriesApi(db: Database) {
         .select({
           rootPath: libraries.rootPath,
           relativePath: entries.relativePath,
+          name: entries.name,
         })
         .from(entries)
         .innerJoin(libraries, eq(entries.libraryId, libraries.id))

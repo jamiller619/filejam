@@ -34,6 +34,7 @@ const styles = css`
 
 export default function Home() {
   const { libraries, loadFailed } = useLibraries()
+  const userLibraries = libraries.filter((library) => !library.isTrash)
 
   return (
     <Page title="Home">
@@ -41,7 +42,7 @@ export default function Home() {
         <Eyebrow>Libraries</Eyebrow>
         {loadFailed && <p role="status">Unable to load folders.</p>}
         <div className={styles.libraries}>
-          {libraries.map((library) => (
+          {userLibraries.map((library) => (
             <Link
               key={library.id}
               to={`/libraries/${library.id}`}
@@ -60,8 +61,8 @@ export default function Home() {
       </section>
       <section className={styles.section}>
         <Eyebrow>Files</Eyebrow>
-        {libraries[0] ? (
-          <Files folder={{ libraryId: libraries[0].id, relativePath: '' }} />
+        {userLibraries[0] ? (
+          <Files folder={{ libraryId: userLibraries[0].id, relativePath: '' }} />
         ) : !loadFailed ? (
           <p role="status">No folder available.</p>
         ) : null}

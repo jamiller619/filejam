@@ -42,15 +42,20 @@ type Entry = {
 export default function FilePreview({
   entry,
   size = 40,
+  allowPreview = true,
 }: {
   entry: Entry
   size?: number | '100%'
+  allowPreview?: boolean
 }) {
   const source = `files-preview://file/${entry.id}?v=${encodeURIComponent(String(entry.modifiedAt))}`
   const [loaded, setLoaded] = useState<string | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const showImage =
-    entry.kind === 'file' && previewMimeType(entry.name) && failed !== source
+    allowPreview &&
+    entry.kind === 'file' &&
+    previewMimeType(entry.name) &&
+    failed !== source
 
   return (
     <span

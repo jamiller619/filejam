@@ -5,6 +5,7 @@ import { registerApiIpc } from './api/main.js'
 import { registerWindowIpc } from './ipc/window.js'
 import { createPreviewHandler } from './preview/handler.js'
 import { registerScannerIpc } from './scanner/main.js'
+import { getOsTrashRoots } from './trash/roots.js'
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'files-preview', privileges: { standard: true, secure: true } },
@@ -42,7 +43,7 @@ async function createWindow() {
       color: '#00000000',
       height: 36,
     },
-    backgroundMaterial: 'mica',
+    backgroundMaterial: 'acrylic',
     vibrancy: 'window',
     visualEffectState: 'followWindow',
     roundedCorners: true,
@@ -149,6 +150,7 @@ if (!app.requestSingleInstanceLock()) {
     if (quitting) return
     server = await boot({
       resolveDefaultFolder: (folder) => app.getPath(folder),
+      trashRoots: await getOsTrashRoots(),
     })
     protocol.handle(
       'files-preview',

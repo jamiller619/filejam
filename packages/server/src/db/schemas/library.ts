@@ -6,6 +6,7 @@ export const libraries = sqliteTable('libraries', {
 
   // Absolute filesystem path to the library directory.
   rootPath: text('root_path').notNull().unique(),
+  isTrash: integer('is_trash', { mode: 'boolean' }).notNull().default(false),
 })
 
 export type Library = typeof libraries.$inferSelect
