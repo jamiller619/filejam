@@ -1,3 +1,4 @@
+import type { Stats } from 'node:fs'
 import { lstat } from 'node:fs/promises'
 import { extname } from 'node:path'
 import { ExifTool } from 'exiftool-vendored'
@@ -53,7 +54,7 @@ export function createTagReader() {
   let unavailable: string | undefined
   return {
     // Batch native property lookups so Windows does not launch PowerShell per file.
-    async prepare(paths: string[]) {
+    async prepare(paths: string[], metadata?: ReadonlyMap<string, Stats>) {
       if (unavailable) {
         const error = unavailable
         osResults = Object.fromEntries(paths.map((path) => [path, { error }]))
@@ -62,7 +63,9 @@ export function createTagReader() {
       try {
         const candidates = await Promise.all(
           paths.map(async (path) =>
-            (await lstat(path)).isSymbolicLink() ? null : path,
+            (metadata?.get(path) ?? (await lstat(path))).isSymbolicLink()
+              ? null
+              : path,
           ),
         )
         osResults = await readOsTags(candidates.filter((path) => path !== null))
@@ -78,11 +81,16 @@ export function createTagReader() {
     async read(
       path: string,
       kind: 'file' | 'directory' | 'symlink',
+      metadata?: Stats,
     ): Promise<ImportedTags> {
       // Do not follow links to read metadata outside the indexed tree.
       if (kind === 'symlink')
         return { osTags: [], embeddedTags: [], tagReadError: null }
-      if (!osResults[path]) await this.prepare([path])
+      if (!osResults[path])
+        await this.prepare(
+          [path],
+          metadata ? new Map([[path, metadata]]) : undefined,
+        )
       const os = osResults[path]
       delete osResults[path]
       const result: ImportedTags = { tagReadError: null }

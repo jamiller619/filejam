@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto'
-import { lstat, realpath, stat } from 'node:fs/promises'
+import type { Stats } from 'node:fs'
+import { lstat, realpath } from 'node:fs/promises'
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
 import { fdir } from 'fdir'
-import { create } from 'file-entry-cache'
+import { create, type FileDescriptorMeta } from 'file-entry-cache'
 import { isIgnoredScanPath } from './ignore.js'
 import { openScanDatabase } from './persistence.js'
 import type {
@@ -58,7 +59,8 @@ async function scan(input: string) {
   try {
     // Canonicalize aliases so the same directory shares a library and cache key.
     const root = await realpath(input)
-    if (!(await stat(root)).isDirectory())
+    const rootMetadata = await lstat(root)
+    if (!rootMetadata.isDirectory())
       throw new Error('Scan root must be a directory')
     status.root = root
     const databasePath = resolve(workerData.databasePath as string)
@@ -115,34 +117,42 @@ async function scan(input: string) {
       if (index % 100 === 0) await setImmediate()
       if (cancelled) break
       const batch = orderedPaths.slice(index, index + 64)
+      const metadataByPath = new Map<string, Stats>()
       const savePaths: string[] = []
       const changes = new Map<string, 'added' | 'changed' | 'unchanged'>()
       for (const path of batch) {
         if (cancelled) break
+        const metadata = path === root ? rootMetadata : await lstat(path)
+        metadataByPath.set(path, metadata)
         const key = relative(root, path)
+        // Reuse the lstat snapshot instead of getFileDescriptor(), which stats
+        // again and follows symlinks. Keep the existing on-disk cache format.
+        const baseline = cache.cache.getKey<FileDescriptorMeta>(key)
+        if (metadata.isFile()) {
+          cache.cache.setKey(key, {
+            size: metadata.size,
+            mtime: metadata.mtime.getTime(),
+          })
+        } else if (previous.has(key)) {
+          cache.removeEntry(key)
+        }
         if (!previous.has(key)) {
-          // Record new files too, so the next watcher-triggered pass can reuse
-          // their metadata instead of treating them as new on every scan.
-          if ((await lstat(path)).isFile()) {
-            const descriptor = cache.getFileDescriptor(key)
-            if (descriptor.err) throw descriptor.err
-          }
           savePaths.push(path)
           changes.set(path, 'added')
           continue
         }
-        const descriptor = cache.getFileDescriptor(key)
-        if (descriptor.err) throw descriptor.err
-        if (descriptor.notFound)
-          throw new Error(`File disappeared during scan: ${path}`)
-        if (descriptor.changed) {
+        if (
+          !metadata.isFile() ||
+          baseline?.size !== metadata.size ||
+          baseline?.mtime !== metadata.mtime.getTime()
+        ) {
           savePaths.push(path)
           changes.set(path, 'changed')
           continue
         }
         // A cache hit is safe to skip only when its database row still exists.
         // This also repairs the database if it was cleared independently.
-        if (await database.skipUnchanged(path)) {
+        if (database.skipUnchanged(path, metadata)) {
           previous.delete(key)
           changes.set(path, 'unchanged')
           status.processed++
@@ -152,10 +162,10 @@ async function scan(input: string) {
         }
       }
       if (cancelled) break
-      await database.prepareTags(savePaths)
+      await database.prepareTags(savePaths, metadataByPath)
       for (const path of savePaths) {
         if (cancelled) break
-        const kind = await database.save(path)
+        const kind = await database.save(path, metadataByPath.get(path))
         if (kind === 'file') {
           const key = relative(root, path)
           const change = changes.get(path)
@@ -176,7 +186,9 @@ async function scan(input: string) {
       await database.complete()
       next.removed = [...previous]
       for (const key of previous) cache.removeEntry(key)
-      cache.reconcile()
+      // Traversal already identified missing entries; reconcile() would stat
+      // every cached file again. Publish only this successful pass's snapshot.
+      cache.cache.save()
       results = next
       finalState = 'completed'
     }

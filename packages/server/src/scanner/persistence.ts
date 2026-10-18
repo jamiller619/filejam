@@ -1,3 +1,4 @@
+import type { Stats } from 'node:fs'
 import { lstat, readFile } from 'node:fs/promises'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import mime from 'mime'
@@ -26,10 +27,10 @@ export async function openScanDatabase(databasePath: string, root: string) {
         connection.close()
         await tagReader.close()
       },
-      prepareTags: (paths: string[]) => tagReader.prepare(paths),
-      async skipUnchanged(path: string) {
+      prepareTags: (paths: string[], metadata?: ReadonlyMap<string, Stats>) =>
+        tagReader.prepare(paths, metadata),
+      skipUnchanged(path: string, metadata: Stats) {
         const key = pathKey(path)
-        const metadata = await lstat(path)
         const exists =
           persisted.has(key) &&
           !metadata.isDirectory() &&
@@ -37,9 +38,9 @@ export async function openScanDatabase(databasePath: string, root: string) {
         if (exists) unseen.delete(key)
         return exists
       },
-      async save(path: string) {
+      async save(path: string, snapshot?: Stats) {
         // lstat records the link itself rather than its target.
-        const metadata = await lstat(path)
+        const metadata = snapshot ?? (await lstat(path))
         const key = pathKey(path)
         const parentId =
           key === '' ? null : directories.get(pathKey(dirname(path)))
@@ -54,7 +55,7 @@ export async function openScanDatabase(databasePath: string, root: string) {
           ? await getTrashEntryName(root, path)
           : basename(path) || root
         const values = {
-          ...(await tagReader.read(path, kind)),
+          ...(await tagReader.read(path, kind, metadata)),
           libraryId: library.id,
           parentId,
           relativePath: key,
@@ -96,13 +97,17 @@ async function getTrashEntryName(root: string, path: string) {
     filename.length < 3 ||
     !filename.startsWith('$R') ||
     relative(root, path).includes(sep)
-  ) return filename || root
+  )
+    return filename || root
 
   try {
     const metadata = await readFile(join(root, `$I${filename.slice(2)}`))
     const version = metadata.readBigUInt64LE(0)
     const pathOffset = version === 2n ? 28 : 24
-    const originalPath = metadata.subarray(pathOffset).toString('utf16le').replace(/\0+$/, '')
+    const originalPath = metadata
+      .subarray(pathOffset)
+      .toString('utf16le')
+      .replace(/\0+$/, '')
     return basename(originalPath) || filename
   } catch {
     return filename
