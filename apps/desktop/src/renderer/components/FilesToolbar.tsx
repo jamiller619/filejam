@@ -80,11 +80,14 @@ export default function FilesToolbar<TData>({
                 disabled={favoriteBusy}
                 onCheckedChange={(checked) => {
                   if (favoriteBusy) return
+
                   setFavoriteBusy(true)
                   setFavoriteError('')
+
                   const updatedPaths = checked
                     ? [...favoritePaths, currentFolderPath]
                     : favoritePaths.filter((path) => path !== currentFolderPath)
+
                   void updateConfig('user.favoriteFolders', updatedPaths)
                     .catch(() => setFavoriteError('Unable to update favorites.'))
                     .finally(() => setFavoriteBusy(false))
@@ -100,7 +103,7 @@ export default function FilesToolbar<TData>({
                 <Switch
                   disabled={column.id === 'name'}
                   checked={column.getIsVisible()}
-                  onCheckedChange={(checked) => column.toggleVisibility(checked)}
+                  onCheckedChange={column.toggleVisibility}
                 />
               </label>
             ))}

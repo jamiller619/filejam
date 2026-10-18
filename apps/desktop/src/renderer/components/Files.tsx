@@ -54,6 +54,7 @@ const styles = css`
     padding-block-end: var(--suzy-space-2);
     border-radius: var(--suzy-radius-4);
   }
+
   .table {
     width: 100%;
     table-layout: fixed;
