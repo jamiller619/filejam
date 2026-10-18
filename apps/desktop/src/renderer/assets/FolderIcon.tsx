@@ -1,10 +1,12 @@
-import type { SVGProps } from 'react'
+import { type SVGProps, useId } from 'react'
 
 type FolderIconProps = SVGProps<SVGSVGElement> & {
   title?: string
 }
 
 export default function FolderIcon({ title, ...props }: FolderIconProps) {
+  const gradientId = useId()
+
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" {...props}>
       <title>{title}</title>
@@ -13,7 +15,7 @@ export default function FolderIcon({ title, ...props }: FolderIconProps) {
         style={{ fill: '#3499d1' }}
       />
       <linearGradient
-        id="a"
+        id={gradientId}
         gradientUnits="userSpaceOnUse"
         x1="128"
         y1="175.89"
@@ -26,7 +28,7 @@ export default function FolderIcon({ title, ...props }: FolderIconProps) {
       </linearGradient>
       <path
         d="M40 82h176c8.8 0 16 7.2 16 16v102c0 8.8-7.2 16-16 16H40c-8.8 0-16-7.2-16-16V98c0-8.8 7.2-16 16-16z"
-        style={{ fill: 'url(#a)' }}
+        style={{ fill: `url(#${gradientId})` }}
       />
       <path
         d="M25 98h0c0-8.3 6.7-15 15-15h176c8.3 0 15 6.7 15 15h0"

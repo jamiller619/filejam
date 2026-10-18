@@ -21,6 +21,7 @@ const styles = css`
     flex-wrap: wrap;
     gap: var(--suzy-space-2);
     justify-content: flex-end;
+    padding-block: var(--suzy-space-2);
     padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
   }
   /* .viewButton {

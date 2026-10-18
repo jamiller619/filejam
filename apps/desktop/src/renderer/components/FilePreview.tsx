@@ -1,10 +1,12 @@
 import { Icon } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useState } from 'react'
+import { type ComponentProps, useState } from 'react'
 import { previewMimeType } from '../../preview/formats.js'
+import FolderIcon from '../assets/FolderIcon.js'
 
 const styles = css`
   .preview {
+    position: relative;
     max-width: 100%;
     flex-shrink: 0;
     display: grid;
@@ -20,6 +22,22 @@ const styles = css`
       object-fit: contain;
       border-radius: var(--suzy-radius-2);
       box-shadow: 0 2px 8px #0000000d;
+    }
+
+    .folder {
+      grid-area: 1 / 1;
+      width: 100%;
+      height: 100%;
+    }
+
+    .folderOverlay {
+      position: absolute;
+      top: 56%;
+      left: 50%;
+      width: 40%;
+      height: 40%;
+      transform: translate(-50%, -50%);
+      color: var(--suzy-accent-6);
     }
 
     .icon {
@@ -43,10 +61,14 @@ export default function FilePreview({
   entry,
   size = 40,
   allowPreview = true,
+  variant = 'list',
+  icon,
 }: {
   entry: Entry
   size?: number | '100%'
   allowPreview?: boolean
+  variant?: 'list' | 'grid'
+  icon?: ComponentProps<typeof Icon>['name']
 }) {
   const source = `files-preview://file/${entry.id}?v=${encodeURIComponent(String(entry.modifiedAt))}`
   const [loaded, setLoaded] = useState<string | null>(null)
@@ -67,13 +89,20 @@ export default function FilePreview({
       }}
       aria-hidden="true"
     >
-      {(!showImage || loaded !== source) && (
-        <Icon
-          className={styles.icon}
-          data-kind={entry.kind}
-          name={entry.kind === 'directory' ? 'folder' : 'documents'}
-          size={typeof size === 'number' ? size / 2 : 100}
-        />
+      {variant === 'grid' && entry.kind === 'directory' ? (
+        <>
+          <FolderIcon className={styles.folder} />
+          {icon && <Icon className={styles.folderOverlay} name={icon} />}
+        </>
+      ) : (
+        (!showImage || loaded !== source) && (
+          <Icon
+            className={styles.icon}
+            data-kind={entry.kind}
+            name={icon ?? (entry.kind === 'directory' ? 'folder' : 'documents')}
+            size={typeof size === 'number' ? size / 2 : 100}
+          />
+        )
       )}
       {showImage && (
         <img

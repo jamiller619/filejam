@@ -28,6 +28,8 @@ import FileDetails from './FileDetails.js'
 import FilePreview from './FilePreview.js'
 import FilesToolbar from './FilesToolbar.js'
 import FileTags from './FileTags.js'
+import GridCard from './GridCard.js'
+import GridContainer from './GridContainer.js'
 
 export type { FileColumn } from '../utils/fileColumns.js'
 
@@ -50,43 +52,6 @@ export type FilesProps = {
 }
 
 const styles = css`
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
-    gap: var(--suzy-space-3);
-    padding: var(--suzy-space-2);
-    margin: 0;
-    list-style: none;
-  }
-  .card {
-    min-width: 0;
-    border-radius: var(--suzy-radius-4);
-    background: var(--suzy-gray-3);
-    &:hover, &:focus-within { background: var(--suzy-gray-4); }
-    &[data-selected='true'] { background: var(--suzy-accent-9); color: var(--suzy-accent-1); }
-  }
-  .cardAction {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--suzy-space-2);
-    width: 100%;
-    padding: var(--suzy-space-3);
-    border: 0;
-    border-radius: inherit;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-decoration: none;
-    cursor: pointer;
-    &:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
-  }
-  .cardName {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   .gridEmpty { padding: var(--suzy-space-6); text-align: center; }
   .scroll {
     padding-block-end: var(--suzy-space-2);
@@ -377,53 +342,42 @@ function FolderContents({
           This folder has not finished scanning. Files may be missing.
         </p>
       )}
-      <Surface className={styles.scroll}>
-        {viewMode === 'grid' ? (
-          listing.scanned && listing.entries.length === 0 ? (
+      {viewMode === 'grid' ? (
+        listing.scanned && listing.entries.length === 0 ? (
+          <Surface className={styles.scroll}>
             <p role="status" className={styles.gridEmpty}>
               No files to display.
             </p>
-          ) : (
-            <ul
-              className={styles.grid}
-              aria-label={collectionId ? 'Collection files' : 'Folder contents'}
-            >
-              {table.getRowModel().rows.map(({ original: entry }) => (
-                <li
-                  key={entry.id}
-                  className={styles.card}
-                  data-selected={entry.id === selectedId}
-                >
-                  {entry.kind === 'directory' ? (
-                    <Link
-                      className={styles.cardAction}
-                      title={entry.name}
-                      to={folderUrl({
+          </Surface>
+        ) : (
+          <GridContainer
+            aria-label={collectionId ? 'Collection files' : 'Folder contents'}
+          >
+            {table.getRowModel().rows.map(({ original: entry }) => (
+              <GridCard
+                key={entry.id}
+                name={entry.name}
+                selected={entry.id === selectedId}
+                {...(entry.kind === 'directory'
+                  ? {
+                      to: folderUrl({
                         libraryId: entry.libraryId,
                         relativePath: entry.relativePath,
-                      })}
-                    >
-                      <FilePreview entry={entry} size={120} />
-                      <span className={styles.cardName}>{entry.name}</span>
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.cardAction}
-                      title={entry.name}
-                      aria-label={`Show details for ${entry.name}`}
-                      aria-expanded={selectedId === entry.id}
-                      onClick={() => activateFile(entry.id)}
-                    >
-                      <FilePreview entry={entry} size={120} />
-                      <span className={styles.cardName}>{entry.name}</span>
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )
-        ) : (
+                      }),
+                    }
+                  : {
+                      onClick: () => activateFile(entry.id),
+                      'aria-label': `Show details for ${entry.name}`,
+                      'aria-expanded': selectedId === entry.id,
+                    })}
+              >
+                <FilePreview entry={entry} size={120} variant="grid" />
+              </GridCard>
+            ))}
+          </GridContainer>
+        )
+      ) : (
+        <Surface className={styles.scroll}>
           <table
             className={styles.table}
             aria-label={collectionId ? 'Collection files' : 'Folder contents'}
@@ -560,8 +514,8 @@ function FolderContents({
               })}
             </tbody>
           </table>
-        )}
-      </Surface>
+        </Surface>
+      )}
       {selectedFile &&
         detailsPane.host &&
         createPortal(
