@@ -7,6 +7,9 @@ export function registerScannerIpc(
   scanner: FileScanner,
   renderer: WebContents,
 ) {
+  const unsubscribe = scanner.onUpdated(() => {
+    if (!renderer.isDestroyed()) renderer.send('scanner:updated')
+  })
   const methods = ['start', 'status', 'results', 'cancel'] as const
   for (const method of methods) {
     ipcMain.handle(
@@ -22,6 +25,7 @@ export function registerScannerIpc(
     )
   }
   return () => {
+    unsubscribe()
     for (const method of methods) ipcMain.removeHandler(`scanner:${method}`)
   }
 }

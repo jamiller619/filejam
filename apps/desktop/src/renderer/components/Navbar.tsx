@@ -40,17 +40,17 @@ const styles = css`
         color: var(--suzy-gray-12);
         line-height: 0;
         padding: var(--suzy-space-1) var(--suzy-space-2);
+        border-radius: var(--suzy-radius-3);
+        corner-shape: var(--suzy-corner-shape);
 
         &:hover {
-          background: var(--suzy-gray-7);
+          background: lch(from var(--suzy-gray-11) l c h / 20%);
           color: var(--suzy-gray-12);
-          border-radius: var(--suzy-radius-2);
         }
 
         &[aria-current='page'] {
           background: var(--suzy-accent-9);
           color: var(--suzy-accent-1);
-          border-radius: var(--suzy-radius-2);
         }
       }
     }

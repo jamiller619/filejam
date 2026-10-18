@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { realpath, stat } from 'node:fs/promises'
+import { lstat, realpath, stat } from 'node:fs/promises'
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
@@ -121,6 +121,12 @@ async function scan(input: string) {
         if (cancelled) break
         const key = relative(root, path)
         if (!previous.has(key)) {
+          // Record new files too, so the next watcher-triggered pass can reuse
+          // their metadata instead of treating them as new on every scan.
+          if ((await lstat(path)).isFile()) {
+            const descriptor = cache.getFileDescriptor(key)
+            if (descriptor.err) throw descriptor.err
+          }
           savePaths.push(path)
           changes.set(path, 'added')
           continue
@@ -195,7 +201,8 @@ function isTrashMetadata(root: string, path: string) {
   if (
     process.platform !== 'win32' ||
     basename(resolve(root, '..')).toLowerCase() !== '$recycle.bin'
-  ) return false
+  )
+    return false
   const relativePath = relative(root, path)
   return !relativePath.includes(sep) && basename(path).startsWith('$I')
 }

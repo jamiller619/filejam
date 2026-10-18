@@ -1,6 +1,6 @@
-import { Icon, Pill, ScrollArea } from '@files/ui'
+import { Button, Icon, Pill, ScrollArea } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { FileColumn } from '../utils/fileColumns.js'
 import {
   fileColumnLabels,
@@ -29,7 +29,9 @@ const metadata: readonly FileColumn[] = [
 const styles = css`
   .panel {
     box-sizing: border-box;
-    width: 100%;
+    width: var(--details-width);
+    flex-shrink: 0;
+    pointer-events: auto;
     height: 100%;
     min-width: 0;
     display: flex;
@@ -37,11 +39,9 @@ const styles = css`
     overflow: hidden;
     background: var(--suzy-gray-4);
     color: var(--suzy-gray-12);
-    border-radius: var(--suzy-radius-3);
-    animation: reveal 160ms ease-out;
+    /* border-radius: var(--suzy-radius-3); */
 
     &[data-closing='true'] {
-      animation: dismiss 80ms ease-in forwards;
       pointer-events: none;
     }
 
@@ -69,14 +69,6 @@ const styles = css`
     .title {
       margin: 0;
       overflow-wrap: anywhere;
-    }
-
-    .close {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      padding: var(--suzy-space-2);
     }
     .preview {
       display: flex;
@@ -114,31 +106,6 @@ const styles = css`
       flex-wrap: wrap;
       gap: var(--suzy-space-2);
     }
-    @media (prefers-reduced-motion: reduce) {
-      &, &[data-closing='true'] {
-        animation-duration: 1ms;
-      }
-    }
-  }
-  @keyframes reveal {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  @keyframes dismiss {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
   }
 `
 
@@ -157,10 +124,60 @@ export default function FileDetails({
   onClosed: () => void
   onCollectionsChange: () => void
 }) {
+  const panel = useRef<HTMLElement>(null)
+  const closedCallback = useRef(onClosed)
+
+  useLayoutEffect(() => {
+    closedCallback.current = onClosed
+  }, [onClosed])
+
+  useLayoutEffect(() => {
+    const element = panel.current
+    const host = element?.parentElement
+    if (!element || !host) return
+
+    // One moving boundary controls both the content width and the pane position.
+    // The pane stays full-size and left-aligned inside the clipped host.
+    const from = host.getBoundingClientRect().width
+    const to = closing ? 0 : element.getBoundingClientRect().width
+
+    host.style.width = `${to}px`
+
+    const animation = host.animate(
+      [{ width: `${from}px` }, { width: `${to}px` }],
+      {
+        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 0
+          : 180,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      },
+    )
+
+    animation.onfinish = () => {
+      if (closing) closedCallback.current()
+    }
+
+    return () => {
+      host.style.width = `${host.getBoundingClientRect().width}px`
+
+      animation.onfinish = null
+      animation.cancel()
+    }
+  }, [closing])
+
+  useLayoutEffect(() => {
+    const host = panel.current?.parentElement
+    return () => {
+      if (host) host.style.width = '0px'
+    }
+  }, [])
+
   const closeButton = useRef<HTMLButtonElement>(null)
+
   useEffect(() => {
     const opener = document.activeElement
     closeButton.current?.focus()
+
     return () => {
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
     }
@@ -168,13 +185,16 @@ export default function FileDetails({
 
   useEffect(() => {
     if (closing) return
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
       }
     }
+
     document.addEventListener('keydown', handleKeyDown)
+
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
@@ -182,25 +202,22 @@ export default function FileDetails({
 
   return (
     <aside
+      ref={panel}
       className={styles.panel}
       data-closing={closing}
       inert={closing}
-      onAnimationEnd={(event) => {
-        if (closing && event.target === event.currentTarget) onClosed()
-      }}
       aria-label={`File details: ${entry.name}`}
     >
       <header className={styles.header}>
         <h4 className={styles.title}>{entry.name}</h4>
-        <button
+        <Button
           ref={closeButton}
-          className={styles.close}
-          type="button"
+          // className={styles.close}
           onClick={onClose}
           aria-label="Close file details"
         >
           <Icon name="close" size={16} />
-        </button>
+        </Button>
       </header>
       <div className={styles.content}>
         <ScrollArea>

@@ -8,7 +8,7 @@
     --suzy-control-height: 2rem;
     --suzy-control-padding-x: var(--suzy-space-2);
     --suzy-control-radius: var(--suzy-radius-2);
-    --suzy-corner-shape: round;
+    --suzy-corner-shape: squircle;
     --suzy-danger-9: #e5484d;
     --suzy-dialog-radius: var(--suzy-radius-4);
     --suzy-duration-fast: 100ms;

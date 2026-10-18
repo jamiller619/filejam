@@ -49,6 +49,32 @@ async function run() {
       'window.scanner.status()',
     )
     assert.equal(scanner.state, 'idle')
+    await window.webContents.executeJavaScript(`
+      window.scanUpdates = 0;
+      window.stopScanUpdates = window.scanner.onUpdated(() => window.scanUpdates++);
+      undefined
+    `)
+    window.webContents.send('scanner:updated')
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (
+        await window.webContents.executeJavaScript('window.scanUpdates === 1')
+      )
+        break
+      await delay(10)
+    }
+    assert.equal(
+      await window.webContents.executeJavaScript('window.scanUpdates'),
+      1,
+    )
+    await window.webContents.executeJavaScript(
+      'window.stopScanUpdates(); undefined',
+    )
+    window.webContents.send('scanner:updated')
+    await delay(50)
+    assert.equal(
+      await window.webContents.executeJavaScript('window.scanUpdates'),
+      1,
+    )
     const libraries = await window.webContents.executeJavaScript(
       'window.files.libraries.list()',
     )

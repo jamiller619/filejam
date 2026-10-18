@@ -6,16 +6,14 @@ import Toolbar from './Toolbar.js'
 
 const styles = css`
   .titlebar {
-    height: 36px;
     app-region: drag;
     user-select: none;
-    color: var(--suzy-text);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    padding-inline: max(90px, env(titlebar-area-x, 0px), calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100%)));
+    padding-inline: var(--suzy-space-2);
   }
 `
 

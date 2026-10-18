@@ -22,6 +22,8 @@ export class FileScanner implements ScannerApi {
   readonly #worker: Worker
   #sequence = 0
   #queuedRoots: string[] = []
+  #starting = false
+  readonly #listeners = new Set<() => void>()
   #failure: Error | undefined
   #closing: Promise<void> | undefined
   // Match responses to callers by ID; several status/result requests may be in flight.
@@ -39,6 +41,7 @@ export class FileScanner implements ScannerApi {
     })
     this.#worker.on('message', (message: ScannerResponse | ScanProgress) => {
       if ('type' in message) {
+        for (const listener of this.#listeners) listener()
         const { status, elapsedMs, entriesPerSecond, changes } = message
         const level = status.state === 'failed' ? 'error' : 'info'
         logger[level](
@@ -47,7 +50,12 @@ export class FileScanner implements ScannerApi {
             : `Scan ${status.state}`,
           { ...status, elapsedMs, entriesPerSecond, ...changes },
         )
-        if (status.state !== 'scanning') void this.#startNext()
+        if (status.state !== 'scanning') {
+          void this.#startNext().catch((error: unknown) => {
+            if (!this.#closing)
+              logger.error('Unable to advance scan queue', error)
+          })
+        }
         return
       }
       const pending = this.#pending.get(message.id)
@@ -105,14 +113,39 @@ export class FileScanner implements ScannerApi {
   }
 
   async #startNext(): Promise<void> {
-    const root = this.#queuedRoots.shift()
-    if (root === undefined || this.#failure) return
+    if (this.#starting || this.#closing) return
+    this.#starting = true
     try {
-      await this.start(root)
-    } catch (error) {
-      if (this.#failure) return
-      logger.error('Unable to start queued scan', { root }, error)
-      await this.#startNext()
+      if ((await this.status()).state === 'scanning') return
+      while (this.#queuedRoots.length && !this.#failure && !this.#closing) {
+        const root = this.#queuedRoots.shift()
+        if (root === undefined || this.#failure) return
+        try {
+          await this.start(root)
+          return
+        } catch (error) {
+          if (this.#failure) return
+          logger.error('Unable to start queued scan', { root }, error)
+        }
+      }
+    } finally {
+      this.#starting = false
+    }
+  }
+
+  /** Coalesce pending refreshes, retaining a follow-up for changes during a scan. */
+  enqueue(root: string) {
+    if (this.#closing || this.#failure) return
+    if (!this.#queuedRoots.includes(root)) this.#queuedRoots.push(root)
+    void this.#startNext().catch((error: unknown) => {
+      logger.error('Unable to queue scan', { root }, error)
+    })
+  }
+
+  onUpdated(listener: () => void) {
+    this.#listeners.add(listener)
+    return () => {
+      this.#listeners.delete(listener)
     }
   }
 

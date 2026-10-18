@@ -42,19 +42,27 @@ const files: FilesApi = {
 contextBridge.exposeInMainWorld('files', files)
 
 function exposeScannerApi() {
-  const scanner: ScannerApi = {
-    start: (root) => ipcRenderer.invoke('scanner:start', root),
-    status: () => ipcRenderer.invoke('scanner:status'),
-    results: () => ipcRenderer.invoke('scanner:results'),
-    cancel: () => ipcRenderer.invoke('scanner:cancel'),
-  }
+  const scanner: ScannerApi & { onUpdated(listener: () => void): () => void } =
+    {
+      onUpdated: (listener) => {
+        const handler = () => listener()
+        ipcRenderer.on('scanner:updated', handler)
+        return () => {
+          ipcRenderer.removeListener('scanner:updated', handler)
+        }
+      },
+      start: (root) => ipcRenderer.invoke('scanner:start', root),
+      status: () => ipcRenderer.invoke('scanner:status'),
+      results: () => ipcRenderer.invoke('scanner:results'),
+      cancel: () => ipcRenderer.invoke('scanner:cancel'),
+    }
   contextBridge.exposeInMainWorld('scanner', scanner)
 }
 
 declare global {
   interface Window {
     files: FilesApi
-    scanner: ScannerApi
+    scanner: ScannerApi & { onUpdated(listener: () => void): () => void }
   }
 }
 

@@ -5,18 +5,20 @@ import { initConfig } from './config/index.js'
 import { initDatabase } from './db/index.js'
 import { closeLogger, createLogger, initLogger } from './logger.js'
 import { FileScanner } from './scanner/index.js'
+import { watchLibraries } from './scanner/watch.js'
 
 // Keep the startup promise so callers also share initialization while it is in flight.
 let running: ReturnType<typeof start> | undefined
-type BootOptions = { resolveDefaultFolder?: ResolveDefaultFolder; trashRoots?: string[] }
+type BootOptions = {
+  resolveDefaultFolder?: ResolveDefaultFolder
+  trashRoots?: string[]
+}
 
 export type { Library, ServerApi } from './api/index.js'
 export type { Config, ConfigKey } from './config/config.js'
 
 /** Initialize the server once; concurrent callers share the same instance. */
-export function boot(
-  options: BootOptions = {},
-) {
+export function boot(options: BootOptions = {}) {
   running ??= start(options).catch((error: unknown) => {
     // A failed boot must not prevent a later retry.
     running = undefined
@@ -35,6 +37,7 @@ async function start(options: BootOptions) {
 
   let database: Awaited<ReturnType<typeof initDatabase>> | undefined
   let scanner: FileScanner | undefined
+  let stopWatching: (() => void) | undefined
 
   try {
     const databasePath = join(config.get('appdata.dbPath'), 'files.sqlite')
@@ -66,6 +69,16 @@ async function start(options: BootOptions) {
     // automatic scanning. A batch acknowledges its start without delaying boot
     // until indexing finishes, and the worker processes roots sequentially.
     const libraries = await api.libraries.list()
+    stopWatching = watchLibraries(
+      libraries.map((library) => library.rootPath),
+      scanner,
+      [
+        config.get('appdata.dbPath'),
+        config.get('appdata.cachePath'),
+        config.get('appdata.logsPath'),
+      ],
+      (message, error) => logger.warn(message, error),
+    )
     await scanner.startAll(libraries.map((library) => library.rootPath))
 
     logger.info('Server started', { queuedLibraries: libraries.length })
@@ -82,6 +95,7 @@ async function start(options: BootOptions) {
         // then flush the logger after the final server message.
         closing ??= (async () => {
           try {
+            stopWatching?.()
             await scanner?.close()
           } finally {
             try {
@@ -101,6 +115,7 @@ async function start(options: BootOptions) {
     logger.error('Server startup failed', error)
 
     try {
+      stopWatching?.()
       await scanner?.close()
     } finally {
       database?.close()

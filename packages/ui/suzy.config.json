@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/suzy/suzy.schema.json",
   "density": "compact",
+  "squircle": true,
   "colors": {
     "accent": "sky",
     "gray": "mauve"

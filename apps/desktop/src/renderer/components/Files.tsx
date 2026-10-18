@@ -1,10 +1,4 @@
-import {
-  Icon,
-  Menu,
-  MenuSubmenu,
-  Surface,
-  Switch,
-} from '@files/ui'
+import { Surface } from '@files/ui'
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -16,7 +10,6 @@ import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
-import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import {
   type FileColumn,
@@ -33,6 +26,7 @@ import {
 import { useDetailsPane } from './DetailsPaneContext.js'
 import FileDetails from './FileDetails.js'
 import FilePreview from './FilePreview.js'
+import FilesToolbar from './FilesToolbar.js'
 import FileTags from './FileTags.js'
 
 export type { FileColumn } from '../utils/fileColumns.js'
@@ -56,31 +50,7 @@ export type FilesProps = {
 }
 
 const styles = css`
-  .toolbar {
-    display: flex;
-    justify-content: flex-end;
-    padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
-  }
-  .columnSetting {
-    display: flex;
-    min-height: 36px;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--suzy-space-3);
-    padding-inline: var(--suzy-space-2);
-    white-space: nowrap;
-  }
-  .favoriteSetting {
-    display: flex;
-    min-height: 36px;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--suzy-space-3);
-    padding-inline: var(--suzy-space-2);
-    white-space: nowrap;
-  }
   .scroll {
-    margin-inline: calc(0px - var(--suzy-space-2));
     padding-block-end: var(--suzy-space-2);
     border-radius: var(--suzy-radius-4);
   }
@@ -93,6 +63,11 @@ const styles = css`
 
     th, td {
       vertical-align: middle;
+      padding-inline: var(--suzy-space-2);
+    }
+
+    [data-column='size'] {
+      text-align: right;
     }
 
     .emptyState {
@@ -102,12 +77,12 @@ const styles = css`
     }
 
     th {
+      padding-inline: 0;
       font-weight: 400;
       white-space: nowrap;
       position: sticky;
       top: 0;
       z-index: 1;
-      background: var(--suzy-surface);
     }
     .file {
       display: flex;
@@ -117,11 +92,14 @@ const styles = css`
       gap: var(--suzy-space-2);
     }
     .sort {
+      display: block;
+      width: 100%;
+      text-align: inherit;
       font: inherit;
       color: inherit;
       background: none;
       border: 0;
-      padding: 0;
+      padding: 0 var(--suzy-space-2);
       cursor: pointer;
     }
     .row {
@@ -129,14 +107,12 @@ const styles = css`
       > td {
         background: var(--suzy-gray-3);
       }
-      /* &:nth-child(even) > td {
-        background: color-mix(in srgb, var(--suzy-gray-2), var(--suzy-gray-3));
-      } */
       &:hover > td, &:focus-within > td {
         background: var(--suzy-gray-4);
       }
       &[data-selected='true'] > td {
-        background: var(--suzy-accent-6);
+        background: var(--suzy-accent-9);
+        color: var(--suzy-accent-1);
       }
       &:first-child > td:first-child {
         border-top-left-radius: var(--suzy-radius-4);
@@ -224,33 +200,16 @@ function FolderContents({
   const api = useApi()
   const detailsPane = useDetailsPane()
   const { libraries, loadFailed: librariesFailed } = useLibraries()
-  const { values: configValues, loading: configLoading, updateConfig } = useConfig(['user.favoriteFolders'])
+
   const libraryRoots = useMemo(
     () => new Map(libraries.map((library) => [library.id, library.rootPath])),
     [libraries],
   )
   const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
-  const rootPath = libraryId === undefined ? undefined : libraryRoots.get(libraryId)
-  const separator = rootPath?.includes('\\') ? '\\' : '/'
-  const currentFolderPath = rootPath
-    ? `${rootPath.replace(/[\\/]+$/, '')}${relativePath ? `${separator}${relativePath.replaceAll('/', separator)}` : ''}`
-    : undefined
-  const favoritePaths = Array.isArray(configValues?.['user.favoriteFolders'])
-    ? configValues['user.favoriteFolders'].filter((path): path is string => typeof path === 'string')
-    : []
-  const [preferences, setPreferences] = useState(() =>
-    readTablePreferences(preferencesKey),
-  )
 
-  const { sorting, columnVisibility } = preferences
-  useEffect(() => {
-    writeTablePreferences(preferencesKey, preferences)
-  }, [preferencesKey, preferences])
-
+  const { columnVisibility, sorting, setPreferences } = useTablePrefs(preferencesKey)
   const [viewError, setViewError] = useState('')
-  const [favoriteError, setFavoriteError] = useState('')
-  const [favoriteBusy, setFavoriteBusy] = useState(false)
   const tableColumns = useMemo(
     () =>
       [
@@ -292,6 +251,8 @@ function FolderContents({
     loadFailed,
     refresh,
   } = useApiQuery<Listing | null>(request, null)
+
+  useEffect(() => window.scanner.onUpdated(refresh), [refresh])
 
   useEffect(() => {
     if (!folder || !listing || listing.scanned) return
@@ -346,48 +307,15 @@ function FolderContents({
   return (
     <div>
       {viewError && <p role="alert">{viewError}</p>}
-      {favoriteError && <p role="alert">{favoriteError}</p>}
+
       {librariesFailed && <p role="status">Unable to load full file paths.</p>}
-      <div className={styles.toolbar}>
-        <Menu label="More options" trigger={<Icon name="ellipsis" size={20} />}>
-          {currentFolderPath && !collectionId && !configLoading && (
-            <div className={styles.favoriteSetting}>
-              <span>Favorite</span>
-              <Switch
-                aria-label="Favorite"
-                checked={favoritePaths.includes(currentFolderPath)}
-                disabled={favoriteBusy}
-                onCheckedChange={(checked) => {
-                  if (favoriteBusy) return
-                  setFavoriteBusy(true)
-                  setFavoriteError('')
-                  const updatedPaths = checked
-                    ? [...favoritePaths, currentFolderPath]
-                    : favoritePaths.filter((path) => path !== currentFolderPath)
-                  void updateConfig('user.favoriteFolders', updatedPaths)
-                    .catch(() => setFavoriteError('Unable to update favorites.'))
-                    .finally(() => setFavoriteBusy(false))
-                }}
-              />
-            </div>
-          )}
-          <MenuSubmenu label="Columns">
-            {table.getAllLeafColumns().map((column) => (
-              // biome-ignore lint/a11y/noLabelWithoutControl: the switch is the input
-              <label key={column.id} className={styles.columnSetting}>
-                <span>{fileColumnLabels[column.id as FileColumn]}</span>
-                <Switch
-                  disabled={column.id === 'name'}
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(checked) =>
-                    column.toggleVisibility(checked)
-                  }
-                />
-              </label>
-            ))}
-          </MenuSubmenu>
-        </Menu>
-      </div>
+      <FilesToolbar
+        libraryId={libraryId}
+        libraryRoots={libraryRoots}
+        relativePath={relativePath}
+        collectionId={collectionId}
+        table={table}
+      />
       {!listing.scanned && (
         <p role="status">
           This folder has not finished scanning. Files may be missing.
@@ -403,6 +331,7 @@ function FolderContents({
               {(table.getHeaderGroups()[0]?.headers ?? []).map((header) => (
                 <th
                   key={header.id}
+                  data-column={header.column.id}
                   scope="col"
                   aria-sort={
                     header.column.getIsSorted() === 'asc'
@@ -442,6 +371,7 @@ function FolderContents({
             )}
             {table.getRowModel().rows.map((row) => {
               const entry = row.original
+
               return (
                 <tr
                   key={entry.id}
@@ -450,9 +380,11 @@ function FolderContents({
                 >
                   {row.getVisibleCells().map((cell) => {
                     const column = cell.column.id as FileColumn
+
                     return (
                       <td
                         key={column}
+                        data-column={column}
                         className={
                           column === 'name'
                             ? styles.nameCell
@@ -555,4 +487,21 @@ function FolderContents({
         )}
     </div>
   )
+}
+
+function useTablePrefs(preferencesKey: string) {
+  const [preferences, setPreferences] = useState(() =>
+    readTablePreferences(preferencesKey),
+  )
+
+  const { sorting, columnVisibility } = preferences
+  useEffect(() => {
+    writeTablePreferences(preferencesKey, preferences)
+  }, [preferencesKey, preferences])
+
+  return {
+    setPreferences,
+    sorting,
+    columnVisibility,
+  }
 }

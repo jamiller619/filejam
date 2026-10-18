@@ -20,6 +20,7 @@ const styles = css`
     }
 
     .layout {
+      position: relative;
       box-sizing: border-box;
       display: grid;
       grid-column: 1;
@@ -29,10 +30,6 @@ const styles = css`
       height: 100%;
       min-width: 0;
       min-height: 0;
-
-      &.withDetails {
-        grid-template-columns: 160px 4px minmax(320px, 1fr) 4px minmax(260px, 380px);
-      }
 
       .pane {
         grid-row: 2;
@@ -64,7 +61,7 @@ const styles = css`
 
         .titlebar {
           grid-row: 1;
-          background: var(--suzy-gray-1);
+          background: var(--suzy-gray-2);
           z-index: 1;
         }
 
@@ -76,26 +73,24 @@ const styles = css`
         }
       }
 
-      .details {
-        display: none;
-        grid-column: 5;
-        grid-row: 2;
-        height: 100%;
+      .workspace {
+        display: flex;
+        min-width: 0;
         min-height: 0;
-      }
+        overflow: hidden;
+        background: var(--suzy-gray-2);
 
-      &.withDetails .details {
-        display: block;
-      }
+        .page {
+          flex: 1;
+        }
 
-      .detailsSeparator {
-        display: none;
-        grid-column: 4;
-        grid-row: 2;
-      }
-
-      &.withDetails .detailsSeparator {
-        display: block;
+        .details {
+          --details-width: 380px;
+          flex: 0 0 auto;
+          width: 0;
+          min-height: 0;
+          overflow: hidden;
+        }
       }
     }
   }
@@ -113,25 +108,24 @@ export default function Layout() {
     <DetailsPaneContext value={detailsPane}>
       <div className={styles.window}>
         <Group
-          className={`${styles.layout} ${detailsVisible ? styles.withDetails : ''}`}
+          className={styles.layout}
+          data-details-visible={detailsVisible}
         >
-          <Panel className={`${styles.pane} ${styles.navigation}`} minSize={120} maxSize="30%">
+          <Panel className={`${styles.pane} ${styles.navigation}`} minSize={120} maxSize={250}>
             <Navbar className={styles.navbar} />
           </Panel>
           <Separator className={styles.navigationSeparator} />
           <Panel className={`${styles.pane} ${styles.content}`}>
             <Titlebar className={styles.titlebar} />
-            <main className={styles.page}>
-              <ScrollArea>
-                <SuspenseOutlet />
-              </ScrollArea>
-            </main>
+            <div className={styles.workspace}>
+              <main className={styles.page}>
+                <ScrollArea>
+                  <SuspenseOutlet />
+                </ScrollArea>
+              </main>
+              <div ref={setDetailsHost} className={styles.details} />
+            </div>
           </Panel>
-          <Separator className={styles.detailsSeparator} />
-          <div
-            ref={setDetailsHost}
-            className={`${styles.pane} ${styles.details}`}
-          />
         </Group>
       </div>
     </DetailsPaneContext>

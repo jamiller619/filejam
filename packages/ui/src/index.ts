@@ -1,4 +1,5 @@
 export { default as Button } from './components/Button.js'
+export { default as ButtonGroup } from './components/ButtonGroup.js'
 export type { EyebrowProps } from './components/Eyebrow.js'
 export { default as Eyebrow } from './components/Eyebrow.js'
 export type { IconName, IconProps } from './components/Icon.js'

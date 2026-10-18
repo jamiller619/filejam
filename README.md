@@ -84,8 +84,10 @@ await scanner.close()
 ```
 
 Results contain paths relative to the scanned root. The cache survives restarts
-and tracks size/mtime changes; this is an on-demand scanner, not a filesystem
-watcher. Symlink traversal is disabled. A cache directory inside the scanned tree
+and tracks size/mtime changes. The server watches its libraries recursively and
+queues scans after filesystem changes, coalescing bursts of events. Desktop
+listings refresh as indexing progresses and completes. Symlink traversal is
+disabled. A cache directory inside the scanned tree
 is excluded. Failed or cancelled scans do not commit a new baseline. Cancellation
 is cooperative: crawling and cache reconciliation may finish before it is handled.
 Only one scan runs at a time; another start request is rejected. Results reset on
