@@ -39,11 +39,19 @@ type ButtonProps = ComponentProps<typeof BaseUIButton> & {
   variant?: 'default' | 'ghost'
 }
 
-export default function Button({ variant = 'default', ...props }: ButtonProps) {
+export default function Button({
+  variant = 'default',
+  className,
+  ...props
+}: ButtonProps) {
   return (
     <BaseUIButton
       {...props}
-      className={clsx(styles.button, variant === 'ghost' && styles.ghost)}
+      className={clsx(
+        styles.button,
+        variant === 'ghost' && styles.ghost,
+        className,
+      )}
     >
       {props.children}
     </BaseUIButton>

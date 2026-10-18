@@ -50,6 +50,44 @@ export type FilesProps = {
 }
 
 const styles = css`
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+    gap: var(--suzy-space-3);
+    padding: var(--suzy-space-2);
+    margin: 0;
+    list-style: none;
+  }
+  .card {
+    min-width: 0;
+    border-radius: var(--suzy-radius-4);
+    background: var(--suzy-gray-3);
+    &:hover, &:focus-within { background: var(--suzy-gray-4); }
+    &[data-selected='true'] { background: var(--suzy-accent-9); color: var(--suzy-accent-1); }
+  }
+  .cardAction {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--suzy-space-2);
+    width: 100%;
+    padding: var(--suzy-space-3);
+    border: 0;
+    border-radius: inherit;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    &:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+  }
+  .cardName {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .gridEmpty { padding: var(--suzy-space-6); text-align: center; }
   .scroll {
     padding-block-end: var(--suzy-space-2);
     border-radius: var(--suzy-radius-4);
@@ -209,7 +247,8 @@ function FolderContents({
   const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
 
-  const { columnVisibility, sorting, setPreferences } = useTablePrefs(preferencesKey)
+  const { columnVisibility, sorting, viewMode, setPreferences } =
+    useTablePrefs(preferencesKey)
   const [viewError, setViewError] = useState('')
   const tableColumns = useMemo(
     () =>
@@ -279,7 +318,7 @@ function FolderContents({
         tableColumns.map((column) => [
           column.id,
           column.id === 'name' ||
-          (columnVisibility[column.id] ?? columns.includes(column.id)),
+            (columnVisibility[column.id] ?? columns.includes(column.id)),
         ]),
       ),
     },
@@ -302,6 +341,18 @@ function FolderContents({
     getSortedRowModel: getSortedRowModel(),
   })
 
+  function activateFile(id: number) {
+    if (selectedId === id) {
+      setDetailsClosing(true)
+      return
+    }
+    setDetailsClosing(false)
+    setSelectedId(id)
+    void api.collections
+      .recordView(id)
+      .catch(() => setViewError('Unable to update Recents.'))
+  }
+
   if (loadFailed) return <p role="status">Unable to load files.</p>
   if (!listing) return <p role="status">Loading files…</p>
 
@@ -316,6 +367,10 @@ function FolderContents({
         relativePath={relativePath}
         collectionId={collectionId}
         table={table}
+        viewMode={viewMode}
+        onViewModeChange={(viewMode) =>
+          setPreferences((current) => ({ ...current, viewMode }))
+        }
       />
       {!listing.scanned && (
         <p role="status">
@@ -323,150 +378,189 @@ function FolderContents({
         </p>
       )}
       <Surface className={styles.scroll}>
-        <table
-          className={styles.table}
-          aria-label={collectionId ? 'Collection files' : 'Folder contents'}
-        >
-          <thead>
-            <tr>
-              {(table.getHeaderGroups()[0]?.headers ?? []).map((header) => (
-                <th
-                  key={header.id}
-                  data-column={header.column.id}
-                  scope="col"
-                  aria-sort={
-                    header.column.getIsSorted() === 'asc'
-                      ? 'ascending'
-                      : header.column.getIsSorted() === 'desc'
-                        ? 'descending'
-                        : 'none'
-                  }
-                >
-                  <button
-                    type="button"
-                    className={styles.sort}
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {fileColumnLabels[header.column.id as FileColumn]}
-                    {header.column.getIsSorted() === 'asc'
-                      ? ' ↑'
-                      : header.column.getIsSorted() === 'desc'
-                        ? ' ↓'
-                        : ''}
-                  </button>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {listing.scanned && listing.entries.length === 0 && (
-              <tr>
-                <td
-                  className={styles.emptyState}
-                  role="status"
-                  colSpan={table.getVisibleLeafColumns().length}
-                >
-                  No files to display.
-                </td>
-              </tr>
-            )}
-            {table.getRowModel().rows.map((row) => {
-              const entry = row.original
-
-              return (
-                <tr
+        {viewMode === 'grid' ? (
+          listing.scanned && listing.entries.length === 0 ? (
+            <p role="status" className={styles.gridEmpty}>
+              No files to display.
+            </p>
+          ) : (
+            <ul
+              className={styles.grid}
+              aria-label={collectionId ? 'Collection files' : 'Folder contents'}
+            >
+              {table.getRowModel().rows.map(({ original: entry }) => (
+                <li
                   key={entry.id}
-                  className={styles.row}
+                  className={styles.card}
                   data-selected={entry.id === selectedId}
                 >
-                  {row.getVisibleCells().map((cell) => {
-                    const column = cell.column.id as FileColumn
-
-                    return (
-                      <td
-                        key={column}
-                        data-column={column}
-                        className={
-                          column === 'name'
-                            ? styles.nameCell
-                            : column === 'tags'
-                              ? styles.tags
-                              : undefined
-                        }
-                        title={
-                          column === 'tags'
-                            ? (entry.tagReadError ?? undefined)
-                            : formatFileValueTitle(entry, column)
-                        }
-                      >
-                        {column === 'tags' ? (
-                          <FileTags
-                            entry={entry}
-                            onChange={(updated) =>
-                              setListing((current) =>
-                                current
-                                  ? {
-                                    ...current,
-                                    entries: current.entries.map((file) =>
-                                      file.id === updated.id ? updated : file,
-                                    ),
-                                  }
-                                  : current,
-                              )
-                            }
-                          />
-                        ) : column === 'name' ? (
-                          <span className={styles.file}>
-                            <FilePreview entry={entry} />
-                            {entry.kind === 'directory' ? (
-                              <Link
-                                className={styles.name}
-                                title={entry.name}
-                                to={folderUrl({
-                                  libraryId: entry.libraryId,
-                                  relativePath: entry.relativePath,
-                                })}
-                              >
-                                {entry.name}
-                              </Link>
-                            ) : (
-                              <button
-                                type="button"
-                                className={styles.name}
-                                title={entry.name}
-                                onClick={() => {
-                                  if (selectedId === entry.id) {
-                                    setDetailsClosing(true)
-                                    return
-                                  }
-                                  setDetailsClosing(false)
-                                  setSelectedId(entry.id)
-                                  void api.collections
-                                    .recordView(entry.id)
-                                    .catch(() =>
-                                      setViewError('Unable to update Recents.'),
-                                    )
-                                }}
-                                aria-label={`Show details for ${entry.name}`}
-                                aria-expanded={selectedId === entry.id}
-                              >
-                                {entry.name}
-                              </button>
-                            )}
-                          </span>
-                        ) : column === 'relativePath' ? (
-                          cell.getValue<string>()
-                        ) : (
-                          formatFileValue(entry, column)
-                        )}
-                      </td>
-                    )
-                  })}
+                  {entry.kind === 'directory' ? (
+                    <Link
+                      className={styles.cardAction}
+                      title={entry.name}
+                      to={folderUrl({
+                        libraryId: entry.libraryId,
+                        relativePath: entry.relativePath,
+                      })}
+                    >
+                      <FilePreview entry={entry} size={120} />
+                      <span className={styles.cardName}>{entry.name}</span>
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.cardAction}
+                      title={entry.name}
+                      aria-label={`Show details for ${entry.name}`}
+                      aria-expanded={selectedId === entry.id}
+                      onClick={() => activateFile(entry.id)}
+                    >
+                      <FilePreview entry={entry} size={120} />
+                      <span className={styles.cardName}>{entry.name}</span>
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )
+        ) : (
+          <table
+            className={styles.table}
+            aria-label={collectionId ? 'Collection files' : 'Folder contents'}
+          >
+            <thead>
+              <tr>
+                {(table.getHeaderGroups()[0]?.headers ?? []).map((header) => (
+                  <th
+                    key={header.id}
+                    data-column={header.column.id}
+                    scope="col"
+                    aria-sort={
+                      header.column.getIsSorted() === 'asc'
+                        ? 'ascending'
+                        : header.column.getIsSorted() === 'desc'
+                          ? 'descending'
+                          : 'none'
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={styles.sort}
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      {fileColumnLabels[header.column.id as FileColumn]}
+                      {header.column.getIsSorted() === 'asc'
+                        ? ' ↑'
+                        : header.column.getIsSorted() === 'desc'
+                          ? ' ↓'
+                          : ''}
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {listing.scanned && listing.entries.length === 0 && (
+                <tr>
+                  <td
+                    className={styles.emptyState}
+                    role="status"
+                    colSpan={table.getVisibleLeafColumns().length}
+                  >
+                    No files to display.
+                  </td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              )}
+              {table.getRowModel().rows.map((row) => {
+                const entry = row.original
+
+                return (
+                  <tr
+                    key={entry.id}
+                    className={styles.row}
+                    data-selected={entry.id === selectedId}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const column = cell.column.id as FileColumn
+
+                      return (
+                        <td
+                          key={column}
+                          data-column={column}
+                          className={
+                            column === 'name'
+                              ? styles.nameCell
+                              : column === 'tags'
+                                ? styles.tags
+                                : undefined
+                          }
+                          title={
+                            column === 'tags'
+                              ? (entry.tagReadError ?? undefined)
+                              : formatFileValueTitle(entry, column)
+                          }
+                        >
+                          {column === 'tags' ? (
+                            <FileTags
+                              entry={entry}
+                              onChange={(updated) =>
+                                setListing((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        entries: current.entries.map((file) =>
+                                          file.id === updated.id
+                                            ? updated
+                                            : file,
+                                        ),
+                                      }
+                                    : current,
+                                )
+                              }
+                            />
+                          ) : column === 'name' ? (
+                            <span className={styles.file}>
+                              <FilePreview entry={entry} />
+                              {entry.kind === 'directory' ? (
+                                <Link
+                                  className={styles.name}
+                                  title={entry.name}
+                                  to={folderUrl({
+                                    libraryId: entry.libraryId,
+                                    relativePath: entry.relativePath,
+                                  })}
+                                >
+                                  {entry.name}
+                                </Link>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={styles.name}
+                                  title={entry.name}
+                                  onClick={() => {
+                                    activateFile(entry.id)
+                                  }}
+                                  aria-label={`Show details for ${entry.name}`}
+                                  aria-expanded={selectedId === entry.id}
+                                >
+                                  {entry.name}
+                                </button>
+                              )}
+                            </span>
+                          ) : column === 'relativePath' ? (
+                            cell.getValue<string>()
+                          ) : (
+                            formatFileValue(entry, column)
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </Surface>
       {selectedFile &&
         detailsPane.host &&
@@ -495,13 +589,14 @@ function useTablePrefs(preferencesKey: string) {
     readTablePreferences(preferencesKey),
   )
 
-  const { sorting, columnVisibility } = preferences
+  const { sorting, columnVisibility, viewMode } = preferences
   useEffect(() => {
     writeTablePreferences(preferencesKey, preferences)
   }, [preferencesKey, preferences])
 
   return {
     setPreferences,
+    viewMode,
     sorting,
     columnVisibility,
   }

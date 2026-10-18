@@ -1,7 +1,10 @@
 import type { SortingState, VisibilityState } from '@tanstack/react-table'
 import { fileColumnLabels } from './fileColumns.js'
 
+export type FileViewMode = 'list' | 'grid'
+
 type TablePreferences = {
+  viewMode: FileViewMode
   sorting: SortingState
   columnVisibility: VisibilityState
 }
@@ -10,6 +13,7 @@ const storagePrefix = 'files:table:v1:'
 
 export function readTablePreferences(page: string): TablePreferences {
   const defaults: TablePreferences = {
+    viewMode: 'list',
     sorting: [],
     columnVisibility: { tags: false },
   }
@@ -19,6 +23,7 @@ export function readTablePreferences(page: string): TablePreferences {
     const value = JSON.parse(stored)
     if (!value || typeof value !== 'object') return defaults
     return {
+      viewMode: value.viewMode === 'grid' ? 'grid' : 'list',
       sorting: Array.isArray(value.sorting)
         ? value.sorting.filter(
             (sort: unknown): sort is SortingState[number] =>

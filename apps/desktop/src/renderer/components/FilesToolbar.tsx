@@ -1,16 +1,35 @@
-import { Icon, Menu, MenuSubmenu, Switch } from '@files/ui'
+import {
+  Button,
+  ButtonGroup,
+  Icon,
+  Menu,
+  MenuSubmenu,
+  Select,
+  Switch,
+} from '@files/ui'
 import type { Table } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
 import { useState } from 'react'
 import { useConfig } from '../hooks/useConfig.js'
 import { type FileColumn, fileColumnLabels } from '../utils/fileColumns.js'
+import type { FileViewMode } from '../utils/tablePreferences.js'
 
 const styles = css`
   .toolbar {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--suzy-space-2);
     justify-content: flex-end;
     padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
   }
+  /* .viewButton {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    &[aria-pressed='true'] { background: var(--suzy-accent-9); color: var(--suzy-accent-1); }
+    &:focus-visible { outline: 2px solid var(--suzy-accent-8); outline-offset: -2px; }
+  } */
   .columnSetting {
     display: flex;
     min-height: 36px;
@@ -36,6 +55,8 @@ type FilesToolbarProps<TData> = {
   libraryRoots: Map<number, string>
   relativePath?: string | undefined
   collectionId?: string | undefined
+  viewMode: FileViewMode
+  onViewModeChange: (viewMode: FileViewMode) => void
   table: Table<TData>
 }
 
@@ -45,6 +66,8 @@ export default function FilesToolbar<TData>({
   relativePath,
   collectionId,
   table,
+  viewMode,
+  onViewModeChange,
 }: FilesToolbarProps<TData>) {
   const {
     values: configValues,
@@ -70,6 +93,47 @@ export default function FilesToolbar<TData>({
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
       <div className={styles.toolbar}>
+        <Select
+          aria-label="Sort files"
+          value={
+            table.getState().sorting[0]
+              ? `${table.getState().sorting[0]?.id}:${table.getState().sorting[0]?.desc ? 'desc' : 'asc'}`
+              : ''
+          }
+          onChange={(event) => {
+            const [id, direction] = event.target.value.split(':')
+            table.setSorting(id ? [{ id, desc: direction === 'desc' }] : [])
+          }}
+        >
+          <option value="">Default order</option>
+          {table.getAllLeafColumns().map((column) => (
+            <optgroup
+              key={column.id}
+              label={fileColumnLabels[column.id as FileColumn]}
+            >
+              <option value={`${column.id}:asc`}>
+                {fileColumnLabels[column.id as FileColumn]} ? ascending
+              </option>
+              <option value={`${column.id}:desc`}>
+                {fileColumnLabels[column.id as FileColumn]} ? descending
+              </option>
+            </optgroup>
+          ))}
+        </Select>
+        <ButtonGroup role="group" aria-label="File view">
+          {(['list', 'grid'] as const).map((mode) => (
+            <Button
+              key={mode}
+              className={styles.viewButton}
+              aria-label={`${mode === 'list' ? 'List' : 'Grid'} view`}
+              title={`${mode === 'list' ? 'List' : 'Grid'} view`}
+              aria-pressed={viewMode === mode}
+              onClick={() => onViewModeChange(mode)}
+            >
+              <Icon name={mode} size={18} />
+            </Button>
+          ))}
+        </ButtonGroup>
         <Menu label="More options" trigger={<Icon name="ellipsis" size={20} />}>
           {currentFolderPath && !collectionId && !configLoading && (
             <div className={styles.favoriteSetting}>
@@ -89,25 +153,29 @@ export default function FilesToolbar<TData>({
                     : favoritePaths.filter((path) => path !== currentFolderPath)
 
                   void updateConfig('user.favoriteFolders', updatedPaths)
-                    .catch(() => setFavoriteError('Unable to update favorites.'))
+                    .catch(() =>
+                      setFavoriteError('Unable to update favorites.'),
+                    )
                     .finally(() => setFavoriteBusy(false))
                 }}
               />
             </div>
           )}
-          <MenuSubmenu label="Columns">
-            {table.getAllLeafColumns().map((column) => (
-              // biome-ignore lint/a11y/noLabelWithoutControl: the switch is the input
-              <label key={column.id} className={styles.columnSetting}>
-                <span>{fileColumnLabels[column.id as FileColumn]}</span>
-                <Switch
-                  disabled={column.id === 'name'}
-                  checked={column.getIsVisible()}
-                  onCheckedChange={column.toggleVisibility}
-                />
-              </label>
-            ))}
-          </MenuSubmenu>
+          {viewMode === 'list' && (
+            <MenuSubmenu label="Columns">
+              {table.getAllLeafColumns().map((column) => (
+                // biome-ignore lint/a11y/noLabelWithoutControl: the switch is the input
+                <label key={column.id} className={styles.columnSetting}>
+                  <span>{fileColumnLabels[column.id as FileColumn]}</span>
+                  <Switch
+                    disabled={column.id === 'name'}
+                    checked={column.getIsVisible()}
+                    onCheckedChange={column.toggleVisibility}
+                  />
+                </label>
+              ))}
+            </MenuSubmenu>
+          )}
         </Menu>
       </div>
     </>

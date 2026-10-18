@@ -13,6 +13,8 @@ export {
 export type { PillProps } from './components/Pill.js'
 export { default as Pill } from './components/Pill.js'
 export { default as ScrollArea } from './components/ScrollArea.js'
+export type { SelectProps } from './components/Select.js'
+export { default as Select } from './components/Select.js'
 export { default as Surface } from './components/Surface.js'
 export type { SwitchProps } from './components/Switch.js'
 export { default as Switch } from './components/Switch.js'

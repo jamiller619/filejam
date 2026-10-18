@@ -2,6 +2,12 @@ import type { ComponentPropsWithRef } from 'react'
 
 // Geometry copied from the original SF Symbol SVGs in ../assets/icons/.
 const icons = {
+  grid: (
+    <path
+      d="M3 3h7v7H3V3Zm11 0h7v7h-7V3ZM3 14h7v7H3v-7Zm11 0h7v7h-7v-7Z"
+      fill="currentColor"
+    />
+  ),
   settings: (
     <path
       transform="matrix(0.7975077881619937, 0, 0, 0.7975077881619937, 0.3271028037383179, 18.747663551401867)"
