@@ -387,7 +387,7 @@ function FolderContents({
                       'aria-expanded': selectedId === entry.id,
                     })}
               >
-                <FilePreview entry={entry} size={120} variant="grid" />
+                <FilePreview entry={entry} size="100%" variant="grid" />
               </GridCard>
             ))}
           </GridContainer>

@@ -17,7 +17,7 @@ const styles = css`
     align-items: center;
     gap: var(--suzy-space-2);
     width: 100%;
-    padding: var(--suzy-space-3);
+    padding: var(--suzy-space-1);
     border: 0;
     border-radius: inherit;
     background: none;
@@ -35,13 +35,13 @@ type GridCardProps = {
   children: ReactNode
   selected?: boolean
 } & (
-  | { to: string }
-  | {
+    | { to: string }
+    | {
       onClick: () => void
       'aria-label'?: string
       'aria-expanded'?: boolean
     }
-)
+  )
 
 export default function GridCard(props: GridCardProps) {
   const content = (

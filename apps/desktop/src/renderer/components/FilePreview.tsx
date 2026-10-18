@@ -1,12 +1,24 @@
 ﻿import { css } from 'inline-css-modules'
 
 const styles = css`
-  .preview {
+  .container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     max-width: 100%;
     flex-shrink: 0;
     aspect-ratio: 1;
+  }
+
+  .preview {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
-    border-radius: var(--suzy-radius-2);
+    border-radius: var(--suzy-radius-4);
+    corner-shape: var(--suzy-corner-shape);
   }
 `
 
@@ -37,21 +49,25 @@ export default function FilePreview({
   const source = `files-preview://preview-image?${params}`
 
   return (
-    <img
-      key={source}
-      className={styles.preview}
-      src={source}
-      alt=""
-      loading="lazy"
-      decoding="async"
+    <div
+      className={styles.container}
       style={{ width: size, height: typeof size === 'number' ? size : 'auto' }}
-      onError={(event) => {
-        // Ask Electron for an icon if Chromium cannot decode the source image.
-        const image = event.currentTarget
-        if (!new URL(image.src).searchParams.has('fallback')) {
-          image.src = `${source}&fallback=1`
-        }
-      }}
-    />
+    >
+      <img
+        key={source}
+        className={styles.preview}
+        src={source}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onError={(event) => {
+          // Ask Electron for an icon if Chromium cannot decode the source image.
+          const image = event.currentTarget
+          if (!new URL(image.src).searchParams.has('fallback')) {
+            image.src = `${source}&fallback=1`
+          }
+        }}
+      />
+    </div>
   )
 }

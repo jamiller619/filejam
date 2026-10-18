@@ -28,7 +28,7 @@ export default function Home() {
                   modifiedAt: null,
                 }}
                 variant="grid"
-                size={120}
+                size="100%"
               />
             </GridCard>
           ))}
