@@ -1,179 +1,333 @@
-import { Worker } from 'node:worker_threads'
+import { realpath } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { createLogger } from '../logger.js'
+import { ScannerWorker } from './client.js'
+import { ScanProgressReporter } from './progress.js'
 import type {
   ScannerApi,
-  ScannerRequest,
-  ScannerResponse,
-  ScanProgress,
+  ScannerStatus,
   ScanResults,
   ScanStatus,
 } from './types.js'
 
-const logger = createLogger('scanner')
+export type {
+  ScannerApi,
+  ScannerStatus,
+  ScanResults,
+  ScanStatus,
+} from './types.js'
 
-export type { ScannerApi, ScanResults, ScanStatus } from './types.js'
+const emptyResults = (): ScanResults => ({
+  added: [],
+  changed: [],
+  removed: [],
+})
+const idle = (): ScanStatus => ({
+  state: 'idle',
+  root: null,
+  phase: 'idle',
+  total: 0,
+  processed: 0,
+  error: null,
+})
+type Slot = { worker: ScannerWorker; root: string | undefined }
 
-/**
- * Promise-based facade for a dedicated scanner worker. Filesystem traversal and
- * indexing run there; this thread only sends commands and receives snapshots.
- * One active scan per instance. Give each instance its own cache directory.
- */
+/** Bounded pool. A canonical root has at most one active scan and one queued refresh. */
 export class FileScanner implements ScannerApi {
-  readonly #worker: Worker
-  #sequence = 0
-  #queuedRoots: string[] = []
-  #starting = false
+  readonly #progress = new ScanProgressReporter()
+  readonly #slots: Slot[] = []
+  readonly #states = new Map<string, ScanStatus>()
+  readonly #results = new Map<string, ScanResults>()
   readonly #listeners = new Set<() => void>()
-  #failure: Error | undefined
+  readonly #queue = new Set<string>()
+  readonly #ready: Promise<void>
+  #tail: Promise<unknown> = Promise.resolve()
   #closing: Promise<void> | undefined
-  // Match responses to callers by ID; several status/result requests may be in flight.
-  readonly #pending = new Map<
-    number,
-    {
-      resolve(value: ScanStatus | ScanResults): void
-      reject(error: Error): void
-    }
-  >()
+  #closed = false
+  #lastRoot: string | undefined
 
-  constructor(cacheDirectory: string, databasePath: string) {
-    this.#worker = new Worker(new URL('./worker.js', import.meta.url), {
-      workerData: { cacheDirectory, databasePath },
+  constructor(
+    readonly cacheDirectory: string,
+    readonly databasePath: string,
+    readonly concurrency = 2,
+  ) {
+    if (!Number.isSafeInteger(concurrency) || concurrency < 1)
+      throw new Error('Concurrency must be a positive integer')
+    this.#ready = this.#makeSlot()
+      .worker.initialize()
+      .then(() => {})
+    // Keep initialization failures observable through public methods without an unhandled rejection.
+    void this.#ready.catch(() => {})
+  }
+
+  #run<T>(action: () => Promise<T>): Promise<T> {
+    const next = this.#tail.then(async () => {
+      await this.#ready
+      return action()
     })
-    this.#worker.on('message', (message: ScannerResponse | ScanProgress) => {
-      if ('type' in message) {
-        for (const listener of this.#listeners) listener()
-        const { status, elapsedMs, entriesPerSecond, changes } = message
-        const level = status.state === 'failed' ? 'error' : 'info'
-        logger[level](
-          status.state === 'scanning'
-            ? 'Scan progress'
-            : `Scan ${status.state}`,
-          { ...status, elapsedMs, entriesPerSecond, ...changes },
-        )
+    this.#tail = next.catch(() => {})
+    return next
+  }
+
+  #checkOpen() {
+    if (this.#closed) throw new Error('Scanner is closed')
+  }
+  async #canonical(root: string) {
+    if (typeof root !== 'string' || !root.trim())
+      throw new Error('A scan root is required')
+    // Missing roots still become failed jobs rather than rejecting a whole startup batch.
+    return realpath(root).catch(() => resolve(root))
+  }
+  #notify() {
+    this.#progress.report(this.#snapshot())
+    for (const listener of this.#listeners) listener()
+  }
+  #background(action: () => Promise<void>) {
+    void this.#run(action).catch((error: unknown) =>
+      createLogger('scanner').error('Scanner scheduling failed', error),
+    )
+  }
+  #makeSlot(): Slot {
+    const slot = {} as Slot
+    slot.root = undefined
+    slot.worker = new ScannerWorker(
+      this.cacheDirectory,
+      this.databasePath,
+      (error) => {
+        this.#background(async () => {
+          if (this.#closed) return
+          if (slot.root)
+            this.#states.set(slot.root, {
+              ...(this.#states.get(slot.root) ?? {
+                ...idle(),
+                root: slot.root,
+              }),
+              state: 'failed',
+              phase: 'idle',
+              error: error.message,
+            })
+          if (slot.root)
+            this.#progress.failed(
+              slot.root,
+              this.#states.get(slot.root) ?? idle(),
+            )
+          const index = this.#slots.indexOf(slot)
+          if (index >= 0) this.#slots.splice(index, 1)
+          await slot.worker.close()
+          await this.#pump()
+          this.#notify()
+        })
+      },
+    )
+    slot.worker.onUpdated((progress) => {
+      const { status } = progress
+      this.#background(async () => {
+        const root = slot.root
+        if (!root || this.#closed) return
+        this.#states.set(root, status)
+        this.#progress.update(root, progress)
         if (status.state !== 'scanning') {
-          void this.#startNext().catch((error: unknown) => {
-            if (!this.#closing)
-              logger.error('Unable to advance scan queue', error)
+          this.#results.set(root, await slot.worker.results())
+          slot.root = undefined
+          await this.#pump()
+        }
+        this.#notify()
+      })
+    })
+    this.#slots.push(slot)
+    return slot
+  }
+  async #pump() {
+    if (this.#closed) return
+    const starting: Promise<void>[] = []
+    for (const root of this.#queue) {
+      if (this.#slots.some((slot) => slot.root === root)) continue
+      const slot =
+        this.#slots.find((slot) => !slot.root) ??
+        (this.#slots.length < this.concurrency ? this.#makeSlot() : undefined)
+      if (!slot) break
+      this.#queue.delete(root)
+      slot.root = root
+      this.#results.set(root, emptyResults())
+      this.#states.set(root, {
+        ...idle(),
+        state: 'scanning',
+        root,
+        phase: 'crawling',
+      })
+      starting.push(
+        slot.worker
+          .start(root)
+          .then((status) => {
+            this.#states.set(root, status)
           })
-        }
-        return
-      }
-      const pending = this.#pending.get(message.id)
-      if (!pending) return
-      this.#pending.delete(message.id)
-      if ('error' in message) pending.reject(new Error(message.error))
-      else pending.resolve(message.result)
-    })
-    this.#worker.on('error', (error) =>
-      this.#fail(error instanceof Error ? error : new Error(String(error))),
-    )
-    this.#worker.on('exit', (code) =>
-      this.#fail(new Error(`Scanner worker exited (${code})`)),
-    )
+          .catch((error: unknown) => {
+            this.#states.set(root, {
+              ...idle(),
+              root,
+              state: 'failed',
+              error: String(error),
+            })
+            // The failure callback releases and replaces a dead worker.
+          }),
+      )
+    }
+    await Promise.all(starting)
   }
 
-  #fail(error: Error) {
-    // A dead or closed worker cannot answer any outstanding or future requests.
-    this.#failure ??= error
-    this.#queuedRoots = []
-    for (const pending of this.#pending.values()) pending.reject(error)
-    this.#pending.clear()
-  }
-
-  #request<T extends ScanStatus | ScanResults>(
-    method: ScannerRequest['method'],
-    root?: string,
-  ): Promise<T> {
-    if (this.#failure) return Promise.reject(this.#failure)
-    if (this.#closing && method !== 'shutdown')
-      return Promise.reject(new Error('Scanner is closed'))
-    const id = ++this.#sequence
-    return new Promise<T>((resolve, reject) => {
-      this.#pending.set(id, { resolve: (value) => resolve(value as T), reject })
-      try {
-        this.#worker.postMessage({
-          id,
-          method,
-          ...(root === undefined ? {} : { root }),
-        } satisfies ScannerRequest)
-      } catch (error) {
-        this.#pending.delete(id)
-        reject(error)
+  startAll(roots: string[]): Promise<void> {
+    return this.#run(async () => {
+      this.#checkOpen()
+      if (this.#queue.size || this.#slots.some((slot) => slot.root))
+        throw new Error('A scan is already running')
+      const canonicalRoots = await Promise.all(
+        roots.map((root) => this.#canonical(root)),
+      )
+      this.#checkOpen()
+      this.#progress.begin()
+      this.#states.clear()
+      this.#results.clear()
+      for (const root of canonicalRoots) {
+        this.#queue.add(root)
+        this.#states.set(root, { ...idle(), root, state: 'queued' })
       }
+      this.#lastRoot = [...this.#queue].at(-1)
+      await this.#pump()
+      this.#notify()
     })
   }
-
-  /** Start a batch in the background, one root at a time. Call while idle. */
-  async startAll(roots: string[]): Promise<void> {
-    if (this.#failure) throw this.#failure
-    if (this.#queuedRoots.length || (await this.status()).state === 'scanning')
-      throw new Error('A scan is already running')
-    this.#queuedRoots = [...new Set(roots)]
-    await this.#startNext()
-  }
-
-  async #startNext(): Promise<void> {
-    if (this.#starting || this.#closing) return
-    this.#starting = true
-    try {
-      if ((await this.status()).state === 'scanning') return
-      while (this.#queuedRoots.length && !this.#failure && !this.#closing) {
-        const root = this.#queuedRoots.shift()
-        if (root === undefined || this.#failure) return
-        try {
-          await this.start(root)
-          return
-        } catch (error) {
-          if (this.#failure) return
-          logger.error('Unable to start queued scan', { root }, error)
-        }
+  enqueue(root: string) {
+    this.#background(async () => {
+      if (this.#closed) return
+      const canonical = await this.#canonical(root)
+      if (!this.#queue.size && !this.#slots.some((slot) => slot.root)) {
+        this.#progress.begin()
+        this.#states.clear()
       }
-    } finally {
-      this.#starting = false
+      this.#queue.add(canonical)
+      if (!this.#slots.some((slot) => slot.root === canonical))
+        this.#states.set(canonical, {
+          ...idle(),
+          root: canonical,
+          state: 'queued',
+        })
+      await this.#pump()
+      this.#notify()
+    })
+  }
+  start(root: string): Promise<ScanStatus> {
+    return this.#run(async () => {
+      this.#checkOpen()
+      const canonical = await this.#canonical(root)
+      if (
+        this.#queue.has(canonical) ||
+        this.#slots.some((slot) => slot.root === canonical)
+      )
+        throw new Error('A scan is already running for this library')
+      if (!this.#queue.size && !this.#slots.some((slot) => slot.root)) {
+        this.#progress.begin()
+        this.#states.clear()
+        this.#results.clear()
+      }
+      this.#lastRoot = canonical
+      this.#queue.add(canonical)
+      this.#states.set(canonical, {
+        ...idle(),
+        root: canonical,
+        state: 'queued',
+      })
+      await this.#pump()
+      this.#notify()
+      return structuredClone(
+        this.#states.get(canonical) ?? { ...idle(), root: canonical },
+      )
+    })
+  }
+  status(): Promise<ScannerStatus> {
+    return this.#run(async () => {
+      this.#checkOpen()
+      return this.#snapshot()
+    })
+  }
+  #snapshot(): ScannerStatus {
+    const libraries = structuredClone([...this.#states.values()])
+    const active = this.#slots.flatMap((slot) => (slot.root ? [slot.root] : []))
+    const queued = [...this.#queue]
+    const state =
+      active.length || queued.length
+        ? 'scanning'
+        : libraries.some((s) => s.state === 'cancelled')
+          ? 'cancelled'
+          : libraries.some((s) => s.state === 'failed')
+            ? 'failed'
+            : libraries.length
+              ? 'completed'
+              : 'idle'
+    return {
+      state,
+      root: libraries.length === 1 ? (libraries[0]?.root ?? null) : null,
+      phase: active.length
+        ? libraries.some(
+            (s) => s.state === 'scanning' && s.phase === 'checking',
+          )
+          ? 'checking'
+          : 'crawling'
+        : 'idle',
+      total: libraries.reduce((n, s) => n + s.total, 0),
+      processed: libraries.reduce((n, s) => n + s.processed, 0),
+      error: libraries.find((s) => s.error)?.error ?? null,
+      libraries,
+      active,
+      queued,
     }
   }
 
-  /** Coalesce pending refreshes, retaining a follow-up for changes during a scan. */
-  enqueue(root: string) {
-    if (this.#closing || this.#failure) return
-    if (!this.#queuedRoots.includes(root)) this.#queuedRoots.push(root)
-    void this.#startNext().catch((error: unknown) => {
-      logger.error('Unable to queue scan', { root }, error)
+  /** Without a root, retain the single-scan API's most recently requested result. */
+  results(root?: string): Promise<ScanResults> {
+    return this.#run(async () => {
+      this.#checkOpen()
+      const key =
+        root === undefined ? this.#lastRoot : await this.#canonical(root)
+      return structuredClone(
+        key ? (this.#results.get(key) ?? emptyResults()) : emptyResults(),
+      )
     })
   }
-
+  async cancel(): Promise<ScannerStatus> {
+    await this.#run(async () => {
+      this.#checkOpen()
+      for (const root of this.#queue) {
+        if (!this.#slots.some((slot) => slot.root === root))
+          this.#states.set(root, { ...idle(), root, state: 'cancelled' })
+      }
+      this.#queue.clear()
+      await Promise.all(
+        this.#slots
+          .filter((slot) => slot.root)
+          .map((slot) => slot.worker.cancel()),
+      )
+      this.#notify()
+    })
+    return this.status()
+  }
   onUpdated(listener: () => void) {
     this.#listeners.add(listener)
     return () => {
       this.#listeners.delete(listener)
     }
   }
-
-  start(root: string) {
-    return this.#request<ScanStatus>('start', root)
-  }
-  status() {
-    return this.#request<ScanStatus>('status')
-  }
-  results() {
-    return this.#request<ScanResults>('results')
-  }
-  cancel() {
-    this.#queuedRoots = []
-    return this.#request<ScanStatus>('cancel')
-  }
-
-  /** Cancel pending work and release the worker's database before termination. */
   close(): Promise<void> {
-    this.#queuedRoots = []
-    this.#closing ??= (async () => {
-      try {
-        if (!this.#failure) await this.#request<ScanStatus>('shutdown')
-      } finally {
-        this.#fail(new Error('Scanner is closed'))
-        await this.#worker.terminate()
-      }
-    })()
+    this.#closed = true
+    this.#queue.clear()
+    this.#closing ??= this.#tail.then(async () => {
+      await this.#ready.catch(() => {})
+      const settled = await Promise.allSettled(
+        this.#slots.map((slot) => slot.worker.close()),
+      )
+      this.#listeners.clear()
+      const failed = settled.find((result) => result.status === 'rejected')
+      if (failed?.status === 'rejected') throw failed.reason
+    })
     return this.#closing
   }
 }

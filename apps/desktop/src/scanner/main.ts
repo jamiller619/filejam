@@ -20,6 +20,11 @@ export function registerScannerIpc(
             throw new Error('A scan root is required')
           return scanner.start(root)
         }
+        if (method === 'results') {
+          if (root !== undefined && (typeof root !== 'string' || !root.trim()))
+            throw new Error('A scan root is required')
+          return scanner.results(root as string | undefined)
+        }
         return scanner[method]()
       }, authorizeRenderer(renderer)),
     )

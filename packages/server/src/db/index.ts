@@ -21,7 +21,7 @@ const migrationsFolder = fileURLToPath(
 )
 
 /** Opens a local SQLite database and applies pending migrations before use. */
-export async function initDatabase(path: string) {
+export async function initDatabase(path: string, runMigrations = true) {
   if (!path.trim()) {
     throw new Error('A database file path is required')
   }
@@ -39,7 +39,7 @@ export async function initDatabase(path: string) {
     await client.execute('PRAGMA journal_mode = WAL')
     await client.execute('PRAGMA foreign_keys = ON')
     const db = drizzle(client, { schema })
-    await migrate(db, { migrationsFolder })
+    if (runMigrations) await migrate(db, { migrationsFolder })
 
     return { db, close: () => client.close() }
   } catch (error) {

@@ -69,10 +69,10 @@ Run `pnpm --filter @files/server test` to check initialization and persistence.
 
 ## File scanner
 
-`FileScanner` from `@files/server/scanner` owns a Node worker thread. All crawling,
+`FileScanner` from `@files/server/scanner` owns a bounded pool of Node worker threads (two by default). All crawling,
 metadata checks, and cache reads/writes happen there. Supply an application-owned
 cache directory (for example, under Electron's `app.getPath('userData')`). Use one
-scanner per cache directory and close it during application shutdown.
+scanner pool per cache directory and close it during application shutdown.
 
 ```ts
 const scanner = new FileScanner(cacheDirectory, databasePath)
@@ -90,7 +90,13 @@ listings refresh as indexing progresses and completes. Symlink traversal is
 disabled. A cache directory inside the scanned tree
 is excluded. Failed or cancelled scans do not commit a new baseline. Cancellation
 is cooperative: crawling and cache reconciliation may finish before it is handled.
-Only one scan runs at a time; another start request is rejected. Results reset on
+Different library roots scan concurrently; another start for an active or queued
+root is rejected. The optional third constructor argument sets the concurrency
+limit. `status()` includes per-library snapshots plus active and queued roots,
+and remains scanning until all work finishes. Use `results(root)` for a particular
+library; `results()` returns the most recently explicitly requested root (the last
+root in `startAll`). Watcher events coalesce into at most one follow-up scan per
+active root. `cancel()` clears the queue and cancels all active scans. Results reset on
 start and become available after successful completion. The worker upserts a library for the canonical root and saves directory and file
 rows to SQLite during each scan, including metadata and parent relationships.
 Metadata is prepared before each write transaction; up to 64 entries commit
@@ -101,6 +107,12 @@ Progress counts both directories and files. Cached files are still upserted so a
 missing database row is repaired. Failed or cancelled scans retain saved rows;
 stale rows are removed only after successful traversal. Database files and their
 SQLite sidecars are excluded from scans.
+
+Scan progress logs combine all libraries into one global heartbeat, with entry
+and change counts, active/queued library counts, elapsed time, and overall entries
+per second. Counts include completed scans and follow-up passes during the same
+busy period and reset when a new run starts. Totals grow as libraries finish
+crawling. A final summary is logged once the entire queue finishes.
 
 The desktop main process registers `registerScannerIpc(scanner, window.webContents)`
 from `src/scanner/main.ts` for each window. The preload exposes

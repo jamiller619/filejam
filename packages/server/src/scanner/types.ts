@@ -1,5 +1,5 @@
 export interface ScanStatus {
-  state: 'idle' | 'scanning' | 'completed' | 'cancelled' | 'failed'
+  state: 'idle' | 'queued' | 'scanning' | 'completed' | 'cancelled' | 'failed'
   root: string | null
   phase: 'idle' | 'crawling' | 'checking'
   /** Entries (including directories and the root); known after crawling finishes. */
@@ -20,7 +20,13 @@ export interface ScanResults {
   removed: string[]
 }
 
-export interface ScannerApi {
+export interface ScannerStatus extends ScanStatus {
+  libraries: ScanStatus[]
+  active: string[]
+  queued: string[]
+}
+
+export interface WorkerApi {
   /** Acknowledge the start; poll status() to learn when the scan finishes. */
   start(root: string): Promise<ScanStatus>
   status(): Promise<ScanStatus>
@@ -29,11 +35,19 @@ export interface ScannerApi {
   cancel(): Promise<ScanStatus>
 }
 
+export interface ScannerApi
+  extends Omit<WorkerApi, 'status' | 'cancel' | 'results'> {
+  status(): Promise<ScannerStatus>
+  cancel(): Promise<ScannerStatus>
+  /** Results for a canonical root, or the most recently explicitly requested root. */
+  results(root?: string): Promise<ScanResults>
+}
+
 // Request IDs correlate replies across the worker boundary. A request error
 // rejects that call; a background scan error is instead reported in ScanStatus.
 export type ScannerRequest = {
   id: number
-  method: keyof ScannerApi | 'shutdown'
+  method: keyof WorkerApi | 'shutdown' | 'initialize'
   root?: string
 }
 export type ScannerResponse =

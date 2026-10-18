@@ -6,6 +6,7 @@ import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
 import { fdir } from 'fdir'
 import { create, type FileDescriptorMeta } from 'file-entry-cache'
+import { initDatabase } from '../db/index.js'
 import { isIgnoredScanPath } from './ignore.js'
 import { openScanDatabase } from './persistence.js'
 import type {
@@ -64,7 +65,11 @@ async function scan(input: string) {
       throw new Error('Scan root must be a directory')
     status.root = root
     const databasePath = resolve(workerData.databasePath as string)
-    database = await openScanDatabase(databasePath, root)
+    database = await openScanDatabase(
+      databasePath,
+      root,
+      workerData.databaseInitialized !== true,
+    )
     const cache = create(
       createHash('sha256').update(root).digest('hex'),
       cacheDirectory,
@@ -226,6 +231,12 @@ port.on('message', async (request: ScannerRequest) => {
   try {
     let result: ScanStatus | ScanResults
     switch (request.method) {
+      case 'initialize': {
+        const database = await initDatabase(workerData.databasePath as string)
+        database.close()
+        result = status
+        break
+      }
       case 'start':
         if (status.state === 'scanning')
           throw new Error('A scan is already running')

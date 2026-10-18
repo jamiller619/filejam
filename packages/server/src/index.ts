@@ -1,3 +1,4 @@
+import os from 'node:os'
 import { join } from 'node:path'
 import type { ResolveDefaultFolder } from './api/defaultLibraries.js'
 import { createApi } from './api/index.js'
@@ -45,12 +46,14 @@ async function start(options: BootOptions) {
     database = await initDatabase(databasePath)
     const api = createApi(database.db, config)
     let firstStart = false
+
     if (options.resolveDefaultFolder) {
       firstStart = await api.libraries.initializeDefaults(
         options.resolveDefaultFolder,
         (message, error) => logger.warn(message, error),
       )
     }
+
     if (firstStart && config.get('user.favoriteFolders').length === 0) {
       const favorites = (await api.libraries.list())
         .filter((library) =>
@@ -59,15 +62,21 @@ async function start(options: BootOptions) {
         .map((library) => library.rootPath)
       await config.set('user.favoriteFolders', favorites)
     }
+
     await api.libraries.ensureTrashRoots(options.trashRoots ?? [])
-    scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
+
+    scanner = new FileScanner(
+      config.get('appdata.cachePath'),
+      databasePath,
+      os.availableParallelism(),
+    )
 
     // A round trip confirms the worker loaded before exposing the server.
     await scanner.status()
 
     // Include previously seeded libraries: their setup marker may predate
     // automatic scanning. A batch acknowledges its start without delaying boot
-    // until indexing finishes, and the worker processes roots sequentially.
+    // until indexing finishes, and the pool processes roots concurrently.
     const libraries = await api.libraries.list()
     stopWatching = watchLibraries(
       libraries.map((library) => library.rootPath),
@@ -79,6 +88,7 @@ async function start(options: BootOptions) {
       ],
       (message, error) => logger.warn(message, error),
     )
+
     await scanner.startAll(libraries.map((library) => library.rootPath))
 
     logger.info('Server started', { queuedLibraries: libraries.length })

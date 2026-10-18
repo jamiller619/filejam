@@ -7,9 +7,13 @@ import { createApi } from '../api/index.js'
 import { initDatabase } from '../db/index.js'
 import { createTagReader } from '../metadata/readTags.js'
 
-/** Open a worker-owned connection and reconcile one library over a scan. */
-export async function openScanDatabase(databasePath: string, root: string) {
-  const connection = await initDatabase(databasePath)
+/** Open a worker-owned connection. Pools migrate once before dispatching scans. */
+export async function openScanDatabase(
+  databasePath: string,
+  root: string,
+  runMigrations = true,
+) {
+  const connection = await initDatabase(databasePath, runMigrations)
   const api = createApi(connection.db)
   const tagReader = createTagReader()
   try {

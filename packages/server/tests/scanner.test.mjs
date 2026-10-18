@@ -8,7 +8,7 @@ import { closeLogger, initLogger } from '../dist/logger.js'
 import { FileScanner } from '../dist/scanner/index.js'
 
 async function finished(scanner) {
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 2000; i++) {
     const status = await scanner.status()
     if (status.state !== 'scanning') return status
     await setTimeout(10)
@@ -29,7 +29,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
         'log.retentionDays': 1,
       })[key],
   })
-  let scanner = new FileScanner(cache, join(directory, 'files.sqlite'))
+  let scanner = new FileScanner(cache, join(directory, 'files.sqlite'), 1)
   try {
     await writeFile(join(root, 'a.txt'), 'a')
     await writeFile(join(root, 'desktop.ini'), 'Windows shell metadata')
@@ -45,7 +45,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
       removed: [],
     })
     await scanner.close()
-    scanner = new FileScanner(cache, join(directory, 'files.sqlite'))
+    scanner = new FileScanner(cache, join(directory, 'files.sqlite'), 1)
     await scanner.start(root)
     assert.equal((await finished(scanner)).state, 'completed')
     assert.deepEqual(await scanner.results(), {

@@ -53,7 +53,7 @@ function exposeScannerApi() {
       },
       start: (root) => ipcRenderer.invoke('scanner:start', root),
       status: () => ipcRenderer.invoke('scanner:status'),
-      results: () => ipcRenderer.invoke('scanner:results'),
+      results: (root) => ipcRenderer.invoke('scanner:results', root),
       cancel: () => ipcRenderer.invoke('scanner:cancel'),
     }
   contextBridge.exposeInMainWorld('scanner', scanner)
