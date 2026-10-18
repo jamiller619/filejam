@@ -11,6 +11,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
 import { useLibraries } from '../hooks/useLibraries.js'
+import { useToast } from '../hooks/useToast.js'
 import {
   type FileColumn,
   fileColumnLabels,
@@ -25,6 +26,7 @@ import {
 } from '../utils/tablePreferences.js'
 import { useDetailsPane } from './DetailsPaneContext.js'
 import FileDetails from './FileDetails.js'
+import FileName from './FileName.js'
 import FilePreview from './FilePreview.js'
 import FilesToolbar from './FilesToolbar.js'
 import FileTags from './FileTags.js'
@@ -141,7 +143,6 @@ const styles = css`
       padding: 0;
       min-width: 0;
       overflow: hidden;
-      text-overflow: ellipsis;
       white-space: nowrap;
       &::after {
         content: '';
@@ -259,6 +260,26 @@ function FolderContents({
 
   useEffect(() => window.scanner.onUpdated(refresh), [refresh])
 
+  const { add: addToast, close: closeToast } = useToast()
+  const scanPending = !!listing && !listing.scanned && !loadFailed
+  useEffect(() => {
+    if (!scanPending) return
+    // Avoid flashing a notification for scans that finish almost immediately.
+    let toastId: string | undefined
+    const timer = window.setTimeout(() => {
+      toastId = addToast({
+        title: 'Scanning folder…',
+        description:
+          'This folder has not finished scanning. Files may be missing.',
+        timeout: 0,
+      })
+    }, 500)
+    return () => {
+      window.clearTimeout(timer)
+      if (toastId) closeToast(toastId)
+    }
+  }, [scanPending, addToast, closeToast])
+
   useEffect(() => {
     if (!folder || !listing || listing.scanned) return
     const interval = window.setInterval(refresh, 1000)
@@ -337,11 +358,6 @@ function FolderContents({
           setPreferences((current) => ({ ...current, viewMode }))
         }
       />
-      {!listing.scanned && (
-        <p role="status">
-          This folder has not finished scanning. Files may be missing.
-        </p>
-      )}
       {viewMode === 'grid' ? (
         listing.scanned && listing.entries.length === 0 ? (
           <Surface className={styles.scroll}>
@@ -484,7 +500,7 @@ function FolderContents({
                                     relativePath: entry.relativePath,
                                   })}
                                 >
-                                  {entry.name}
+                                  <FileName name={entry.name} />
                                 </Link>
                               ) : (
                                 <button
@@ -497,7 +513,7 @@ function FolderContents({
                                   aria-label={`Show details for ${entry.name}`}
                                   aria-expanded={selectedId === entry.id}
                                 >
-                                  {entry.name}
+                                  <FileName name={entry.name} />
                                 </button>
                               )}
                             </span>

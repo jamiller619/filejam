@@ -154,7 +154,7 @@ if (!app.requestSingleInstanceLock()) {
     })
     protocol.handle(
       'files-preview',
-      createPreviewHandler(server.api.entries, (url) => net.fetch(url)),
+      createPreviewHandler(server.api.libraries, (url) => net.fetch(url)),
     )
     await createWindow()
   })

@@ -1,6 +1,7 @@
 import { css } from 'inline-css-modules'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import FileName from './FileName.js'
 
 const styles = css`
   .card {
@@ -26,12 +27,6 @@ const styles = css`
     cursor: pointer;
     &:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
   }
-  .cardName {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 `
 
 type GridCardProps = {
@@ -52,7 +47,7 @@ export default function GridCard(props: GridCardProps) {
   const content = (
     <>
       {props.children}
-      <span className={styles.cardName}>{props.name}</span>
+      <FileName name={props.name} />
     </>
   )
 

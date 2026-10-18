@@ -1,4 +1,3 @@
-import { getLibraryIcon } from '~/utils/libraryIcon.js'
 import FilePreview from '../components/FilePreview.js'
 import Files from '../components/Files.js'
 import GridCard from '../components/GridCard.js'
@@ -24,14 +23,12 @@ export default function Home() {
             >
               <FilePreview
                 entry={{
-                  id: library.id,
-                  name: library.name,
-                  kind: 'directory',
+                  libraryId: library.id,
+                  relativePath: '',
                   modifiedAt: null,
                 }}
                 variant="grid"
                 size={120}
-                icon={getLibraryIcon(library.name)}
               />
             </GridCard>
           ))}

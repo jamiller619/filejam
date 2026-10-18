@@ -19,18 +19,11 @@ const styles = css`
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: var(--suzy-space-2);
+    gap: var(--suzy-space-3);
     justify-content: flex-end;
     padding-block: var(--suzy-space-2);
     padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
   }
-  /* .viewButton {
-    width: 32px;
-    height: 32px;
-    border: 0;
-    &[aria-pressed='true'] { background: var(--suzy-accent-9); color: var(--suzy-accent-1); }
-    &:focus-visible { outline: 2px solid var(--suzy-accent-8); outline-offset: -2px; }
-  } */
   .columnSetting {
     display: flex;
     min-height: 36px;

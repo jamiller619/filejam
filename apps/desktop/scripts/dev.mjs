@@ -5,6 +5,9 @@ import electron from 'electron'
 import react from '@vitejs/plugin-react'
 import { inlineCssModules } from 'inline-css-modules/vite'
 import { createServer } from 'vite'
+import { copyPreviewAssets } from './copy-preview-assets.mjs'
+
+await copyPreviewAssets()
 
 const server = await createServer({
   configFile: false,
@@ -135,7 +138,9 @@ server.watcher.on('all', (event, file) => {
   const path = relative(workspace, file).split(sep).join('/')
   if (path.split('/').some((part) => ['node_modules', 'dist', '.git'].includes(part))) return
   if (path.endsWith('.tsbuildinfo')) return
-  if (path.startsWith('apps/desktop/src/renderer/') || path.startsWith('packages/ui/src/')) {
+  const previewAsset = path === 'apps/desktop/src/renderer/assets/folder.svg' ||
+    path.startsWith('packages/ui/src/assets/icons/')
+  if (!previewAsset && (path.startsWith('apps/desktop/src/renderer/') || path.startsWith('packages/ui/src/'))) {
     // Vite handles renderer and shared UI updates after invalidating its cache.
     return
   }
