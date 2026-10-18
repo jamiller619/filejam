@@ -93,6 +93,10 @@ is cooperative: crawling and cache reconciliation may finish before it is handle
 Only one scan runs at a time; another start request is rejected. Results reset on
 start and become available after successful completion. The worker upserts a library for the canonical root and saves directory and file
 rows to SQLite during each scan, including metadata and parent relationships.
+Metadata is prepared before each write transaction; up to 64 entries commit
+together in parent-first order. Completed batches remain visible if a later batch
+fails or the scan is cancelled. Deletion reconciliation uses groups of up to 500
+IDs in a single transaction after successful traversal.
 Progress counts both directories and files. Cached files are still upserted so a
 missing database row is repaired. Failed or cancelled scans retain saved rows;
 stale rows are removed only after successful traversal. Database files and their

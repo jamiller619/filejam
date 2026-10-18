@@ -32,7 +32,7 @@ let cancelled = false
 let activeScan: Promise<void> | undefined
 
 // SQLite stores the browsable tree; file-entry-cache tracks file changes across
-// scans. Each entry is saved immediately, but results and the cache baseline are
+// scans. Entries are saved in short batches, but results and the cache baseline are
 // published only after a complete pass.
 async function scan(input: string) {
   let database: Awaited<ReturnType<typeof openScanDatabase>> | undefined
@@ -163,9 +163,12 @@ async function scan(input: string) {
       }
       if (cancelled) break
       await database.prepareTags(savePaths, metadataByPath)
-      for (const path of savePaths) {
-        if (cancelled) break
-        const kind = await database.save(path, metadataByPath.get(path))
+      const saved = await database.saveBatch(
+        savePaths,
+        metadataByPath,
+        () => cancelled,
+      )
+      for (const { path, kind } of saved) {
         if (kind === 'file') {
           const key = relative(root, path)
           const change = changes.get(path)

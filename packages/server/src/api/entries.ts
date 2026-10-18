@@ -1,4 +1,4 @@
-import { and, asc, eq, getTableColumns } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, inArray } from 'drizzle-orm'
 import type { Database } from '../db/index.js'
 import { entries, type NewEntry } from '../db/schemas/entry.js'
 import { libraries } from '../db/schemas/library.js'
@@ -93,25 +93,21 @@ export function createEntriesApi(db: Database) {
         .where(eq(entries.libraryId, libraryId))
     },
     /** Preserve IDs and parent references when refreshing filesystem metadata. */
-    async upsert(values: NewEntry) {
-      const [entry] = await db
-        .insert(entries)
-        .values(values)
-        .onConflictDoUpdate({
-          target: [entries.libraryId, entries.relativePath],
-          set: values,
-        })
-        .returning({ id: entries.id })
-      if (!entry) throw new Error(`Unable to save ${values.relativePath}`)
-      return entry
-    },
+    upsert: (values: NewEntry) => upsertEntry(db, values),
     /** Reconcile deletions only after a complete, successful traversal. */
     async completeScan(libraryId: number, unseenIds: Iterable<number>) {
       await db.transaction(async (tx) => {
-        for (const id of unseenIds) {
+        const ids = [...unseenIds]
+        // Stay below SQLite's parameter limit, including the library filter.
+        for (let index = 0; index < ids.length; index += 500) {
           await tx
             .delete(entries)
-            .where(and(eq(entries.libraryId, libraryId), eq(entries.id, id)))
+            .where(
+              and(
+                eq(entries.libraryId, libraryId),
+                inArray(entries.id, ids.slice(index, index + 500)),
+              ),
+            )
         }
         await tx
           .update(entries)
@@ -125,4 +121,21 @@ export function createEntriesApi(db: Database) {
       })
     },
   }
+}
+
+/** Shared by individual API writes and scanner-owned batch transactions. */
+export async function upsertEntry(
+  db: Pick<Database, 'insert'>,
+  values: NewEntry,
+) {
+  const [entry] = await db
+    .insert(entries)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [entries.libraryId, entries.relativePath],
+      set: values,
+    })
+    .returning({ id: entries.id })
+  if (!entry) throw new Error(`Unable to save ${values.relativePath}`)
+  return entry
 }

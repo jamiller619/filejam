@@ -2,6 +2,7 @@ import type { Stats } from 'node:fs'
 import { lstat, readFile } from 'node:fs/promises'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import mime from 'mime'
+import { upsertEntry } from '../api/entries.js'
 import { createApi } from '../api/index.js'
 import { initDatabase } from '../db/index.js'
 import { createTagReader } from '../metadata/readTags.js'
@@ -15,12 +16,88 @@ export async function openScanDatabase(databasePath: string, root: string) {
     const library = await api.libraries.ensureRoot(root)
     const isTrash = await api.libraries.isTrashRoot(root)
     const previous = await api.entries.listPaths(library.id)
-    // Start with all stored paths; save() removes those encountered this time.
+    // Start with all stored paths; committed batches remove encountered paths.
     // Remaining rows are deletion candidates only if the entire scan succeeds.
     const unseen = new Map(previous.map((entry) => [entry.path, entry.id]))
     const persisted = new Set(unseen.keys())
     const directories = new Map<string, number>()
     const pathKey = (path: string) => relative(root, path).split(sep).join('/')
+
+    async function prepare(path: string, snapshot?: Stats) {
+      // All filesystem and external tag reads finish before opening a write
+      // transaction. Parent IDs are resolved later, in parent-first order.
+      const metadata = snapshot ?? (await lstat(path))
+      const key = pathKey(path)
+      const kind = metadata.isDirectory()
+        ? 'directory'
+        : metadata.isSymbolicLink()
+          ? 'symlink'
+          : 'file'
+      const name = isTrash
+        ? await getTrashEntryName(root, path)
+        : basename(path) || root
+      return {
+        path,
+        parentKey: key === '' ? null : pathKey(dirname(path)),
+        values: {
+          ...(await tagReader.read(path, kind, metadata)),
+          libraryId: library.id,
+          relativePath: key,
+          name,
+          kind,
+          size: kind === 'directory' ? null : metadata.size,
+          mimeType:
+            kind === 'file'
+              ? (mime.getType(name) ?? 'application/octet-stream')
+              : null,
+          modifiedAt: metadata.mtime,
+          createdAt: metadata.birthtime,
+          indexedAt: new Date(),
+          childrenDirty: kind === 'directory',
+        },
+      } as const
+    }
+
+    async function saveBatch(
+      paths: string[],
+      metadata?: ReadonlyMap<string, Stats>,
+      isCancelled = () => false,
+    ) {
+      const saved: { path: string; kind: 'directory' | 'symlink' | 'file' }[] =
+        []
+      for (let index = 0; index < paths.length; index += 64) {
+        const prepared: Awaited<ReturnType<typeof prepare>>[] = []
+        for (const path of paths.slice(index, index + 64)) {
+          if (isCancelled()) return saved
+          prepared.push(await prepare(path, metadata?.get(path)))
+        }
+        if (isCancelled()) return saved
+        if (!prepared.length) continue
+        const newDirectories = new Map<string, number>()
+        await connection.db.transaction(async (tx) => {
+          for (const { path, parentKey, values } of prepared) {
+            const parentId =
+              parentKey === null
+                ? null
+                : (newDirectories.get(parentKey) ?? directories.get(parentKey))
+            if (parentId === undefined)
+              throw new Error(`Missing parent directory for ${path}`)
+            const entry = await upsertEntry(tx, { ...values, parentId })
+            if (values.kind === 'directory')
+              newDirectories.set(values.relativePath, entry.id)
+          }
+        })
+        // Publish bookkeeping only after commit, so a rolled-back batch never
+        // contributes parent IDs or hides stale rows from reconciliation.
+        for (const [key, id] of newDirectories) directories.set(key, id)
+        for (const { path, values } of prepared) {
+          unseen.delete(values.relativePath)
+          persisted.add(values.relativePath)
+          saved.push({ path, kind: values.kind })
+        }
+      }
+      return saved
+    }
 
     return {
       async close() {
@@ -38,44 +115,14 @@ export async function openScanDatabase(databasePath: string, root: string) {
         if (exists) unseen.delete(key)
         return exists
       },
+      saveBatch,
       async save(path: string, snapshot?: Stats) {
-        // lstat records the link itself rather than its target.
-        const metadata = snapshot ?? (await lstat(path))
-        const key = pathKey(path)
-        const parentId =
-          key === '' ? null : directories.get(pathKey(dirname(path)))
-        if (parentId === undefined)
-          throw new Error(`Missing parent directory for ${path}`)
-        const kind = metadata.isDirectory()
-          ? 'directory'
-          : metadata.isSymbolicLink()
-            ? 'symlink'
-            : 'file'
-        const name = isTrash
-          ? await getTrashEntryName(root, path)
-          : basename(path) || root
-        const values = {
-          ...(await tagReader.read(path, kind, metadata)),
-          libraryId: library.id,
-          parentId,
-          relativePath: key,
-          name,
-          kind,
-          size: kind === 'directory' ? null : metadata.size,
-          mimeType:
-            kind === 'file'
-              ? (mime.getType(name) ?? 'application/octet-stream')
-              : null,
-          modifiedAt: metadata.mtime,
-          createdAt: metadata.birthtime,
-          indexedAt: new Date(),
-          childrenDirty: kind === 'directory',
-        } as const
-        const entry = await api.entries.upsert(values)
-        unseen.delete(key)
-        persisted.add(key)
-        if (kind === 'directory') directories.set(key, entry.id)
-        return kind
+        const [saved] = await saveBatch(
+          [path],
+          snapshot ? new Map([[path, snapshot]]) : undefined,
+        )
+        if (!saved) throw new Error(`Unable to save ${path}`)
+        return saved.kind
       },
       // Never call this after cancellation or failure: an incomplete traversal
       // cannot distinguish deleted entries from entries it has not reached.
