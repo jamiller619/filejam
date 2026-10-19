@@ -6,6 +6,7 @@ import electron = require('electron')
 const { contextBridge, ipcRenderer } = electron
 
 type FilesApi = {
+  openImage: (libraryId: number, path: string) => Promise<void>
   setControlsColor: (color: string) => Promise<void>
   collections: ServerApi['collections']
   config: ServerApi['config']
@@ -14,6 +15,8 @@ type FilesApi = {
 }
 
 const files: FilesApi = {
+  openImage: (libraryId, path) =>
+    ipcRenderer.invoke('window:openImage', libraryId, path),
   setControlsColor: (color) =>
     ipcRenderer.invoke('window:setControlsColor', color),
   collections: {

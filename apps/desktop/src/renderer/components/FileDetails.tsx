@@ -1,6 +1,6 @@
 import { Button, Icon, Pill, ScrollArea } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FileColumn } from '../utils/fileColumns.js'
 import {
   fileColumnLabels,
@@ -124,6 +124,10 @@ export default function FileDetails({
   onClosed: () => void
   onCollectionsChange: () => void
 }) {
+  const [imageError, setImageError] = useState<{
+    id: number
+    message: string
+  } | null>(null)
   const panel = useRef<HTMLElement>(null)
   const closedCallback = useRef(onClosed)
 
@@ -223,8 +227,26 @@ export default function FileDetails({
         <ScrollArea>
           <div className={styles.contentBody}>
             <div className={styles.preview}>
-              <FilePreview entry={entry} size="100%" />
+              <FilePreview
+                entry={entry}
+                size="100%"
+                onOpen={() => {
+                  setImageError(null)
+                  void window.files
+                    .openImage(entry.libraryId, entry.relativePath)
+                    .catch(() => {
+                      setImageError({
+                        id: entry.id,
+                        message:
+                          'This image could not be opened. It may have been moved, deleted, or be unsupported.',
+                      })
+                    })
+                }}
+              />
             </div>
+            {imageError?.id === entry.id && (
+              <p role="alert">{imageError.message}</p>
+            )}
             <dl className={styles.metadata}>
               {metadata.map((column) => (
                 <div key={column}>

@@ -1,4 +1,7 @@
-﻿import { css } from 'inline-css-modules'
+﻿import { Button, Icon } from '@files/ui'
+import { css } from 'inline-css-modules'
+import { useState } from 'react'
+import { previewMimeType } from '../../preview/formats.js'
 
 const styles = css`
   .container {
@@ -8,6 +11,23 @@ const styles = css`
     max-width: 100%;
     flex-shrink: 0;
     aspect-ratio: 1;
+  }
+
+  .expandable {
+    position: relative;
+    aspect-ratio: auto;
+    width: fit-content;
+  }
+
+  .open {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+    box-shadow: 0 1px 5px #0006;
+    &:focus-visible { outline: 2px solid var(--suzy-text); outline-offset: 2px; }
   }
 
   .preview {
@@ -33,25 +53,33 @@ export default function FilePreview({
   size = 40,
   variant = 'list',
   color,
+  onOpen,
 }: {
   entry: Entry
   size?: number | '100%'
   variant?: 'list' | 'grid'
   color?: string
+  onOpen?: () => void
 }) {
+  const [loadedSource, setLoadedSource] = useState('')
+  const imageCandidate = Boolean(onOpen && previewMimeType(entry.relativePath))
   const params = new URLSearchParams({
     libraryId: String(entry.libraryId),
     path: entry.relativePath,
     v: String(entry.modifiedAt),
     variant,
+    ...(imageCandidate ? { original: '1' } : {}),
     ...(color ? { color } : {}),
   })
   const source = `files-preview://preview-image?${params}`
 
   return (
     <div
-      className={styles.container}
-      style={{ width: size, height: typeof size === 'number' ? size : 'auto' }}
+      className={`${styles.container} ${imageCandidate ? styles.expandable : ''}`}
+      style={{
+        width: imageCandidate ? undefined : size,
+        height: typeof size === 'number' ? size : 'auto',
+      }}
     >
       <img
         key={source}
@@ -60,14 +88,32 @@ export default function FilePreview({
         alt=""
         loading="lazy"
         decoding="async"
+        onLoad={(event) => {
+          if (!new URL(event.currentTarget.src).searchParams.has('fallback'))
+            setLoadedSource(source)
+        }}
         onError={(event) => {
+          setLoadedSource('')
           // Ask Electron for an icon if Chromium cannot decode the source image.
           const image = event.currentTarget
           if (!new URL(image.src).searchParams.has('fallback')) {
-            image.src = `${source}&fallback=1`
+            const fallback = new URL(source)
+            fallback.searchParams.delete('original')
+            fallback.searchParams.set('fallback', '1')
+            image.src = fallback.href
           }
         }}
       />
+      {imageCandidate && loadedSource === source && (
+        <Button
+          className={styles.open}
+          onClick={onOpen}
+          title="Open full-size image"
+          aria-label="Open full-size image"
+        >
+          <Icon name="magnifying-glass" size={16} />
+        </Button>
+      )}
     </div>
   )
 }

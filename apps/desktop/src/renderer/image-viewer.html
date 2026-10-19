@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src files-preview:; script-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>Image</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #202020; color: #eee; font: 14px system-ui; }
+      main { display: flex; min-width: 100vw; min-height: 100vh; width: max-content; }
+      img { display: block; flex: none; margin: auto; max-width: none; max-height: none; cursor: zoom-out; }
+      img:focus-visible { outline: 2px solid #eee; outline-offset: -2px; }
+      main.contained { width: 100%; min-width: 0; height: 100vh; overflow: hidden; }
+      main.contained img { width: auto; height: auto; max-width: 100%; max-height: 100%; cursor: zoom-in; }
+      img[hidden], p[hidden] { display: none; }
+      p { margin: auto; padding: 24px; }
+    </style>
+  </head>
+  <body>
+    <main><img id="image" role="button" tabindex="0" aria-pressed="false" hidden /><p id="status" role="status">Loading image…</p></main>
+    <script type="module" src="./image-viewer.ts"></script>
+  </body>
+</html>

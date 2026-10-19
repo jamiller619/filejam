@@ -57,16 +57,18 @@ export function createPreviewHandler(
 
       const info = await stat(file)
       const icon = async () =>
-        new Response(
-          await previewIcon({
-            directory: info.isDirectory(),
-            variant:
-              url.searchParams.get('variant') === 'grid' ? 'grid' : 'list',
-            libraryName: file === root ? library.name : undefined,
-            color: color ?? '#7ce2fe',
-          }),
-          { headers: { ...headers, 'Content-Type': 'image/svg+xml' } },
-        )
+        url.searchParams.get('original') === '1'
+          ? new Response(null, { status: 415 })
+          : new Response(
+              await previewIcon({
+                directory: info.isDirectory(),
+                variant:
+                  url.searchParams.get('variant') === 'grid' ? 'grid' : 'list',
+                libraryName: file === root ? library.name : undefined,
+                color: color ?? '#7ce2fe',
+              }),
+              { headers: { ...headers, 'Content-Type': 'image/svg+xml' } },
+            )
 
       const mimeType = previewMimeType(file)
       if (

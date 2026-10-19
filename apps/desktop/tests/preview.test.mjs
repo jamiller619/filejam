@@ -56,6 +56,10 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       assert.equal(icon.headers.get('content-type'), 'image/svg+xml')
       assert.match(await icon.text(), /<svg/)
     }
+    for (const path of ['notes.txt', 'folder', '']) {
+      assert.equal((await request(path, { original: '1' })).status, 415)
+    }
+    assert.equal((await request('photo #1 & caf\u00e9.PNG', { original: '1' })).status, 200)
     const folder = await request('folder', {
       variant: 'grid',
       color: '#ff8800',
@@ -69,8 +73,9 @@ test('preview protocol routes images, folders, library artwork and fallback icon
     assert.doesNotMatch(artwork, /x="77"/)
     const fallback = await request('photo #1 & café.PNG', { fallback: '1' })
     assert.equal(fallback.headers.get('content-type'), 'image/svg+xml')
-    assert.equal(fetched.length, 1)
+    assert.equal(fetched.length, 2)
     failFetch = true
+    assert.equal((await request('photo #1 & caf\u00e9.PNG', { original: '1' })).status, 415)
     assert.equal(
       (await request('photo #1 & café.PNG')).headers.get('content-type'),
       'image/svg+xml',

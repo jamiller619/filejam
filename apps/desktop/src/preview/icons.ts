@@ -32,7 +32,7 @@ export async function previewIcon({
 }) {
   if (directory && variant === 'grid') {
     let svg = (await asset('folder-art')).replace(
-      'var(--folder-color, var(--suzy-accent-9, #7ce2fe))',
+      'var(--folder-color, var(--suzy-accent-9))',
       color,
     )
     const overlay =

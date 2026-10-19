@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { boot } from '@files/server'
 import { app, BrowserWindow, dialog, net, protocol } from 'electron'
 import { registerApiIpc } from './api/main.js'
+import { registerImageViewerIpc } from './ipc/image-viewer.js'
 import { registerWindowIpc } from './ipc/window.js'
 import { createPreviewHandler } from './preview/handler.js'
 import { registerScannerIpc } from './scanner/main.js'
@@ -56,6 +57,10 @@ async function createWindow() {
   })
   window = current
   const removeWindowIpc = registerWindowIpc(current)
+  const removeImageViewerIpc = registerImageViewerIpc(
+    current,
+    server.api.libraries,
+  )
   removeScannerIpc = registerScannerIpc(server.scanner, current.webContents)
   removeApiIpc = registerApiIpc(server.api, current.webContents)
 
@@ -67,6 +72,7 @@ async function createWindow() {
   })
   current.once('closed', () => {
     removeWindowIpc()
+    removeImageViewerIpc()
     removeApiIpc?.()
     removeApiIpc = undefined
     removeScannerIpc?.()

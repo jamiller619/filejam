@@ -18,6 +18,16 @@ await build({
     },
   },
   build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(
+          new URL('../src/renderer/index.html', import.meta.url),
+        ),
+        viewer: fileURLToPath(
+          new URL('../src/renderer/image-viewer.html', import.meta.url),
+        ),
+      },
+    },
     outDir: fileURLToPath(new URL('../dist/renderer/', import.meta.url)),
     emptyOutDir: false,
   },
