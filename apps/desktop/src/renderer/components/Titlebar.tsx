@@ -23,16 +23,23 @@ export default function Titlebar(props: HTMLAttributes<HTMLDivElement>) {
 
   useEffect(() => {
     const element = titlebar.current
-    if (!element || !api) return
+
+    if (!element || !api) {
+      return
+    }
 
     // Canvas resolves CSS colors (including modern color spaces) to sRGB hex.
     const context = document.createElement('canvas').getContext('2d')
-    if (!context) return
+
+    if (!context) {
+      return
+    }
 
     const syncColor = () => {
       context.clearRect(0, 0, 1, 1)
       context.fillStyle = getComputedStyle(element).color
       context.fillRect(0, 0, 1, 1)
+
       const channels = context.getImageData(0, 0, 1, 1).data.slice(0, 3)
       const color = `#${Array.from(channels, (channel) => channel.toString(16).padStart(2, '0')).join('')}`
 
@@ -51,7 +58,9 @@ export default function Titlebar(props: HTMLAttributes<HTMLDivElement>) {
         attributeFilter: ['class', 'style', 'data-suzy-theme'],
       })
     }
+
     const colorScheme = window.matchMedia('(prefers-color-scheme: dark)')
+
     colorScheme.addEventListener('change', syncColor)
 
     syncColor()

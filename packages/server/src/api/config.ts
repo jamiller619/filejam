@@ -4,7 +4,10 @@ import type { ZodObject, ZodType } from 'zod'
 
 export function createConfigApi(store?: ConfigStore) {
   function requireStore(): ConfigStore {
-    if (!store) throw new Error('The config API is unavailable')
+    if (!store) {
+      throw new Error('The config API is unavailable')
+    }
+
     return store
   }
 
@@ -14,9 +17,11 @@ export function createConfigApi(store?: ConfigStore) {
     },
     async set<K extends ConfigKey>(key: K, value: Config[K]): Promise<void> {
       const config = requireStore()
+
       const configObjectSchema = configSchema as ZodObject<
         Record<ConfigKey, ZodType>
       >
+
       const parsed = configObjectSchema.shape[key].safeParse(value)
 
       if (!parsed.success) {

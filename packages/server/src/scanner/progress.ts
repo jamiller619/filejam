@@ -40,8 +40,12 @@ export class ScanProgressReporter {
 
   failed(root: string, status: ScanStatus) {
     const previous = this.#active.get(root)
+
     // A terminal snapshot may already have accounted for this scan before the crash.
-    if (!previous) return
+    if (!previous) {
+      return
+    }
+
     this.update(root, {
       type: 'progress',
       status,
@@ -52,18 +56,25 @@ export class ScanProgressReporter {
   }
 
   report(status: ScannerStatus) {
-    if (this.#startedAt === undefined) return
+    if (this.#startedAt === undefined) {
+      return
+    }
+
     const now = performance.now()
     const scanning = status.state === 'scanning'
+
     // Worker heartbeats can arrive together; emit one global heartbeat per second.
     // Also publish phase transitions and a single final snapshot.
     if (
       scanning &&
       now - this.#lastLoggedAt < 1000 &&
       status.phase === this.#lastPhase
-    )
+    ) {
       return
+    }
+
     const aggregate = { ...this.#finished }
+
     for (const progress of this.#active.values()) {
       aggregate.total += progress.status.total
       aggregate.processed += progress.status.processed
@@ -71,11 +82,15 @@ export class ScanProgressReporter {
       aggregate.changed += progress.changes.changed
       aggregate.removed += progress.changes.removed
     }
+
     const elapsedMs = Math.round(now - this.#startedAt)
+
     const errors = status.libraries.flatMap((library) =>
       library.error ? [{ root: library.root, error: library.error }] : [],
     )
+
     const logger = createLogger('scanner')
+
     logger[status.state === 'failed' ? 'error' : 'info'](
       scanning ? 'Scan progress' : `Scan ${status.state}`,
       {
@@ -102,8 +117,12 @@ export class ScanProgressReporter {
         errors,
       },
     )
+
     this.#lastLoggedAt = now
     this.#lastPhase = status.phase
-    if (!scanning) this.#startedAt = undefined
+
+    if (!scanning) {
+      this.#startedAt = undefined
+    }
   }
 }

@@ -35,12 +35,8 @@
           "name": "collection_entries_collection_id_collections_id_fk",
           "tableFrom": "collection_entries",
           "tableTo": "collections",
-          "columnsFrom": [
-            "collection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["collection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -48,22 +44,15 @@
           "name": "collection_entries_entry_id_entries_id_fk",
           "tableFrom": "collection_entries",
           "tableTo": "entries",
-          "columnsFrom": [
-            "entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entry_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "collection_entries_collection_id_entry_id_pk": {
-          "columns": [
-            "collection_id",
-            "entry_id"
-          ],
+          "columns": ["collection_id", "entry_id"],
           "name": "collection_entries_collection_id_entry_id_pk"
         }
       },
@@ -217,18 +206,12 @@
       "indexes": {
         "entries_library_path_unique": {
           "name": "entries_library_path_unique",
-          "columns": [
-            "library_id",
-            "relative_path"
-          ],
+          "columns": ["library_id", "relative_path"],
           "isUnique": true
         },
         "entries_parent_name_idx": {
           "name": "entries_parent_name_idx",
-          "columns": [
-            "parent_id",
-            "name"
-          ],
+          "columns": ["parent_id", "name"],
           "isUnique": false
         }
       },
@@ -237,12 +220,8 @@
           "name": "entries_library_id_libraries_id_fk",
           "tableFrom": "entries",
           "tableTo": "libraries",
-          "columnsFrom": [
-            "library_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["library_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -250,12 +229,8 @@
           "name": "entries_parent_id_entries_id_fk",
           "tableFrom": "entries",
           "tableTo": "entries",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -314,9 +289,7 @@
       "indexes": {
         "libraries_root_path_unique": {
           "name": "libraries_root_path_unique",
-          "columns": [
-            "root_path"
-          ],
+          "columns": ["root_path"],
           "isUnique": true
         }
       },

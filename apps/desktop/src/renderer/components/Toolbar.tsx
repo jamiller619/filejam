@@ -83,9 +83,11 @@ export default function Toolbar() {
   const match = useMatch('/libraries/:libraryId')
   const [searchParams] = useSearchParams()
   const { libraries } = useLibraries()
+
   const library = match
     ? libraries.find((item) => item.id === Number(match.params.libraryId))
     : undefined
+
   const segments = (searchParams.get('folder') ?? '').split('/').filter(Boolean)
   const isHome = useMatch('/') !== null
 
@@ -132,6 +134,7 @@ export default function Toolbar() {
             </Link>
             {segments.map((segment, index) => {
               const relativePath = segments.slice(0, index + 1).join('/')
+
               return (
                 <span key={relativePath} className={style.crumb}>
                   <span aria-hidden="true">/</span>

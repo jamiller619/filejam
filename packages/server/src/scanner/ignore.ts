@@ -9,5 +9,6 @@ const ignoredFileNames = new Set(['desktop.ini', 'ehthumbs.db', 'thumbs.db'])
  */
 export function isIgnoredScanPath(path: string): boolean {
   const name = basename(path)
+
   return name.startsWith('.') || ignoredFileNames.has(name.toLowerCase())
 }

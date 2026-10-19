@@ -1,4 +1,4 @@
-import { and, asc, eq, getTableColumns, inArray } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 import type { Database } from '../db/index.js'
 import { entries, type NewEntry } from '../db/schemas/entry.js'
 import { libraries } from '../db/schemas/library.js'
@@ -9,7 +9,10 @@ export function createEntriesApi(db: Database) {
   return {
     /** Main-process file access; intentionally not exposed over renderer IPC. */
     async getFileSource(id: number) {
-      if (!Number.isSafeInteger(id) || id <= 0) return null
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        return null
+      }
+
       const [source] = await db
         .select({
           rootPath: libraries.rootPath,
@@ -19,17 +22,25 @@ export function createEntriesApi(db: Database) {
         .from(entries)
         .innerJoin(libraries, eq(entries.libraryId, libraries.id))
         .where(and(eq(entries.id, id), eq(entries.kind, 'file')))
+
       return source ?? null
     },
-    async listChildren(folder: { libraryId: number; relativePath: string }) {
+    async listChildren(folder: {
+      libraryId: number
+      relativePath: string
+      recursive?: boolean
+    }) {
       if (
         !folder ||
         !Number.isSafeInteger(folder.libraryId) ||
         folder.libraryId <= 0 ||
-        typeof folder.relativePath !== 'string'
+        typeof folder.relativePath !== 'string' ||
+        (folder.recursive !== undefined &&
+          typeof folder.recursive !== 'boolean')
       ) {
         throw new Error('Invalid folder reference')
       }
+
       const [directory] = await db
         .select()
         .from(entries)
@@ -40,24 +51,56 @@ export function createEntriesApi(db: Database) {
             eq(entries.kind, 'directory'),
           ),
         )
-      if (!directory) return { entries: [], scanned: false }
+
+      if (!directory) {
+        return { entries: [], scanned: false }
+      }
+
       const children = await db
-        .select({ ...getTableColumns(entries), size: entrySize })
+        .select({
+          ...getTableColumns(entries),
+          size: folder.recursive ? entries.size : entrySize,
+        })
         .from(entries)
         .where(
           and(
             eq(entries.libraryId, folder.libraryId),
-            eq(entries.parentId, directory.id),
+            folder.recursive
+              ? inArray(
+                  entries.id,
+                  sql`(
+                  with recursive descendants(id, kind) as (
+                    select id, kind from entries where id = ${directory.id}
+                    union all
+                    select child.id, child.kind from entries as child
+                    join descendants on child.parent_id = descendants.id
+                    where descendants.kind = 'directory'
+                      and child.library_id = ${folder.libraryId}
+                  )
+                  select id from descendants
+                )`,
+                )
+              : eq(entries.parentId, directory.id),
           ),
         )
         .orderBy(asc(entries.name), asc(entries.id))
+
       return {
-        entries: children.map((entry) => ({
-          ...entry,
-          tags: mergeTags(entry),
-        })),
+        entries: children
+          .filter((entry) => !folder.recursive || entry.kind !== 'directory')
+          .map((entry) => ({
+            ...entry,
+            tags: mergeTags(entry),
+          })),
         scanned:
-          directory.childrenScannedAt !== null && !directory.childrenDirty,
+          directory.childrenScannedAt !== null &&
+          !directory.childrenDirty &&
+          (!folder.recursive ||
+            children.every(
+              (entry) =>
+                entry.kind !== 'directory' ||
+                (entry.childrenScannedAt !== null && !entry.childrenDirty),
+            )),
       }
     },
     async setAppTags(id: number, tags: string[]) {
@@ -70,16 +113,22 @@ export function createEntriesApi(db: Database) {
       ) {
         throw new Error('Invalid file tags')
       }
+
       const [entry] = await db
         .update(entries)
         .set({ appTags: normalizeTags(tags) })
         .where(eq(entries.id, id))
         .returning()
-      if (!entry) throw new Error('File not found')
+
+      if (!entry) {
+        throw new Error('File not found')
+      }
+
       const [sized] = await db
         .select({ size: entrySize })
         .from(entries)
         .where(eq(entries.id, id))
+
       return {
         ...entry,
         size: sized?.size ?? entry.size,
@@ -98,6 +147,7 @@ export function createEntriesApi(db: Database) {
     async completeScan(libraryId: number, unseenIds: Iterable<number>) {
       await db.transaction(async (tx) => {
         const ids = [...unseenIds]
+
         // Stay below SQLite's parameter limit, including the library filter.
         for (let index = 0; index < ids.length; index += 500) {
           await tx
@@ -109,6 +159,7 @@ export function createEntriesApi(db: Database) {
               ),
             )
         }
+
         await tx
           .update(entries)
           .set({ childrenDirty: false, childrenScannedAt: new Date() })
@@ -136,6 +187,10 @@ export async function upsertEntry(
       set: values,
     })
     .returning({ id: entries.id })
-  if (!entry) throw new Error(`Unable to save ${values.relativePath}`)
+
+  if (!entry) {
+    throw new Error(`Unable to save ${values.relativePath}`)
+  }
+
   return entry
 }

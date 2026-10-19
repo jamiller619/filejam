@@ -77,6 +77,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
 
   const { collections: allCollections, loadFailed: collectionsFailed } =
     useCollections()
+
   const collections = allCollections.filter(
     (item) => !['recents', 'favorites'].includes(item.id),
   )
@@ -86,31 +87,47 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   const busy = useRef(false)
   const { values } = useConfig(['user.favoriteFolders'])
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
+
   const favoriteFolders = favoritePaths.flatMap((path) => {
     const library = libraries.find((item) => {
-      if (item.isTrash) return false
+      if (item.isTrash) {
+        return false
+      }
+
       const normalize = (value: string) => {
         const normalized = value.replaceAll('\\', '/').replace(/\/+$/, '')
+
         return /^[a-z]:|^\\\\/i.test(value)
           ? normalized.toLowerCase()
           : normalized
       }
+
       const root = normalize(item.rootPath)
       const target = normalize(path)
+
       return target === root || target.startsWith(`${root}/`)
     })
-    if (!library) return []
+
+    if (!library) {
+      return []
+    }
+
     const root = library.rootPath.replace(/[\\/]+$/, '')
+
     const relativePath = path
       .slice(root.length)
       .replace(/^[\\/]+/, '')
       .replaceAll('\\', '/')
+
     return [{ path, library, relativePath }]
   })
+
   const favoritePathSet = new Set(favoritePaths)
+
   const otherLibraries = libraries.filter(
     (library) => !library.isTrash && !favoritePathSet.has(library.rootPath),
   )
+
   const trashLibraries = libraries.filter((library) => library.isTrash)
 
   function dragOver(event: DragEvent) {
@@ -118,8 +135,10 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
       !event.dataTransfer.types.some(
         (type) => type === folderDragType || type === 'Files',
       )
-    )
+    ) {
       return
+    }
+
     event.preventDefault()
     event.dataTransfer.dropEffect = busy.current ? 'none' : 'copy'
     setDragging(!busy.current)
@@ -128,23 +147,32 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   async function drop(event: DragEvent) {
     event.preventDefault()
     setDragging(false)
-    if (busy.current) return
+
+    if (busy.current) {
+      return
+    }
+
     busy.current = true
     setDropError('')
+
     try {
       // Read native File objects while the drop's data store is still available.
       const internal = event.dataTransfer.getData(folderDragType)
+
       const paths = internal
         ? JSON.parse(internal)
         : Array.from(event.dataTransfer.files, (file) =>
             window.files.getDroppedFilePath(file),
           )
+
       const updated = await window.files.addFavoriteFolders(paths)
+
       window.dispatchEvent(
         new CustomEvent('files:config-updated', {
           detail: { key: 'user.favoriteFolders', value: updated },
         }),
       )
+
       window.dispatchEvent(new Event('files:libraries-updated'))
     } catch {
       setDropError(
@@ -172,8 +200,9 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           onDragLeave={(event) => {
             if (
               !event.currentTarget.contains(event.relatedTarget as Node | null)
-            )
+            ) {
               setDragging(false)
+            }
           }}
           onDrop={(event) => {
             void drop(event)
@@ -225,10 +254,12 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
         {loadFailed && <li role="status">Unable to load folders.</li>}
         {trashLibraries.map((library) => {
           const drive = library.rootPath.match(/^[a-z]:/i)?.[0].toUpperCase()
+
           const label =
             trashLibraries.length > 1 && drive
               ? `${drive} ${library.name}`
               : library.name
+
           return (
             <li key={library.id}>
               <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>

@@ -4,6 +4,7 @@ import { fileColumnLabels } from './fileColumns.js'
 export type FileViewMode = 'list' | 'grid'
 
 type TablePreferences = {
+  flatten: boolean
   viewMode: FileViewMode
   sorting: SortingState
   columnVisibility: VisibilityState
@@ -13,16 +14,27 @@ const storagePrefix = 'files:table:v1:'
 
 export function readTablePreferences(page: string): TablePreferences {
   const defaults: TablePreferences = {
+    flatten: false,
     viewMode: 'list',
     sorting: [],
     columnVisibility: { tags: false },
   }
+
   try {
     const stored = localStorage.getItem(storagePrefix + page)
-    if (!stored) return defaults
+
+    if (!stored) {
+      return defaults
+    }
+
     const value = JSON.parse(stored)
-    if (!value || typeof value !== 'object') return defaults
+
+    if (!value || typeof value !== 'object') {
+      return defaults
+    }
+
     return {
+      flatten: value.flatten === true,
       viewMode: value.viewMode === 'grid' ? 'grid' : 'list',
       sorting: Array.isArray(value.sorting)
         ? value.sorting.filter(

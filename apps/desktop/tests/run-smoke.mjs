@@ -7,8 +7,10 @@ import { fileURLToPath } from 'node:url'
 import electron from 'electron'
 
 const directory = await mkdtemp(join(tmpdir(), 'files-desktop-'))
+
 try {
   const config = join(directory, 'config.json')
+
   await writeFile(
     config,
     JSON.stringify({
@@ -17,8 +19,11 @@ try {
       'appdata.logsPath': join(directory, 'logs'),
     }),
   )
+
   const env = { ...process.env, FILES_CONFIG_FILE: config }
+
   delete env.ELECTRON_RUN_AS_NODE
+
   const child = spawn(
     electron,
     [
@@ -27,12 +32,16 @@ try {
     ],
     { env, stdio: 'inherit', timeout: 75000 },
   )
+
   const code = await new Promise((resolve, reject) => {
     child.once('error', reject)
     child.once('exit', resolve)
   })
+
   assert.equal(code, 0, 'Electron must exit cleanly')
+
   const logs = await readFile(join(directory, 'logs/current.jsonl'), 'utf8')
+
   assert.match(logs, /Server started/)
   assert.match(logs, /Server stopped/)
   console.log('Server startup and shutdown logs verified')

@@ -47,29 +47,40 @@ export default function FileCollections({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [name, setName] = useState('')
+
   const request = useCallback(
     () =>
       Promise.all([api.collections.list(), api.collections.forEntry(entryId)]),
     [api, entryId],
   )
+
   const { data, loadFailed } = useApiQuery<Awaited<
     ReturnType<typeof request>
   > | null>(request, null)
+
   useEffect(() => {
-    if (!data) return
+    if (!data) {
+      return
+    }
+
     const [items, included] = data
+
     setCollections(items.filter((item) => item.id !== 'recents'))
     setMemberships(included.map((item) => item.id))
     setReady(true)
   }, [data])
+
   const toggle = async (id: string, included: boolean) => {
     setBusy(true)
     setError('')
+
     try {
       await api.collections.setMembership(id, entryId, included)
+
       setMemberships((current) =>
         included ? [...current, id] : current.filter((value) => value !== id),
       )
+
       onChange()
     } catch {
       setError('Unable to update collection.')
@@ -77,6 +88,7 @@ export default function FileCollections({
       setBusy(false)
     }
   }
+
   return (
     <section className={styles.collections} aria-label="Collections">
       <h5>Collections</h5>
@@ -101,11 +113,17 @@ export default function FileCollections({
       <form
         onSubmit={async (event) => {
           event.preventDefault()
-          if (!name.trim() || busy) return
+
+          if (!name.trim() || busy) {
+            return
+          }
+
           setBusy(true)
           setError('')
+
           try {
             const collection = await api.collections.create(name)
+
             setCollections((current) => [...current, collection])
             setName('')
             notifyCollectionsChanged()

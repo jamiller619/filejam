@@ -16,6 +16,9 @@ import type { FileViewMode } from '../utils/tablePreferences.js'
 
 const styles = css`
   .toolbar {
+    position: sticky;
+    top: 36px;
+    z-index: 2;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -23,6 +26,7 @@ const styles = css`
     justify-content: flex-end;
     padding-block: var(--suzy-space-2);
     padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
+    background: var(--suzy-gray-2);
   }
   .columnSetting {
     display: flex;
@@ -50,6 +54,8 @@ type FilesToolbarProps<TData> = {
   relativePath?: string | undefined
   collectionId?: string | undefined
   viewMode: FileViewMode
+  flatten: boolean
+  onFlattenChange: (flatten: boolean) => void
   onViewModeChange: (viewMode: FileViewMode) => void
   table: Table<TData>
 }
@@ -62,6 +68,8 @@ export default function FilesToolbar<TData>({
   table,
   viewMode,
   onViewModeChange,
+  flatten,
+  onFlattenChange,
 }: FilesToolbarProps<TData>) {
   const {
     values: configValues,
@@ -71,15 +79,19 @@ export default function FilesToolbar<TData>({
 
   const rootPath =
     libraryId === undefined ? undefined : libraryRoots.get(libraryId)
+
   const separator = rootPath?.includes('\\') ? '\\' : '/'
+
   const currentFolderPath = rootPath
     ? `${rootPath.replace(/[\\/]+$/, '')}${relativePath ? `${separator}${relativePath.replaceAll('/', separator)}` : ''}`
     : undefined
+
   const favoritePaths = Array.isArray(configValues?.['user.favoriteFolders'])
     ? configValues['user.favoriteFolders'].filter(
-      (path): path is string => typeof path === 'string',
-    )
+        (path): path is string => typeof path === 'string',
+      )
     : []
+
   const [favoriteError, setFavoriteError] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
 
@@ -87,6 +99,17 @@ export default function FilesToolbar<TData>({
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
       <div className={styles.toolbar}>
+        {currentFolderPath && !collectionId && (
+          <div className={styles.columnSetting}>
+            <span>Flatten view</span>
+            <Switch
+              aria-label="Flatten view"
+              title="Show files from all subfolders and hide folders"
+              checked={flatten}
+              onCheckedChange={onFlattenChange}
+            />
+          </div>
+        )}
         <Select
           aria-label="Sort files"
           value={
@@ -96,6 +119,7 @@ export default function FilesToolbar<TData>({
           }
           onChange={(event) => {
             const [id, direction] = event.target.value.split(':')
+
             table.setSorting(id ? [{ id, desc: direction === 'desc' }] : [])
           }}
         >
@@ -137,7 +161,9 @@ export default function FilesToolbar<TData>({
                 checked={favoritePaths.includes(currentFolderPath)}
                 disabled={favoriteBusy}
                 onCheckedChange={(checked) => {
-                  if (favoriteBusy) return
+                  if (favoriteBusy) {
+                    return
+                  }
 
                   setFavoriteBusy(true)
                   setFavoriteError('')

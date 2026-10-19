@@ -9,14 +9,17 @@ export async function getOsTrashRoots(): Promise<string[]> {
   if (process.platform === 'win32') {
     try {
       const roots = await getWindowsTrashRoots()
+
       return (await Promise.all(roots.map(canonicalDirectory))).filter(
         (root): root is string => root !== null,
       )
     } catch (error) {
       console.warn('Unable to locate Windows Recycle Bin folders', error)
+
       return []
     }
   }
+
   const root =
     process.platform === 'darwin'
       ? join(homedir(), '.Trash')
@@ -25,7 +28,9 @@ export async function getOsTrashRoots(): Promise<string[]> {
           'Trash',
           'files',
         )
+
   const canonicalRoot = await canonicalDirectory(root)
+
   return canonicalRoot ? [canonicalRoot] : []
 }
 
@@ -37,7 +42,9 @@ async function getWindowsTrashRoots(): Promise<string[]> {
       Where-Object { Test-Path -LiteralPath $_ -PathType Container })
     ConvertTo-Json -InputObject @($roots) -Compress
   `
+
   const encodedScript = Buffer.from(script, 'utf16le').toString('base64')
+
   const output = await new Promise<string>((resolve, reject) => {
     execFile(
       'powershell.exe',
@@ -50,21 +57,33 @@ async function getWindowsTrashRoots(): Promise<string[]> {
       ],
       { windowsHide: true, maxBuffer: 1024 * 1024, encoding: 'utf8' },
       (error, stdout) => {
-        if (error) reject(error)
-        else resolve(stdout)
+        if (error) {
+          reject(error)
+        } else {
+          resolve(stdout)
+        }
       },
     )
   })
+
   const trimmedOutput = output.trim()
-  if (!trimmedOutput) return []
+
+  if (!trimmedOutput) {
+    return []
+  }
+
   const parsed: unknown = JSON.parse(trimmedOutput)
   const roots = Array.isArray(parsed) ? parsed : [parsed]
+
   return roots.filter((root): root is string => typeof root === 'string')
 }
 
 async function canonicalDirectory(path: string): Promise<string | null> {
   try {
-    if (!(await stat(path)).isDirectory()) return null
+    if (!(await stat(path)).isDirectory()) {
+      return null
+    }
+
     return await realpath(path)
   } catch {
     return null

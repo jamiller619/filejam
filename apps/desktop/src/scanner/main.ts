@@ -8,29 +8,46 @@ export function registerScannerIpc(
   renderer: WebContents,
 ) {
   const unsubscribe = scanner.onUpdated(() => {
-    if (!renderer.isDestroyed()) renderer.send('scanner:updated')
+    if (!renderer.isDestroyed()) {
+      renderer.send('scanner:updated')
+    }
   })
+
   const methods = ['start', 'status', 'results', 'cancel'] as const
+
   for (const method of methods) {
     ipcMain.handle(
       `scanner:${method}`,
       withIpcMiddleware((_event, root: unknown) => {
         if (method === 'start') {
-          if (typeof root !== 'string' || !root.trim())
+          if (typeof root !== 'string' || !root.trim()) {
             throw new Error('A scan root is required')
+          }
+
           return scanner.start(root)
         }
+
         if (method === 'results') {
-          if (root !== undefined && (typeof root !== 'string' || !root.trim()))
+          if (
+            root !== undefined &&
+            (typeof root !== 'string' || !root.trim())
+          ) {
             throw new Error('A scan root is required')
+          }
+
           return scanner.results(root as string | undefined)
         }
+
         return scanner[method]()
       }, authorizeRenderer(renderer)),
     )
   }
+
   return () => {
     unsubscribe()
-    for (const method of methods) ipcMain.removeHandler(`scanner:${method}`)
+
+    for (const method of methods) {
+      ipcMain.removeHandler(`scanner:${method}`)
+    }
   }
 }

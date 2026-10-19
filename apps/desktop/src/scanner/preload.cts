@@ -3,16 +3,25 @@ import type { ScannerApi } from '@files/server/scanner'
 
 // Sandboxed preloads need CommonJS and can only require Electron's allowed modules.
 import electron = require('electron')
+
 const { contextBridge, ipcRenderer } = electron
 
 type FilesApi = {
   getDroppedFilePath: (file: File) => string
   addFavoriteFolders: (paths: string[]) => Promise<string[]>
   openImage: (libraryId: number, path: string) => Promise<void>
+  previewCapabilities: (
+    libraryId: number,
+    path: string,
+  ) => Promise<{ original: boolean }>
   setControlsColor: (color: string) => Promise<void>
   collections: ServerApi['collections']
   config: ServerApi['config']
-  libraries: Pick<ServerApi['libraries'], 'list'>
+  libraries: Pick<ServerApi['libraries'], 'list'> & {
+    add: () => Promise<
+      Awaited<ReturnType<ServerApi['libraries']['list']>>[number] | null
+    >
+  }
   entries: Pick<ServerApi['entries'], 'listChildren' | 'setAppTags'>
 }
 
@@ -22,6 +31,8 @@ const files: FilesApi = {
     ipcRenderer.invoke('favorites:addFolders', paths),
   openImage: (libraryId, path) =>
     ipcRenderer.invoke('window:openImage', libraryId, path),
+  previewCapabilities: (libraryId, path) =>
+    ipcRenderer.invoke('preview:capabilities', libraryId, path),
   setControlsColor: (color) =>
     ipcRenderer.invoke('window:setControlsColor', color),
   collections: {
@@ -45,8 +56,10 @@ const files: FilesApi = {
   },
   libraries: {
     list: () => ipcRenderer.invoke('libraries:list'),
+    add: () => ipcRenderer.invoke('libraries:add'),
   },
 }
+
 contextBridge.exposeInMainWorld('files', files)
 
 function exposeScannerApi() {
@@ -54,7 +67,9 @@ function exposeScannerApi() {
     {
       onUpdated: (listener) => {
         const handler = () => listener()
+
         ipcRenderer.on('scanner:updated', handler)
+
         return () => {
           ipcRenderer.removeListener('scanner:updated', handler)
         }
@@ -64,6 +79,7 @@ function exposeScannerApi() {
       results: (root) => ipcRenderer.invoke('scanner:results', root),
       cancel: () => ipcRenderer.invoke('scanner:cancel'),
     }
+
   contextBridge.exposeInMainWorld('scanner', scanner)
 }
 

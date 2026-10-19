@@ -13,24 +13,36 @@ export function watchLibraries(
   const watchers: FSWatcher[] = []
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
   const excluded = excludedPaths.map((path) => resolve(path))
+
   const inside = (parent: string, child: string) => {
     const path = relative(parent, child)
+
     return (
       path === '' ||
       (path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path))
     )
   }
+
   for (const root of new Set(roots)) {
     try {
       const watcher = watch(root, { recursive: true }, (_event, filename) => {
         if (filename) {
-          if (filename.split(/[\\/]/).some(isIgnoredScanPath)) return
-          const path = resolve(root, filename)
-          if (excluded.some((excludedPath) => inside(excludedPath, path)))
+          if (filename.split(/[\\/]/).some(isIgnoredScanPath)) {
             return
+          }
+
+          const path = resolve(root, filename)
+
+          if (excluded.some((excludedPath) => inside(excludedPath, path))) {
+            return
+          }
         }
+
         // Bound the delay even while a writer produces a continuous event stream.
-        if (timers.has(root)) return
+        if (timers.has(root)) {
+          return
+        }
+
         timers.set(
           root,
           setTimeout(() => {
@@ -39,17 +51,26 @@ export function watchLibraries(
           }, 100),
         )
       })
+
       watcher.on('error', (error) =>
         warn(`Library watcher failed: ${root}`, error),
       )
+
       watchers.push(watcher)
     } catch (error) {
       warn(`Unable to watch library: ${root}`, error)
     }
   }
+
   return () => {
-    for (const watcher of watchers) watcher.close()
-    for (const timer of timers.values()) clearTimeout(timer)
+    for (const watcher of watchers) {
+      watcher.close()
+    }
+
+    for (const timer of timers.values()) {
+      clearTimeout(timer)
+    }
+
     timers.clear()
   }
 }

@@ -29,13 +29,17 @@ export async function initConfig(): Promise<ConfigStore> {
 
   const configFilePath =
     process.env.FILES_CONFIG_FILE ?? path.join(paths.data, 'config.json')
+
   await fsp.mkdir(path.dirname(configFilePath), { recursive: true })
 
   let savedConfig: Partial<Config> = {}
+
   try {
     savedConfig = JSON.parse(await fsp.readFile(configFilePath, 'utf-8'))
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error
+    }
   }
 
   // Precedence: schema/platform defaults < valid .env settings < saved settings.
@@ -45,7 +49,9 @@ export async function initConfig(): Promise<ConfigStore> {
     ...startingConfig,
     ...savedConfig,
   }
+
   await fsp.writeFile(configFilePath, JSON.stringify(data))
+
   return new ConfigStore(configFilePath, data)
 }
 
@@ -110,6 +116,7 @@ async function parseEnvFile(
 ): Promise<Partial<Config> | undefined> {
   try {
     const data = await fsp.readFile(envFile, 'utf-8')
+
     const raw = data.split('\n').reduce((acc, line) => {
       const parsed = parseEnv(line)
 

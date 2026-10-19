@@ -10,6 +10,9 @@ The desktop app boots the server in its main process and exposes scanner command
 
 ## Development
 
+Source code conventions are documented in [AGENTS.md](AGENTS.md), including
+blank lines between logical steps and braces around control-flow bodies.
+
 Use pnpm 12.10.1, as pinned in package.json.
 
 ```sh

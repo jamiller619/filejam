@@ -4,3 +4,5 @@ packages:
 allowBuilds:
   electron: true
   esbuild: true
+  ffmpeg-static: true
+  "@derhuerst/ffprobe-static": true

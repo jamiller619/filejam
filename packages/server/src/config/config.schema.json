@@ -26,6 +26,10 @@
         "title": "Sessions"
       },
       {
+        "namespace": "window",
+        "title": "Window"
+      },
+      {
         "namespace": "user",
         "title": "User"
       }
@@ -40,6 +44,9 @@
     "appdata.cachePath",
     "appdata.cacheQuota",
     "appdata.logsPath",
+    "window.navbarWidth",
+    "window.main",
+    "window.imageViewer",
     "user.favoriteFolders"
   ],
   "properties": {
@@ -92,6 +99,26 @@
       "type": "string",
       "description": "The file system path where application logs are stored."
     },
+    "window.navbarWidth": {
+      "title": "Navigation Width",
+      "type": "integer",
+      "minimum": 120,
+      "maximum": 250,
+      "default": 160,
+      "description": "The width of the navigation pane in pixels."
+    },
+    "window.main": {
+      "$ref": "#/$defs/windowState",
+      "title": "Main Window State",
+      "default": {},
+      "description": "The last position, size, and display mode of the main window."
+    },
+    "window.imageViewer": {
+      "$ref": "#/$defs/windowState",
+      "title": "Image Viewer Window State",
+      "default": {},
+      "description": "The last position, size, and display mode of an image viewer window."
+    },
     "user.favoriteFolders": {
       "title": "Favorite Folders",
       "type": "array",
@@ -101,6 +128,20 @@
       "default": [],
       "uniqueItems": true,
       "description": "The absolute paths of the user's favorite folders."
+    }
+  },
+  "$defs": {
+    "windowState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "maximized": { "type": "boolean" },
+        "fullscreen": { "type": "boolean" }
+      }
     }
   }
 }

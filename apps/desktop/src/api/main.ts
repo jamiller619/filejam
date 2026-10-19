@@ -1,5 +1,5 @@
 import type { ServerApi } from '@files/server'
-import { ipcMain, type WebContents } from 'electron'
+import { BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'
 
@@ -10,6 +10,35 @@ export function registerApiIpc(
   scanRoot?: (root: string) => Promise<unknown>,
 ) {
   const addFavoriteFolders = createFavoriteFoldersHandler(api, scanRoot)
+
+  ipcMain.handle(
+    'libraries:add',
+    withIpcMiddleware(async () => {
+      const window = BrowserWindow.fromWebContents(renderer)
+
+      if (!window) {
+        throw new Error('The app window is unavailable.')
+      }
+
+      const result = await dialog.showOpenDialog(window, {
+        title: 'Add Library',
+        properties: ['openDirectory'],
+      })
+
+      const root = result.filePaths[0]
+
+      if (result.canceled || !root) {
+        return null
+      }
+
+      const library = await api.libraries.ensureRoot(root)
+
+      await scanRoot?.(root)
+
+      return library
+    }, authorizeRenderer(renderer)),
+  )
+
   ipcMain.handle(
     'favorites:addFolders',
     withIpcMiddleware(
@@ -17,6 +46,7 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   ipcMain.handle(
     'config:get',
     withIpcMiddleware(
@@ -25,6 +55,7 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   ipcMain.handle(
     'config:set',
     withIpcMiddleware(
@@ -66,6 +97,7 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   ipcMain.handle(
     'collections:create',
     withIpcMiddleware(
@@ -73,6 +105,7 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   ipcMain.handle(
     'collections:listEntries',
     withIpcMiddleware(
@@ -80,6 +113,7 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   ipcMain.handle(
     'collections:forEntry',
     withIpcMiddleware(
@@ -87,6 +121,7 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   ipcMain.handle(
     'collections:setMembership',
     withIpcMiddleware(
@@ -95,6 +130,7 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   ipcMain.handle(
     'collections:recordView',
     withIpcMiddleware(
@@ -102,7 +138,9 @@ export function registerApiIpc(
       authorizeRenderer(renderer),
     ),
   )
+
   return () => {
+    ipcMain.removeHandler('libraries:add')
     ipcMain.removeHandler('favorites:addFolders')
     ipcMain.removeHandler('config:get')
     ipcMain.removeHandler('config:set')

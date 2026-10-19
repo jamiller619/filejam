@@ -12,14 +12,23 @@ export function withIpcMiddleware<Args extends unknown[], Result>(
 ) {
   return async (event: IpcMainInvokeEvent, ...args: Args): Promise<unknown> => {
     let lastIndex = -1
+
     async function dispatch(index: number): Promise<unknown> {
-      if (index <= lastIndex)
+      if (index <= lastIndex) {
         throw new Error('IPC next() called more than once')
+      }
+
       lastIndex = index
+
       const current = middleware[index]
-      if (current) return current(event, () => dispatch(index + 1))
+
+      if (current) {
+        return current(event, () => dispatch(index + 1))
+      }
+
       return handler(event, ...args)
     }
+
     return dispatch(0)
   }
 }
@@ -30,6 +39,7 @@ export function authorizeRenderer(renderer: WebContents): IpcMiddleware {
     if (event.sender !== renderer || event.senderFrame !== renderer.mainFrame) {
       throw new Error('Unauthorized IPC request')
     }
+
     return next()
   }
 }

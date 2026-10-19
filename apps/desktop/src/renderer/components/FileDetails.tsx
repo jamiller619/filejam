@@ -128,6 +128,7 @@ export default function FileDetails({
     id: number
     message: string
   } | null>(null)
+
   const panel = useRef<HTMLElement>(null)
   const closedCallback = useRef(onClosed)
 
@@ -138,7 +139,10 @@ export default function FileDetails({
   useLayoutEffect(() => {
     const element = panel.current
     const host = element?.parentElement
-    if (!element || !host) return
+
+    if (!element || !host) {
+      return
+    }
 
     // One moving boundary controls both the content width and the pane position.
     // The pane stays full-size and left-aligned inside the clipped host.
@@ -158,7 +162,9 @@ export default function FileDetails({
     )
 
     animation.onfinish = () => {
-      if (closing) closedCallback.current()
+      if (closing) {
+        closedCallback.current()
+      }
     }
 
     return () => {
@@ -171,8 +177,11 @@ export default function FileDetails({
 
   useLayoutEffect(() => {
     const host = panel.current?.parentElement
+
     return () => {
-      if (host) host.style.width = '0px'
+      if (host) {
+        host.style.width = '0px'
+      }
     }
   }, [])
 
@@ -180,15 +189,20 @@ export default function FileDetails({
 
   useEffect(() => {
     const opener = document.activeElement
+
     closeButton.current?.focus()
 
     return () => {
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus()
+      }
     }
   }, [])
 
   useEffect(() => {
-    if (closing) return
+    if (closing) {
+      return
+    }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -232,6 +246,7 @@ export default function FileDetails({
                 size="100%"
                 onOpen={() => {
                   setImageError(null)
+
                   void window.files
                     .openImage(entry.libraryId, entry.relativePath)
                     .catch(() => {

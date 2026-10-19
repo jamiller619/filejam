@@ -38,9 +38,13 @@ export type ApplicationCacheQuota = number
  */
 export type ApplicationLogsPath = string
 /**
+ * The width of the navigation pane in pixels.
+ */
+export type NavigationWidth = number
+/**
  * The absolute paths of the user's favorite folders.
  */
-export type FavoriteLibraries = string[]
+export type FavoriteFolders = string[]
 
 export interface FilesAppConfigSchema {
   'app.locale': ApplicationLocale
@@ -51,5 +55,30 @@ export interface FilesAppConfigSchema {
   'appdata.cachePath': ApplicationCachePath
   'appdata.cacheQuota': ApplicationCacheQuota
   'appdata.logsPath': ApplicationLogsPath
-  'user.favoriteFolders': FavoriteLibraries
+  'window.navbarWidth': NavigationWidth
+  'window.main': MainWindowState
+  'window.imageViewer': ImageViewerWindowState
+  'user.favoriteFolders': FavoriteFolders
+}
+/**
+ * The last position, size, and display mode of the main window.
+ */
+export interface MainWindowState {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  maximized?: boolean
+  fullscreen?: boolean
+}
+/**
+ * The last position, size, and display mode of an image viewer window.
+ */
+export interface ImageViewerWindowState {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  maximized?: boolean
+  fullscreen?: boolean
 }

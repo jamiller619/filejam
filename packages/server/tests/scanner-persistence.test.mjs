@@ -14,8 +14,10 @@ test('reads each entry metadata once on initial, unchanged, and changed scans', 
   const root = join(dir, 'root')
   const nested = join(root, 'nested')
   const file = join(nested, 'file.txt')
+
   await mkdir(nested, { recursive: true })
   await writeFile(file, 'hello')
+
   // Instrument real filesystem calls inside the scanner worker, including the
   // synchronous stat used by file-entry-cache, rather than mocking scan logic.
   const worker = new Worker(
@@ -45,31 +47,43 @@ test('reads each entry metadata once on initial, unchanged, and changed scans', 
       },
     },
   )
+
   try {
     for (let pass = 1; pass <= 3; pass++) {
-      if (pass === 3) await writeFile(file, 'changed contents')
+      if (pass === 3) {
+        await writeFile(file, 'changed contents')
+      }
+
       const completed = new Promise((resolve, reject) => {
         const onMessage = (message) => {
           if (
             message.type !== 'progress' ||
             message.status.state === 'scanning'
-          )
+          ) {
             return
+          }
+
           worker.off('message', onMessage)
           worker.off('error', reject)
           resolve(message)
         }
+
         worker.on('message', onMessage)
         worker.once('error', reject)
       })
+
       worker.postMessage({ id: pass, method: 'start', root })
+
       const result = await completed
+
       assert.equal(result.status.state, 'completed', result.status.error ?? '')
+
       assert.deepEqual(result.counts, {
         [root]: pass,
         [nested]: pass,
         [file]: pass,
       })
+
       assert.equal(result.changes.added, pass === 1 ? 1 : 0)
       assert.equal(result.changes.changed, pass === 3 ? 1 : 0)
     }
@@ -82,12 +96,16 @@ test('reads each entry metadata once on initial, unchanged, and changed scans', 
 async function finish(scanner) {
   for (let i = 0; i < 1000; i++) {
     const status = await scanner.status()
+
     if (status.state !== 'scanning') {
       assert.equal(status.state, 'completed', status.error ?? '')
+
       return
     }
+
     await setTimeout(10)
   }
+
   throw new Error('Scan timed out')
 }
 
@@ -95,34 +113,55 @@ test('persists parents and metadata incrementally, repairs cache hits, and remov
   const dir = await mkdtemp(join(tmpdir(), 'scanner-db-'))
   const root = join(dir, 'root')
   const databasePath = join(dir, 'files.sqlite')
+
   await mkdir(join(root, 'nested'), { recursive: true })
   await mkdir(join(root, 'empty'))
+
   await Promise.all(
     Array.from({ length: 300 }, (_, i) =>
       writeFile(join(root, 'nested', `${i}.txt`), 'hello'),
     ),
   )
+
   const connection = await initDatabase(databasePath)
   const scanner = new FileScanner(join(dir, 'cache'), databasePath)
+
   try {
     await scanner.start(root)
+
     let observedPartial = false
+
     for (let i = 0; i < 1000; i++) {
       const status = await scanner.status()
-      if (status.state !== 'scanning') break
+
+      if (status.state !== 'scanning') {
+        break
+      }
+
       const rows = await connection.db.select().from(entries)
-      if (rows.length > 0 && rows.length < 303) observedPartial = true
+
+      if (rows.length > 0 && rows.length < 303) {
+        observedPartial = true
+      }
+
       await setTimeout(5)
     }
+
     await finish(scanner)
     assert.equal(observedPartial, true)
+
     let rows = await connection.db.select().from(entries)
+
     assert.equal(rows.length, 303)
+
     const parent = rows.find((row) => row.relativePath === 'nested')
     const file = rows.find((row) => row.relativePath === 'nested/0.txt')
+
     assert.equal(file.parentId, parent.id)
     assert.equal(file.size, 5)
+
     const metadata = await stat(join(root, 'nested', '0.txt'))
+
     assert.equal(file.modifiedAt.getTime(), metadata.mtime.getTime())
     assert.equal(parent.childrenDirty, false)
     assert.ok(parent.childrenScannedAt)
@@ -130,11 +169,13 @@ test('persists parents and metadata incrementally, repairs cache hits, and remov
     await scanner.start(root)
     await finish(scanner)
     assert.equal((await connection.db.select().from(entries)).length, 303)
+
     assert.deepEqual(await scanner.results(), {
       added: [],
       changed: [],
       removed: [],
     })
+
     await rm(join(root, 'nested'), { recursive: true })
     await scanner.start(root)
     await finish(scanner)

@@ -45,6 +45,7 @@ export async function readOsTags(
 ): Promise<Record<string, OsTagResult>> {
   if (process.platform === 'darwin') {
     const result: Record<string, OsTagResult> = {}
+
     for (const path of paths) {
       try {
         const { stdout } = await exec(
@@ -52,7 +53,9 @@ export async function readOsTags(
           ['-px', 'com.apple.metadata:_kMDItemUserTags', path],
           { timeout: 5000, maxBuffer: 1024 * 1024 },
         )
+
         const plist = Buffer.from(stdout.replace(/\s/g, ''), 'hex')
+
         const json = await new Promise<string>((resolve, reject) => {
           const child = execFile(
             '/usr/bin/plutil',
@@ -60,15 +63,20 @@ export async function readOsTags(
             { timeout: 5000 },
             (error, output) => (error ? reject(error) : resolve(output)),
           )
+
           child.stdin?.on('error', reject)
           child.stdin?.end(plist)
         })
+
         const tags: unknown = JSON.parse(json)
+
         if (
           !Array.isArray(tags) ||
           !tags.every((tag) => typeof tag === 'string')
-        )
+        ) {
           throw new Error('Invalid Finder tags')
+        }
+
         result[path] = {
           tags: normalizeTags(
             tags.map((tag: string) => tag.replace(/\n[0-7]$/, '')),
@@ -76,13 +84,16 @@ export async function readOsTags(
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
+
         result[path] = /No such xattr/.test(message)
           ? { tags: [] }
           : { error: message }
       }
     }
+
     return result
   }
+
   if (process.platform !== 'win32' && process.platform !== 'linux') {
     return Object.fromEntries(
       paths.map((path) => [
@@ -91,7 +102,9 @@ export async function readOsTags(
       ]),
     )
   }
+
   const command = process.platform === 'win32' ? 'powershell.exe' : 'python3'
+
   const args =
     process.platform === 'win32'
       ? [
@@ -101,17 +114,21 @@ export async function readOsTags(
           Buffer.from(windowsScript, 'utf16le').toString('base64'),
         ]
       : ['-c', linuxScript]
+
   const { stdout } = await exec(command, args, {
     env: { ...process.env, FILES_TAG_PATHS: JSON.stringify(paths) },
     timeout: 15000,
     maxBuffer: 4 * 1024 * 1024,
     windowsHide: true,
   })
+
   const result: Record<string, OsTagResult> = JSON.parse(
     stdout.replace(/^\uFEFF/, ''),
   )
+
   for (const path of paths) {
     const value = result[path]
+
     if (
       !value ||
       !('tags' in value) ||
@@ -128,5 +145,6 @@ export async function readOsTags(
       result[path] = { tags: normalizeTags(value.tags) }
     }
   }
+
   return result
 }

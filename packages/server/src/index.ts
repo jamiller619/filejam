@@ -10,6 +10,7 @@ import { watchLibraries } from './scanner/watch.js'
 
 // Keep the startup promise so callers also share initialization while it is in flight.
 let running: ReturnType<typeof start> | undefined
+
 type BootOptions = {
   resolveDefaultFolder?: ResolveDefaultFolder
   trashRoots?: string[]
@@ -23,6 +24,7 @@ export function boot(options: BootOptions = {}) {
   running ??= start(options).catch((error: unknown) => {
     // A failed boot must not prevent a later retry.
     running = undefined
+
     throw error
   })
 
@@ -44,6 +46,7 @@ async function start(options: BootOptions) {
     const databasePath = join(config.get('appdata.dbPath'), 'files.sqlite')
 
     database = await initDatabase(databasePath)
+
     const api = createApi(database.db, config)
     let firstStart = false
 
@@ -60,6 +63,7 @@ async function start(options: BootOptions) {
           ['desktop', 'downloads'].includes(library.name.toLowerCase()),
         )
         .map((library) => library.rootPath)
+
       await config.set('user.favoriteFolders', favorites)
     }
 
@@ -78,6 +82,7 @@ async function start(options: BootOptions) {
     // automatic scanning. A batch acknowledges its start without delaying boot
     // until indexing finishes, and the pool processes roots concurrently.
     const libraries = await api.libraries.list()
+
     stopWatching = watchLibraries(
       libraries.map((library) => library.rootPath),
       scanner,

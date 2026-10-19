@@ -91,4 +91,5 @@ export const entries = sqliteTable(
 )
 
 export type Entry = typeof entries.$inferSelect
+
 export type NewEntry = typeof entries.$inferInsert

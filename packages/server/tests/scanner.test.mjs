@@ -10,9 +10,14 @@ import { FileScanner } from '../dist/scanner/index.js'
 async function finished(scanner) {
   for (let i = 0; i < 2000; i++) {
     const status = await scanner.status()
-    if (status.state !== 'scanning') return status
+
+    if (status.state !== 'scanning') {
+      return status
+    }
+
     await setTimeout(10)
   }
+
   throw new Error('Scan timed out')
 }
 
@@ -20,7 +25,9 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
   const directory = await mkdtemp(join(tmpdir(), 'files-scanner-'))
   const root = join(directory, 'root')
   const cache = join(root, '.cache')
+
   await mkdir(root)
+
   await initLogger({
     get: (key) =>
       ({
@@ -29,7 +36,9 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
         'log.retentionDays': 1,
       })[key],
   })
+
   let scanner = new FileScanner(cache, join(directory, 'files.sqlite'), 1)
+
   try {
     await writeFile(join(root, 'a.txt'), 'a')
     await writeFile(join(root, 'desktop.ini'), 'Windows shell metadata')
@@ -39,40 +48,48 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
     await writeFile(join(root, '.hidden', 'private.txt'), 'hidden')
     await scanner.start(root)
     assert.equal((await finished(scanner)).state, 'completed')
+
     assert.deepEqual(await scanner.results(), {
       added: ['a.txt'],
       changed: [],
       removed: [],
     })
+
     await scanner.close()
     scanner = new FileScanner(cache, join(directory, 'files.sqlite'), 1)
     await scanner.start(root)
     assert.equal((await finished(scanner)).state, 'completed')
+
     assert.deepEqual(await scanner.results(), {
       added: [],
       changed: [],
       removed: [],
     })
+
     await writeFile(join(root, 'a.txt'), 'longer')
     await writeFile(join(root, 'b.txt'), 'b')
     await scanner.start(root)
     await finished(scanner)
+
     assert.deepEqual(await scanner.results(), {
       added: ['b.txt'],
       changed: ['a.txt'],
       removed: [],
     })
+
     await rm(join(root, 'a.txt'))
     await scanner.start(root)
     await finished(scanner)
     assert.deepEqual((await scanner.results()).removed, ['a.txt'])
     await scanner.start(join(root, 'missing'))
     assert.equal((await finished(scanner)).state, 'failed')
+
     await Promise.all(
       Array.from({ length: 300 }, (_, i) =>
         writeFile(join(root, `${i}.txt`), 'x'),
       ),
     )
+
     await scanner.startAll([root, join(root, 'should-not-run')])
     await assert.rejects(scanner.start(root), /already running/)
     await scanner.cancel()
@@ -85,16 +102,19 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
     await scanner.close()
     await assert.rejects(scanner.status(), /closed/)
     await closeLogger()
+
     const logs = (await readFile(join(directory, 'logs/current.jsonl'), 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line))
       .filter((entry) => entry.component === 'scanner')
+
     assert.ok(
       logs.some(
         (entry) => entry.msg === 'Scan progress' && entry.phase === 'crawling',
       ),
     )
+
     assert.ok(
       logs.some(
         (entry) =>
@@ -103,7 +123,9 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
           entry.total === 2,
       ),
     )
+
     const completed = logs.find((entry) => entry.msg === 'Scan completed')
+
     assert.equal(completed.processed, 2)
     assert.equal(completed.total, 2)
     assert.equal(completed.added, 1)
@@ -111,12 +133,14 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
     assert.equal(completed.removed, 0)
     assert.ok(completed.elapsedMs >= 0)
     assert.ok(Number.isFinite(completed.entriesPerSecond))
+
     assert.ok(
       logs.some(
         (entry) =>
           entry.msg === 'Scan failed' && entry.level === 'error' && entry.error,
       ),
     )
+
     assert.ok(logs.some((entry) => entry.msg === 'Scan cancelled'))
   } finally {
     await scanner.close()

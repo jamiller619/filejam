@@ -47,11 +47,13 @@ export default function FileTags({
         event.preventDefault()
         setSaving(true)
         setError(false)
+
         try {
           const updated = await api.entries.setAppTags(
             entry.id,
             draft.split('\n').filter((tag) => tag.trim()),
           )
+
           onChange(updated)
           setEditing(false)
         } catch {

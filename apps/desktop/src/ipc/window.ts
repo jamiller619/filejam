@@ -8,10 +8,12 @@ export function registerWindowIpc(window: BrowserWindow) {
       if (typeof color !== 'string' || !/^#[\da-f]{6}$/i.test(color)) {
         throw new Error('Invalid window controls color')
       }
+
       if (process.platform !== 'darwin') {
         window.setTitleBarOverlay({ symbolColor: color })
       }
     }, authorizeRenderer(window.webContents)),
   )
+
   return () => ipcMain.removeHandler('window:setControlsColor')
 }

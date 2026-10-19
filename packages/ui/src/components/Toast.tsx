@@ -1,7 +1,7 @@
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { css } from 'inline-css-modules'
-import Button from './Button.js';
-import Icon from './Icon.js';
+import Button from './Button.js'
+import Icon from './Icon.js'
 
 const styles = css`
   .viewport {
@@ -47,6 +47,7 @@ const styles = css`
 
 export const ToastProvider = BaseToast.Provider
 export const useToastManager = BaseToast.useToastManager
+
 export type ToastProps = { toast: BaseToast.Root.ToastObject }
 
 export function Toast({ toast }: ToastProps) {
@@ -73,6 +74,7 @@ export function Toast({ toast }: ToastProps) {
 
 export function ToastViewport() {
   const { toasts } = useToastManager()
+
   return (
     <BaseToast.Portal>
       <BaseToast.Viewport className={styles.viewport}>

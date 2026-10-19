@@ -2,6 +2,7 @@ import FilePreview from '../components/FilePreview.js'
 import Files from '../components/Files.js'
 import GridCard from '../components/GridCard.js'
 import GridContainer from '../components/GridContainer.js'
+import LibrariesToolbar from '../components/LibrariesToolbar.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { folderDragProps } from '../utils/folderDrag.js'
 import Page from './Page.js'
@@ -14,6 +15,7 @@ export default function Home() {
     <Page title="Home">
       <section>
         {loadFailed && <p role="status">Unable to load folders.</p>}
+        <LibrariesToolbar />
         <GridContainer aria-label="Libraries">
           {userLibraries.map((library) => (
             <GridCard

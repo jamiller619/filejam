@@ -5,6 +5,7 @@ export const collections = sqliteTable('collections', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
 })
+
 export const collectionEntries = sqliteTable(
   'collection_entries',
   {

@@ -31,9 +31,11 @@ function serializeArg(arg: unknown): Record<string, unknown> {
   if (arg instanceof Error) {
     return { error: { message: arg.message, stack: arg.stack, name: arg.name } }
   }
+
   if (arg !== null && typeof arg === 'object' && !Array.isArray(arg)) {
     return arg as Record<string, unknown>
   }
+
   return { args: arg }
 }
 
@@ -75,9 +77,14 @@ function buildEntry(
  * re-entry if a future streaming callback logs while handling a line.
  */
 let emittingLogLine = false
+
 function emitLogLine(line: string): void {
-  if (emittingLogLine) return
+  if (emittingLogLine) {
+    return
+  }
+
   emittingLogLine = true
+
   try {
     JSON.parse(line)
   } catch {
@@ -91,7 +98,9 @@ function writeLine(line: string): void {
   if (mode.kind === 'file') {
     mode.stream?.write(line)
     emitLogLine(line)
-  } else mode.send(line)
+  } else {
+    mode.send(line)
+  }
 }
 
 function shouldLog(level: LogLevel): boolean {
@@ -112,7 +121,10 @@ function makeHandler(
   base: Record<string, unknown> = {},
 ) {
   return (...args: unknown[]): void => {
-    if (!shouldLog(level)) return
+    if (!shouldLog(level)) {
+      return
+    }
+
     orig(...args)
     writeLine(buildEntry(level, args, base))
   }
@@ -133,6 +145,7 @@ export function getLogLevel(): LogLevel {
  */
 export function createLogger(component: string): Logger {
   const base = { component }
+
   return {
     log: makeHandler(origLog, 'info', base),
     debug: makeHandler(origDebug, 'debug', base),
@@ -169,10 +182,14 @@ export async function initLogger(config: ConfigStore): Promise<void> {
 
   const stream = createStream(
     (time: number | Date | null, index?: number) => {
-      if (!time) return 'current.jsonl'
+      if (!time) {
+        return 'current.jsonl'
+      }
+
       const d = time instanceof Date ? time : new Date(time)
       const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
       const suffix = index && index > 1 ? `.${index}` : ''
+
       return `${date}${suffix}.jsonl`
     },
     {
@@ -233,10 +250,18 @@ export function acceptChildLogLine(line: string): void {
  * entries reach disk before the process exits.
  */
 export async function closeLogger(): Promise<void> {
-  if (mode.kind !== 'file') return
+  if (mode.kind !== 'file') {
+    return
+  }
+
   const stream = mode.stream
+
   mode = { kind: 'file', stream: null }
-  if (!stream) return
+
+  if (!stream) {
+    return
+  }
+
   await new Promise<void>((resolve) => {
     stream.end(() => resolve())
   })

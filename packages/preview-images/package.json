@@ -1,0 +1,51 @@
+{
+  "name": "@files/preview-images",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./formats": "./dist/formats.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "filesApp": {
+    "type": "preview",
+    "apiVersion": 1,
+    "extensions": [
+      "avif",
+      "bmp",
+      "gif",
+      "ico",
+      "jpeg",
+      "jpg",
+      "png",
+      "svg",
+      "webp"
+    ],
+    "mimeTypes": [
+      "image/avif",
+      "image/bmp",
+      "image/gif",
+      "image/x-icon",
+      "image/jpeg",
+      "image/png",
+      "image/svg+xml",
+      "image/webp"
+    ],
+    "capabilities": {
+      "original": true
+    }
+  },
+  "dependencies": {
+    "@files/preview-api": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4"
+  }
+}

@@ -16,6 +16,7 @@ export async function openScanDatabase(
   const connection = await initDatabase(databasePath, runMigrations)
   const api = createApi(connection.db)
   const tagReader = createTagReader()
+
   try {
     const library = await api.libraries.ensureRoot(root)
     const isTrash = await api.libraries.isTrashRoot(root)
@@ -32,14 +33,17 @@ export async function openScanDatabase(
       // transaction. Parent IDs are resolved later, in parent-first order.
       const metadata = snapshot ?? (await lstat(path))
       const key = pathKey(path)
+
       const kind = metadata.isDirectory()
         ? 'directory'
         : metadata.isSymbolicLink()
           ? 'symlink'
           : 'file'
+
       const name = isTrash
         ? await getTrashEntryName(root, path)
         : basename(path) || root
+
       return {
         path,
         parentKey: key === '' ? null : pathKey(dirname(path)),
@@ -69,37 +73,60 @@ export async function openScanDatabase(
     ) {
       const saved: { path: string; kind: 'directory' | 'symlink' | 'file' }[] =
         []
+
       for (let index = 0; index < paths.length; index += 64) {
         const prepared: Awaited<ReturnType<typeof prepare>>[] = []
+
         for (const path of paths.slice(index, index + 64)) {
-          if (isCancelled()) return saved
+          if (isCancelled()) {
+            return saved
+          }
+
           prepared.push(await prepare(path, metadata?.get(path)))
         }
-        if (isCancelled()) return saved
-        if (!prepared.length) continue
+
+        if (isCancelled()) {
+          return saved
+        }
+
+        if (!prepared.length) {
+          continue
+        }
+
         const newDirectories = new Map<string, number>()
+
         await connection.db.transaction(async (tx) => {
           for (const { path, parentKey, values } of prepared) {
             const parentId =
               parentKey === null
                 ? null
                 : (newDirectories.get(parentKey) ?? directories.get(parentKey))
-            if (parentId === undefined)
+
+            if (parentId === undefined) {
               throw new Error(`Missing parent directory for ${path}`)
+            }
+
             const entry = await upsertEntry(tx, { ...values, parentId })
-            if (values.kind === 'directory')
+
+            if (values.kind === 'directory') {
               newDirectories.set(values.relativePath, entry.id)
+            }
           }
         })
+
         // Publish bookkeeping only after commit, so a rolled-back batch never
         // contributes parent IDs or hides stale rows from reconciliation.
-        for (const [key, id] of newDirectories) directories.set(key, id)
+        for (const [key, id] of newDirectories) {
+          directories.set(key, id)
+        }
+
         for (const { path, values } of prepared) {
           unseen.delete(values.relativePath)
           persisted.add(values.relativePath)
           saved.push({ path, kind: values.kind })
         }
       }
+
       return saved
     }
 
@@ -112,11 +139,16 @@ export async function openScanDatabase(
         tagReader.prepare(paths, metadata),
       skipUnchanged(path: string, metadata: Stats) {
         const key = pathKey(path)
+
         const exists =
           persisted.has(key) &&
           !metadata.isDirectory() &&
           !metadata.isSymbolicLink()
-        if (exists) unseen.delete(key)
+
+        if (exists) {
+          unseen.delete(key)
+        }
+
         return exists
       },
       saveBatch,
@@ -125,7 +157,11 @@ export async function openScanDatabase(
           [path],
           snapshot ? new Map([[path, snapshot]]) : undefined,
         )
-        if (!saved) throw new Error(`Unable to save ${path}`)
+
+        if (!saved) {
+          throw new Error(`Unable to save ${path}`)
+        }
+
         return saved.kind
       },
       // Never call this after cancellation or failure: an incomplete traversal
@@ -137,28 +173,33 @@ export async function openScanDatabase(
   } catch (error) {
     connection.close()
     await tagReader.close()
+
     throw error
   }
 }
 
 async function getTrashEntryName(root: string, path: string) {
   const filename = basename(path)
+
   if (
     process.platform !== 'win32' ||
     filename.length < 3 ||
     !filename.startsWith('$R') ||
     relative(root, path).includes(sep)
-  )
+  ) {
     return filename || root
+  }
 
   try {
     const metadata = await readFile(join(root, `$I${filename.slice(2)}`))
     const version = metadata.readBigUInt64LE(0)
     const pathOffset = version === 2n ? 28 : 24
+
     const originalPath = metadata
       .subarray(pathOffset)
       .toString('utf16le')
       .replace(/\0+$/, '')
+
     return basename(originalPath) || filename
   } catch {
     return filename

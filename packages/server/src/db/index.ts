@@ -15,6 +15,7 @@ const schema = {
   ...entrySchema,
   ...initializationSchema,
 }
+
 // Resolve beside the compiled module; the build copies SQL migrations there.
 const migrationsFolder = fileURLToPath(
   new URL('./migrations/', import.meta.url),
@@ -27,6 +28,7 @@ export async function initDatabase(path: string, runMigrations = true) {
   }
 
   const databasePath = resolve(path)
+
   await mkdir(dirname(databasePath), { recursive: true })
 
   const client = createClient({ url: pathToFileURL(databasePath).href })
@@ -38,12 +40,17 @@ export async function initDatabase(path: string, runMigrations = true) {
     await client.execute('PRAGMA busy_timeout = 5000')
     await client.execute('PRAGMA journal_mode = WAL')
     await client.execute('PRAGMA foreign_keys = ON')
+
     const db = drizzle(client, { schema })
-    if (runMigrations) await migrate(db, { migrationsFolder })
+
+    if (runMigrations) {
+      await migrate(db, { migrationsFolder })
+    }
 
     return { db, close: () => client.close() }
   } catch (error) {
     client.close()
+
     throw error
   }
 }

@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
+import { useFileSelection } from '../hooks/useFileSelection.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { useToast } from '../hooks/useToast.js'
 import {
@@ -46,6 +47,7 @@ const defaultColumns: readonly FileColumn[] = [
 ]
 
 export type Folder = Parameters<Window['files']['entries']['listChildren']>[0]
+
 type Listing = Awaited<ReturnType<Window['files']['entries']['listChildren']>>
 
 export type FilesProps = {
@@ -88,8 +90,9 @@ const styles = css`
       font-weight: 400;
       white-space: nowrap;
       position: sticky;
-      top: 0;
+      top: 84px;
       z-index: 1;
+      background: var(--suzy-gray-2);
     }
     .file {
       display: flex;
@@ -172,19 +175,21 @@ const styles = css`
   }
 `
 
-/** Displays the indexed immediate children of a library folder. */
+/** Displays indexed folder contents or a collection. */
 export default function Files({
   folder,
   collectionId,
   columns = defaultColumns,
 }: FilesProps) {
   const { pathname } = useLocation()
+
   const preferencesKey = JSON.stringify([
     pathname,
     collectionId ?? null,
     folder?.libraryId ?? null,
     folder?.relativePath ?? null,
   ])
+
   // Remount the request state when the folder changes, hiding stale results.
   return (
     <FolderContents
@@ -211,12 +216,15 @@ function FolderContents({
     () => new Map(libraries.map((library) => [library.id, library.rootPath])),
     [libraries],
   )
+
   const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
 
-  const { columnVisibility, sorting, viewMode, setPreferences } =
+  const { columnVisibility, sorting, viewMode, flatten, setPreferences } =
     useTablePrefs(preferencesKey)
+
   const [viewError, setViewError] = useState('')
+
   const tableColumns = useMemo(
     () =>
       [
@@ -230,11 +238,14 @@ function FolderContents({
         accessorFn: (entry: Listing['entries'][number]) => {
           if (column === 'relativePath') {
             const root = libraryRoots.get(entry.libraryId)
+
             return root === undefined
               ? '—'
               : formatFullPath(root, entry.relativePath)
           }
+
           const value = entry[column]
+
           return Array.isArray(value) ? value.join(', ') : value
         },
         header: fileColumnLabels[column],
@@ -247,9 +258,13 @@ function FolderContents({
       collectionId
         ? api.collections.listEntries(collectionId)
         : libraryId !== undefined && relativePath !== undefined
-          ? api.entries.listChildren({ libraryId, relativePath })
+          ? api.entries.listChildren({
+              libraryId,
+              relativePath,
+              recursive: flatten,
+            })
           : Promise.reject(new Error('Missing file source')),
-    [api, libraryId, relativePath, collectionId],
+    [api, libraryId, relativePath, collectionId, flatten],
   )
 
   const {
@@ -263,10 +278,15 @@ function FolderContents({
 
   const { add: addToast, close: closeToast } = useToast()
   const scanPending = !!listing && !listing.scanned && !loadFailed
+
   useEffect(() => {
-    if (!scanPending) return
+    if (!scanPending) {
+      return
+    }
+
     // Avoid flashing a notification for scans that finish almost immediately.
     let toastId: string | undefined
+
     const timer = window.setTimeout(() => {
       toastId = addToast({
         title: 'Scanning folder…',
@@ -275,26 +295,27 @@ function FolderContents({
         timeout: 0,
       })
     }, 500)
+
     return () => {
       window.clearTimeout(timer)
-      if (toastId) closeToast(toastId)
+
+      if (toastId) {
+        closeToast(toastId)
+      }
     }
   }, [scanPending, addToast, closeToast])
 
   useEffect(() => {
-    if (!folder || !listing || listing.scanned) return
+    if (!folder || !listing || listing.scanned) {
+      return
+    }
+
     const interval = window.setInterval(refresh, 1000)
+
     return () => window.clearInterval(interval)
   }, [folder, listing, refresh])
 
-  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [detailsClosing, setDetailsClosing] = useState(false)
-  const selectedFile = listing?.entries.find((entry) => entry.id === selectedId)
-
-  useEffect(() => {
-    detailsPane.setVisible(selectedFile !== undefined)
-    return () => detailsPane.setVisible(false)
-  }, [detailsPane, selectedFile])
 
   const table = useReactTable({
     data: listing?.entries ?? emptyEntries,
@@ -328,23 +349,52 @@ function FolderContents({
     getSortedRowModel: getSortedRowModel(),
   })
 
-  function activateFile(id: number) {
-    if (selectedId === id) {
-      setDetailsClosing(true)
-      return
-    }
+  function viewFile(id: number) {
     setDetailsClosing(false)
-    setSelectedId(id)
+
     void api.collections
       .recordView(id)
       .catch(() => setViewError('Unable to update Recents.'))
   }
 
-  if (loadFailed) return <p role="status">Unable to load files.</p>
-  if (!listing) return <p role="status">Loading files…</p>
+  const { containerRef, selectedId, selectedIds, selectFile } =
+    useFileSelection({
+      fileIds: table
+        .getRowModel()
+        .rows.filter(({ original }) => original.kind !== 'directory')
+        .map(({ original }) => original.id),
+      detailsHost: detailsPane.host,
+      onNavigate: viewFile,
+    })
+  const selectedFile = listing?.entries.find((entry) => entry.id === selectedId)
+
+  useEffect(() => {
+    detailsPane.setVisible(selectedFile !== undefined)
+
+    return () => detailsPane.setVisible(false)
+  }, [detailsPane, selectedFile])
+
+  function activateFile(id: number) {
+    if (selectedId === id && selectedIds.size === 1) {
+      setDetailsClosing(true)
+
+      return
+    }
+
+    selectFile(id)
+    viewFile(id)
+  }
+
+  if (loadFailed) {
+    return <p role="status">Unable to load files.</p>
+  }
+
+  if (!listing) {
+    return <p role="status">Loading files…</p>
+  }
 
   return (
-    <div>
+    <div ref={containerRef}>
       {viewError && <p role="alert">{viewError}</p>}
 
       {librariesFailed && <p role="status">Unable to load full file paths.</p>}
@@ -355,6 +405,12 @@ function FolderContents({
         collectionId={collectionId}
         table={table}
         viewMode={viewMode}
+        flatten={flatten}
+        onFlattenChange={(flatten) => {
+          setListing(null)
+          selectFile(null)
+          setPreferences((current) => ({ ...current, flatten }))
+        }}
         onViewModeChange={(viewMode) =>
           setPreferences((current) => ({ ...current, viewMode }))
         }
@@ -374,7 +430,8 @@ function FolderContents({
               <GridCard
                 key={entry.id}
                 name={entry.name}
-                selected={entry.id === selectedId}
+                selected={selectedIds.has(entry.id)}
+                fileId={entry.id}
                 {...(entry.kind === 'directory'
                   ? {
                       ...folderDragProps(
@@ -457,7 +514,8 @@ function FolderContents({
                   <tr
                     key={entry.id}
                     className={styles.row}
-                    data-selected={entry.id === selectedId}
+                    data-selected={selectedIds.has(entry.id)}
+                    data-file-id={entry.id}
                   >
                     {row.getVisibleCells().map((cell) => {
                       const column = cell.column.id as FileColumn
@@ -559,11 +617,13 @@ function FolderContents({
             closing={detailsClosing}
             onClose={() => setDetailsClosing(true)}
             onClosed={() => {
-              setSelectedId(null)
+              selectFile(null)
               setDetailsClosing(false)
             }}
             onCollectionsChange={() => {
-              if (collectionId) refresh()
+              if (collectionId) {
+                refresh()
+              }
             }}
           />,
           detailsPane.host,
@@ -577,13 +637,15 @@ function useTablePrefs(preferencesKey: string) {
     readTablePreferences(preferencesKey),
   )
 
-  const { sorting, columnVisibility, viewMode } = preferences
+  const { sorting, columnVisibility, viewMode, flatten } = preferences
+
   useEffect(() => {
     writeTablePreferences(preferencesKey, preferences)
   }, [preferencesKey, preferences])
 
   return {
     setPreferences,
+    flatten,
     viewMode,
     sorting,
     columnVisibility,

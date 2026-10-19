@@ -33,13 +33,27 @@ const styles = css`
     background: transparent;
     border: none;
   }
+
+  .primary {
+    color: var(--suzy-action-text);
+    background: var(--suzy-action);
+
+    &:hover {
+      background: var(--suzy-action-hover);
+    }
+    &:active:not([data-disabled]) {
+      background: var(--suzy-action-active);
+    }
+  }
 `
 
 type ButtonProps = ComponentProps<typeof BaseUIButton> & {
+  color?: 'gray' | 'primary'
   variant?: 'default' | 'ghost'
 }
 
 export default function Button({
+  color = 'gray',
   variant = 'default',
   className,
   ...props
@@ -49,6 +63,7 @@ export default function Button({
       {...props}
       className={clsx(
         styles.button,
+        color === 'primary' && styles.primary,
         variant === 'ghost' && styles.ghost,
         className,
       )}

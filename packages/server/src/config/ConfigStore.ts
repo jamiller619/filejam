@@ -22,12 +22,14 @@ export default class ConfigStore {
   async setStore(data: Partial<Config>): Promise<void> {
     return this.#enqueue(async () => {
       const previous = { ...this.#data }
+
       Object.assign(this.#data, data)
 
       try {
         await this.#write()
       } catch (error) {
         this.#data = previous
+
         throw error
       }
     })
@@ -44,14 +46,21 @@ export default class ConfigStore {
       const hadPreviousValue = Object.hasOwn(data, key)
       const previousValue = data[key]
 
-      if (value === undefined) delete data[key]
-      else data[key] = value
+      if (value === undefined) {
+        delete data[key]
+      } else {
+        data[key] = value
+      }
 
       try {
         await this.#write()
       } catch (error) {
-        if (hadPreviousValue) data[key] = previousValue
-        else delete data[key]
+        if (hadPreviousValue) {
+          data[key] = previousValue
+        } else {
+          delete data[key]
+        }
+
         throw error
       }
     })
@@ -62,7 +71,9 @@ export default class ConfigStore {
     // cannot restore stale state over a newer update. Return the failure to its
     // caller while keeping the queue usable for subsequent updates.
     const result = this.#mutationQueue.then(mutation, mutation)
+
     this.#mutationQueue = result.catch(() => undefined)
+
     return result
   }
 

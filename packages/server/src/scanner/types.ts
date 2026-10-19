@@ -50,6 +50,7 @@ export type ScannerRequest = {
   method: keyof WorkerApi | 'shutdown' | 'initialize'
   root?: string
 }
+
 export type ScannerResponse =
   | { id: number; result: ScanStatus | ScanResults }
   | { id: number; error: string }

@@ -18,6 +18,15 @@
     },
     {
       "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/preview-api"
+    },
+    {
+      "path": "../../packages/preview-images"
+    },
+    {
+      "path": "../../packages/preview-video"
     }
   ]
 }

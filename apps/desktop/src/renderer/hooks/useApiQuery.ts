@@ -11,23 +11,32 @@ export function useApiQuery<T>(request: () => Promise<T>, initialData: T) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: revision explicitly refreshes the request.
   useEffect(() => {
     let active = true
+
     setLoading(true)
     setLoadFailed(false)
+
     // Also handle synchronous errors thrown by the preload bridge.
     void Promise.resolve()
       .then(request)
       .then(
         (result) => {
-          if (!active) return
+          if (!active) {
+            return
+          }
+
           setData(result)
           setLoading(false)
         },
         () => {
-          if (!active) return
+          if (!active) {
+            return
+          }
+
           setLoadFailed(true)
           setLoading(false)
         },
       )
+
     return () => {
       active = false
     }

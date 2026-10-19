@@ -30,6 +30,7 @@ const styles = css`
 `
 
 type GridCardProps = {
+  fileId?: number
   draggable?: boolean
   onDragStart?: DragEventHandler<HTMLAnchorElement>
   name: string
@@ -54,7 +55,11 @@ export default function GridCard(props: GridCardProps) {
   )
 
   return (
-    <li className={styles.card} data-selected={props.selected ?? false}>
+    <li
+      className={styles.card}
+      data-selected={props.selected ?? false}
+      data-file-id={props.fileId}
+    >
       {'to' in props ? (
         <Link
           className={styles.cardAction}

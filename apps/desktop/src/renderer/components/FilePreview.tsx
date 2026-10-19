@@ -1,7 +1,6 @@
 ﻿import { Button, Icon } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useState } from 'react'
-import { previewMimeType } from '../../preview/formats.js'
+import { useEffect, useState } from 'react'
 
 const styles = css`
   .container {
@@ -62,15 +61,52 @@ export default function FilePreview({
   onOpen?: () => void
 }) {
   const [loadedSource, setLoadedSource] = useState('')
-  const imageCandidate = Boolean(onOpen && previewMimeType(entry.relativePath))
+  const [originalSource, setOriginalSource] = useState('')
+  const identity = `${entry.libraryId}:${entry.relativePath}:${entry.modifiedAt}`
+  const imageCandidate = Boolean(onOpen && originalSource === identity)
+  const detail = Boolean(onOpen)
+
+  const pixels = Math.min(
+    2048,
+    Math.max(
+      1,
+      Math.ceil(
+        (typeof size === 'number' ? size : 1024) * window.devicePixelRatio,
+      ),
+    ),
+  )
+
+  useEffect(() => {
+    if (!detail) {
+      return
+    }
+
+    const controller = new AbortController()
+
+    void window.files
+      .previewCapabilities(entry.libraryId, entry.relativePath)
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          setOriginalSource(result?.original ? identity : '')
+        }
+      })
+      .catch(() => undefined)
+
+    return () => controller.abort()
+  }, [detail, entry.libraryId, entry.relativePath, identity])
+
   const params = new URLSearchParams({
     libraryId: String(entry.libraryId),
     path: entry.relativePath,
     v: String(entry.modifiedAt),
     variant,
+    width: String(pixels),
+    height: String(pixels),
+    purpose: detail ? 'detail' : 'thumbnail',
     ...(imageCandidate ? { original: '1' } : {}),
     ...(color ? { color } : {}),
   })
+
   const source = `files-preview://preview-image?${params}`
 
   return (
@@ -89,15 +125,19 @@ export default function FilePreview({
         loading="lazy"
         decoding="async"
         onLoad={(event) => {
-          if (!new URL(event.currentTarget.src).searchParams.has('fallback'))
+          if (!new URL(event.currentTarget.src).searchParams.has('fallback')) {
             setLoadedSource(source)
+          }
         }}
         onError={(event) => {
           setLoadedSource('')
+
           // Ask Electron for an icon if Chromium cannot decode the source image.
           const image = event.currentTarget
+
           if (!new URL(image.src).searchParams.has('fallback')) {
             const fallback = new URL(source)
+
             fallback.searchParams.delete('original')
             fallback.searchParams.set('fallback', '1')
             image.src = fallback.href

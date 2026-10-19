@@ -1,7 +1,8 @@
 import { ScrollArea } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import { useConfig } from '../hooks/useConfig.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import Navbar from './Navbar.js'
 import SuspenseOutlet from './SuspenseOutlet.js'
@@ -60,8 +61,10 @@ const styles = css`
         background: lch(from var(--suzy-gray-2) l c h / 90%);
 
         .titlebar {
+          grid-column: 1;
           grid-row: 1;
-          background: var(--suzy-gray-2);
+          background: lch(from var(--suzy-gray-2) l c h / 50%);
+          backdrop-filter: blur(8px);
           z-index: 1;
         }
 
@@ -71,9 +74,17 @@ const styles = css`
           min-height: 0;
           overflow: hidden;
         }
+
+        .pageContent {
+          box-sizing: border-box;
+          min-height: 100%;
+          padding-block-start: 36px;
+        }
       }
 
       .workspace {
+        grid-column: 1;
+        grid-row: 1 / -1;
         display: flex;
         min-width: 0;
         min-height: 0;
@@ -82,13 +93,16 @@ const styles = css`
 
         .page {
           flex: 1;
+          grid-row: auto;
         }
 
         .details {
           --details-width: 380px;
           flex: 0 0 auto;
           width: 0;
+          height: calc(100% - 36px);
           min-height: 0;
+          margin-block-start: 36px;
           overflow: hidden;
         }
       }
@@ -97,21 +111,43 @@ const styles = css`
 `
 
 export default function Layout() {
+  const { values, updateConfig } = useConfig(['window.navbarWidth'])
+  const saveNavbarTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [detailsHost, setDetailsHost] = useState<HTMLDivElement | null>(null)
   const [detailsVisible, setDetailsVisible] = useState(false)
+
   const detailsPane = useMemo(
     () => ({ host: detailsHost, setVisible: setDetailsVisible }),
     [detailsHost],
   )
 
+  useEffect(
+    () => () => {
+      clearTimeout(saveNavbarTimer.current)
+    },
+    [],
+  )
+
+  if (!values) {
+    return null
+  }
+
   return (
     <DetailsPaneContext value={detailsPane}>
       <div className={styles.window}>
-        <Group
-          className={styles.layout}
-          data-details-visible={detailsVisible}
-        >
-          <Panel className={`${styles.pane} ${styles.navigation}`} minSize={120} maxSize={250}>
+        <Group className={styles.layout} data-details-visible={detailsVisible}>
+          <Panel
+            className={`${styles.pane} ${styles.navigation}`}
+            defaultSize={values['window.navbarWidth']}
+            minSize={120}
+            maxSize={250}
+            onResize={({ inPixels }) => {
+              clearTimeout(saveNavbarTimer.current)
+              saveNavbarTimer.current = setTimeout(() => {
+                void updateConfig('window.navbarWidth', Math.round(inPixels))
+              }, 250)
+            }}
+          >
             <Navbar className={styles.navbar} />
           </Panel>
           <Separator className={styles.navigationSeparator} />
@@ -120,7 +156,9 @@ export default function Layout() {
             <div className={styles.workspace}>
               <main className={styles.page}>
                 <ScrollArea>
-                  <SuspenseOutlet />
+                  <div className={styles.pageContent}>
+                    <SuspenseOutlet />
+                  </div>
                 </ScrollArea>
               </main>
               <div ref={setDetailsHost} className={styles.details} />

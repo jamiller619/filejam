@@ -13,8 +13,10 @@ const clientUrl = new URL('../dist/scanner/client.js', import.meta.url).href
 async function child(source, flags = []) {
   const directory = await mkdtemp(join(tmpdir(), 'files-pool-child-'))
   const script = join(directory, 'test.mjs')
+
   try {
     await writeFile(script, source)
+
     return await exec(process.execPath, [...flags, script], {
       timeout: 60000,
       maxBuffer: 1024 * 1024,
@@ -26,14 +28,18 @@ async function child(source, flags = []) {
 
 test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, replaces crashed workers, and closes all workers', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'files-pool-scheduler-'))
+
   try {
     const roots = await Promise.all(
       ['a', 'b', 'c'].map(async (name) => {
         const root = join(directory, name)
+
         await mkdir(root)
+
         return root
       }),
     )
+
     await child(
       `
       import assert from 'node:assert/strict'
@@ -129,20 +135,24 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
 
 test('real workers index and reconcile concurrent libraries with isolated caches and results', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'files-pool-persistence-'))
+
   try {
     const roots = [
       join(directory, 'a'),
       join(directory, 'b'),
       join(directory, 'c'),
     ]
+
     for (const root of roots) {
       await mkdir(root)
+
       await Promise.all(
         Array.from({ length: 130 }, (_, i) =>
           writeFile(join(root, `${i}.txt`), root),
         ),
       )
     }
+
     await child(`
       import assert from 'node:assert/strict'
       import { setTimeout } from 'node:timers/promises'

@@ -81,7 +81,11 @@ export function Menu({
 }) {
   return (
     <BaseMenu.Root>
-      <BaseMenu.Trigger className={styles.trigger} aria-label={label} title={label}>
+      <BaseMenu.Trigger
+        className={styles.trigger}
+        aria-label={label}
+        title={label}
+      >
         {trigger}
       </BaseMenu.Trigger>
       <BaseMenu.Portal>
@@ -108,7 +112,9 @@ export function MenuSubmenu({
       </BaseMenu.SubmenuTrigger>
       <BaseMenu.Portal>
         <BaseMenu.Positioner>
-          <BaseMenu.Popup className={styles.submenuPopup}>{children}</BaseMenu.Popup>
+          <BaseMenu.Popup className={styles.submenuPopup}>
+            {children}
+          </BaseMenu.Popup>
         </BaseMenu.Positioner>
       </BaseMenu.Portal>
     </BaseMenu.SubmenuRoot>

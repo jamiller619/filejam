@@ -59,11 +59,17 @@ const styles = css`
   }
 `
 
-export default function ScrollArea({ children }: { children: React.ReactNode }) {
+export default function ScrollArea({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <BaseScrollArea.Root className={styles.scrollArea}>
       <BaseScrollArea.Viewport className={styles.viewport}>
-        <BaseScrollArea.Content className={styles.content}>{children}</BaseScrollArea.Content>
+        <BaseScrollArea.Content className={styles.content}>
+          {children}
+        </BaseScrollArea.Content>
       </BaseScrollArea.Viewport>
       <BaseScrollArea.Scrollbar className={styles.scrollBar}>
         <BaseScrollArea.Thumb className={styles.thumb} />

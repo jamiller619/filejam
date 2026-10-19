@@ -37,34 +37,57 @@ export class ScannerWorker implements WorkerApi {
     onFailure: (error: Error) => void,
   ) {
     this.#onFailure = onFailure
+
     this.#worker = new Worker(new URL('./worker.js', import.meta.url), {
       // The pool initializes migrations once before dispatching any scans.
       workerData: { cacheDirectory, databasePath, databaseInitialized: true },
     })
+
     this.#worker.on('message', (message: ScannerResponse | ScanProgress) => {
       if ('type' in message) {
-        for (const listener of this.#listeners) listener(message)
+        for (const listener of this.#listeners) {
+          listener(message)
+        }
+
         return
       }
+
       const pending = this.#pending.get(message.id)
-      if (!pending) return
+
+      if (!pending) {
+        return
+      }
+
       this.#pending.delete(message.id)
-      if ('error' in message) pending.reject(new Error(message.error))
-      else pending.resolve(message.result)
+
+      if ('error' in message) {
+        pending.reject(new Error(message.error))
+      } else {
+        pending.resolve(message.result)
+      }
     })
+
     this.#worker.on('error', (error) =>
       this.#fail(error instanceof Error ? error : new Error(String(error))),
     )
+
     this.#worker.on('exit', (code) =>
       this.#fail(new Error(`Scanner worker exited (${code})`)),
     )
   }
 
   #fail(error: Error) {
-    if (!this.#failure) this.#onFailure(error)
+    if (!this.#failure) {
+      this.#onFailure(error)
+    }
+
     // A dead or closed worker cannot answer any outstanding or future requests.
     this.#failure ??= error
-    for (const pending of this.#pending.values()) pending.reject(error)
+
+    for (const pending of this.#pending.values()) {
+      pending.reject(error)
+    }
+
     this.#pending.clear()
   }
 
@@ -72,12 +95,19 @@ export class ScannerWorker implements WorkerApi {
     method: ScannerRequest['method'],
     root?: string,
   ): Promise<T> {
-    if (this.#failure) return Promise.reject(this.#failure)
-    if (this.#closing && method !== 'shutdown')
+    if (this.#failure) {
+      return Promise.reject(this.#failure)
+    }
+
+    if (this.#closing && method !== 'shutdown') {
       return Promise.reject(new Error('Scanner is closed'))
+    }
+
     const id = ++this.#sequence
+
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(id, { resolve: (value) => resolve(value as T), reject })
+
       try {
         this.#worker.postMessage({
           id,
@@ -93,6 +123,7 @@ export class ScannerWorker implements WorkerApi {
 
   onUpdated(listener: (progress: ScanProgress) => void) {
     this.#listeners.add(listener)
+
     return () => {
       this.#listeners.delete(listener)
     }
@@ -105,12 +136,15 @@ export class ScannerWorker implements WorkerApi {
   start(root: string) {
     return this.#request<ScanStatus>('start', root)
   }
+
   status() {
     return this.#request<ScanStatus>('status')
   }
+
   results() {
     return this.#request<ScanResults>('results')
   }
+
   cancel() {
     return this.#request<ScanStatus>('cancel')
   }
@@ -119,12 +153,15 @@ export class ScannerWorker implements WorkerApi {
   close(): Promise<void> {
     this.#closing ??= (async () => {
       try {
-        if (!this.#failure) await this.#request<ScanStatus>('shutdown')
+        if (!this.#failure) {
+          await this.#request<ScanStatus>('shutdown')
+        }
       } finally {
         this.#fail(new Error('Scanner is closed'))
         await this.#worker.terminate()
       }
     })()
+
     return this.#closing
   }
 }

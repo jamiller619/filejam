@@ -9,27 +9,37 @@ import { createPreviewHandler } from '../dist/preview/handler.js'
 test('preview protocol routes images, folders, library artwork and fallback icons', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'files-preview-'))
   const rootPath = join(directory, 'library')
+
   await mkdir(rootPath)
   await mkdir(join(rootPath, 'folder'))
   await mkdir(join(directory, 'outside'))
+
   await symlink(
     join(directory, 'outside'),
     join(rootPath, 'escape'),
     'junction',
   )
+
   await writeFile(join(rootPath, 'photo #1 & café.PNG'), 'image')
   await writeFile(join(rootPath, 'notes.txt'), 'notes')
   await writeFile(join(directory, 'outside', 'private.png'), 'private')
+
   const fetched = []
   let failFetch = false
+
   const handler = createPreviewHandler(
     { list: async () => [{ id: 1, name: 'Downloads', rootPath }] },
     async (url) => {
       fetched.push(url)
-      if (failFetch) throw new Error('Unreadable file')
+
+      if (failFetch) {
+        throw new Error('Unreadable file')
+      }
+
       return new Response('image')
     },
   )
+
   const request = (path, extra = {}) =>
     handler(
       new Request(
@@ -41,41 +51,61 @@ test('preview protocol routes images, folders, library artwork and fallback icon
           }),
       ),
     )
+
   try {
     const response = await request('photo #1 & café.PNG', { v: 'changed' })
+
     assert.equal(response.status, 200)
     assert.equal(response.headers.get('content-type'), 'image/png')
     assert.equal(await response.text(), 'image')
+
     assert.deepEqual(fetched, [
       pathToFileURL(join(rootPath, 'photo #1 & café.PNG')).href,
     ])
 
     for (const path of ['notes.txt', 'folder', '']) {
       const icon = await request(path)
+
       assert.equal(icon.status, 200)
       assert.equal(icon.headers.get('content-type'), 'image/svg+xml')
       assert.match(await icon.text(), /<svg/)
     }
+
     for (const path of ['notes.txt', 'folder', '']) {
       assert.equal((await request(path, { original: '1' })).status, 415)
     }
-    assert.equal((await request('photo #1 & caf\u00e9.PNG', { original: '1' })).status, 200)
+
+    assert.equal(
+      (await request('photo #1 & caf\u00e9.PNG', { original: '1' })).status,
+      200,
+    )
+
     const folder = await request('folder', {
       variant: 'grid',
       color: '#ff8800',
     })
+
     const artwork = await folder.text()
+
     assert.match(artwork, /linearGradient/)
     assert.match(artwork, /color:#ff8800/)
     assert.match(artwork, /color-mix/)
+
     const library = await request('', { variant: 'grid' })
+
     assert.match(await library.text(), /x="77"/)
     assert.doesNotMatch(artwork, /x="77"/)
+
     const fallback = await request('photo #1 & café.PNG', { fallback: '1' })
+
     assert.equal(fallback.headers.get('content-type'), 'image/svg+xml')
     assert.equal(fetched.length, 2)
     failFetch = true
-    assert.equal((await request('photo #1 & caf\u00e9.PNG', { original: '1' })).status, 415)
+    assert.equal(
+      (await request('photo #1 & caf\u00e9.PNG', { original: '1' })).status,
+      415,
+    )
+
     assert.equal(
       (await request('photo #1 & café.PNG')).headers.get('content-type'),
       'image/svg+xml',
@@ -88,15 +118,18 @@ test('preview protocol routes images, folders, library artwork and fallback icon
     assert.equal((await request('', { libraryId: '99' })).status, 404)
     assert.equal((await request('', { libraryId: 'invalid' })).status, 400)
     assert.equal((await request('', { color: 'red;"><script>' })).status, 400)
+
     assert.equal(
       (await handler(new Request('files-preview://preview-image?libraryId=1')))
         .status,
       400,
     )
+
     assert.equal(
       (await handler(new Request('files-preview://other/1'))).status,
       400,
     )
+
     assert.equal(
       (
         await handler(
@@ -105,6 +138,7 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       ).status,
       405,
     )
+
     assert.equal(fetched.length, 2)
   } finally {
     await rm(directory, { recursive: true, force: true })

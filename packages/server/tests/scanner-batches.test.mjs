@@ -36,10 +36,12 @@ async function inDatabaseProcess(directory, source) {
 test('scan batches roll back parents and bookkeeping, preserve IDs and tags, and respect cancellation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-batch-'))
   const root = join(directory, 'root')
+
   await mkdir(join(root, 'nested'), { recursive: true })
   await mkdir(join(root, 'missing'))
   await writeFile(join(root, 'nested', 'file.txt'), 'hello')
   await writeFile(join(root, 'missing', 'orphan.txt'), 'hello')
+
   try {
     await inDatabaseProcess(
       directory,
@@ -94,6 +96,7 @@ test('scan batches roll back parents and bookkeeping, preserve IDs and tags, and
 
 test('deletion batches handle multiple chunks and stay within the selected library', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-delete-batch-'))
+
   try {
     await inDatabaseProcess(
       directory,
@@ -134,13 +137,17 @@ test('deletion batches handle multiple chunks and stay within the selected libra
 test('large saves commit bounded batches and retain earlier batches after a later rollback', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-bounded-batch-'))
   const root = join(directory, 'root')
+
   await mkdir(join(root, 'missing'), { recursive: true })
+
   await Promise.all(
     Array.from({ length: 70 }, (_, index) =>
       writeFile(join(root, `${index}.txt`), 'hello'),
     ),
   )
+
   await writeFile(join(root, 'missing', 'orphan.txt'), 'hello')
+
   try {
     await inDatabaseProcess(
       directory,

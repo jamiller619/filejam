@@ -7,21 +7,29 @@ import { createFavoriteFoldersHandler } from '../dist/api/favoriteFolders.js'
 
 test('folder drops persist, deduplicate, validate and register external roots', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'favorite-folders-'))
+
   try {
     const inside = join(directory, 'library', 'child')
     const outside = join(directory, 'external')
     const trash = join(directory, 'trash')
+
     await mkdir(inside, { recursive: true })
     await mkdir(outside)
     await mkdir(trash)
+
     const file = join(directory, 'file.txt')
+
     await writeFile(file, 'hello')
+
     let favorites = []
+
     const roots = [
       { rootPath: join(directory, 'library'), isTrash: false },
       { rootPath: trash, isTrash: true },
     ]
+
     const scans = []
+
     const add = createFavoriteFoldersHandler(
       {
         libraries: {
@@ -38,6 +46,7 @@ test('folder drops persist, deduplicate, validate and register external roots', 
       },
       async (root) => scans.push(root),
     )
+
     await assert.rejects(add([inside, file]), /Only folders/)
     assert.deepEqual(favorites, [])
     await assert.rejects(add(['relative/path']), /absolute paths/)

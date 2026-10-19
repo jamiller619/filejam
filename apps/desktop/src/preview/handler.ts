@@ -1,9 +1,9 @@
-﻿import { realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { ServerApi } from '@files/server'
+import { authorizePreview, PreviewAccessError } from './authorize.js'
 import { previewMimeType } from './formats.js'
 import { previewIcon } from './icons.js'
+import type { PreviewService } from './service.js'
 
 const headers = {
   'Content-Security-Policy':
@@ -12,21 +12,27 @@ const headers = {
   'Cache-Control': 'no-store',
 }
 
-function withinRoot(root: string, file: string) {
-  const path = relative(root, file)
-  return !isAbsolute(path) && path !== '..' && !path.startsWith(`..${sep}`)
-}
-
 export function createPreviewHandler(
   libraries: Pick<ServerApi['libraries'], 'list'>,
   fetchFile: (url: string) => Promise<Response>,
+  service?: PreviewService,
 ) {
   return async (request: Request): Promise<Response> => {
-    if (request.method !== 'GET') return new Response(null, { status: 405 })
+    if (request.method !== 'GET') {
+      return new Response(null, { status: 405 })
+    }
+
     const url = new URL(request.url)
     const libraryId = Number(url.searchParams.get('libraryId'))
     const path = url.searchParams.get('path')
     const color = url.searchParams.get('color')
+
+    const dimension = (name: string) =>
+      Number(url.searchParams.get(name) ?? 256)
+
+    const width = dimension('width')
+    const height = dimension('height')
+
     if (
       url.host !== 'preview-image' ||
       (url.pathname !== '' && url.pathname !== '/') ||
@@ -34,30 +40,25 @@ export function createPreviewHandler(
       libraryId <= 0 ||
       path === null ||
       path.includes('\0') ||
+      ![width, height].every(
+        (n) => Number.isInteger(n) && n >= 1 && n <= 2048,
+      ) ||
       (color !== null && !/^#[\da-f]{6}$/i.test(color))
-    )
+    ) {
       return new Response(null, { status: 400 })
+    }
 
     try {
-      const library = (await libraries.list()).find(
-        ({ id }) => id === libraryId,
+      const { file, root, library, info } = await authorizePreview(
+        libraries,
+        libraryId,
+        path,
       )
-      if (!library) return new Response(null, { status: 404 })
 
-      const root = await realpath(library.rootPath)
-      const candidate = resolve(root, path)
+      const original = url.searchParams.get('original') === '1'
 
-      if (isAbsolute(path) || !withinRoot(root, candidate)) {
-        return new Response(null, { status: 403 })
-      }
-
-      const file = await realpath(candidate)
-
-      if (!withinRoot(root, file)) return new Response(null, { status: 403 })
-
-      const info = await stat(file)
       const icon = async () =>
-        url.searchParams.get('original') === '1'
+        original
           ? new Response(null, { status: 415 })
           : new Response(
               await previewIcon({
@@ -70,19 +71,52 @@ export function createPreviewHandler(
               { headers: { ...headers, 'Content-Type': 'image/svg+xml' } },
             )
 
-      const mimeType = previewMimeType(file)
-      if (
-        !info.isFile() ||
-        !mimeType ||
-        url.searchParams.get('fallback') === '1'
-      ) {
+      if (!info.isFile() || url.searchParams.get('fallback') === '1') {
         return await icon()
       }
 
       try {
+        if (!original && service) {
+          const result = await service.generate(
+            {
+              source: { path: file, size: info.size, modifiedAt: info.mtimeMs },
+              width,
+              height,
+              purpose:
+                url.searchParams.get('purpose') === 'detail'
+                  ? 'detail'
+                  : 'thumbnail',
+            },
+            request.signal,
+          )
+
+          const current = await authorizePreview(libraries, libraryId, path)
+
+          if (
+            !result ||
+            current.file !== file ||
+            current.info.size !== info.size ||
+            current.info.mtimeMs !== info.mtimeMs
+          ) {
+            return await icon()
+          }
+
+          return new Response(new Uint8Array(result.bytes), {
+            headers: { ...headers, 'Content-Type': result.mimeType },
+          })
+        }
+
+        const mimeType = previewMimeType(file)
+
+        if (!mimeType) {
+          return await icon()
+        }
+
         const response = await fetchFile(pathToFileURL(file).href)
 
-        if (!response.ok) return await icon()
+        if (!response.ok) {
+          return await icon()
+        }
 
         return new Response(response.body, {
           headers: { ...headers, 'Content-Type': mimeType },
@@ -90,8 +124,10 @@ export function createPreviewHandler(
       } catch {
         return await icon()
       }
-    } catch {
-      return new Response(null, { status: 404 })
+    } catch (error) {
+      return new Response(null, {
+        status: error instanceof PreviewAccessError ? error.status : 404,
+      })
     }
   }
 }

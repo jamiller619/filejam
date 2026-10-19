@@ -8,8 +8,10 @@ export function folderDragProps(path: string | undefined) {
     onDragStart(event: DragEvent) {
       if (!path) {
         event.preventDefault()
+
         return
       }
+
       event.dataTransfer.effectAllowed = 'copy'
       event.dataTransfer.setData(folderDragType, JSON.stringify([path]))
     },

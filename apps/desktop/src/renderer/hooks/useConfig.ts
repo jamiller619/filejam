@@ -16,13 +16,17 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: keySignature represents the key array by value.
   const selectedKeys = useMemo(() => [...keys], [keySignature])
   const allowedKeys = useMemo(() => new Set(selectedKeys), [selectedKeys])
+
   const request = useCallback(async () => {
     const entries = await Promise.all(
-      selectedKeys.map(async (key) => [key, await api.config.get(key)] as const),
+      selectedKeys.map(
+        async (key) => [key, await api.config.get(key)] as const,
+      ),
     )
 
     return Object.fromEntries(entries) as SelectedConfig<Keys>
   }, [api, selectedKeys])
+
   const {
     data: values,
     setData: setValues,
@@ -35,14 +39,18 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
       const { key, value } = (
         event as CustomEvent<{ key: ConfigKey; value: Config[ConfigKey] }>
       ).detail
-      if (!allowedKeys.has(key)) return
+
+      if (!allowedKeys.has(key)) {
+        return
+      }
+
       setValues(
-        (current) =>
-          ({ ...current, [key]: value }) as SelectedConfig<Keys>,
+        (current) => ({ ...current, [key]: value }) as SelectedConfig<Keys>,
       )
     }
 
     window.addEventListener('files:config-updated', handleConfigUpdate)
+
     return () => {
       window.removeEventListener('files:config-updated', handleConfigUpdate)
     }
@@ -55,10 +63,11 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
       }
 
       await api.config.set(key, value)
+
       setValues(
-        (current) =>
-          ({ ...current, [key]: value }) as SelectedConfig<Keys>,
+        (current) => ({ ...current, [key]: value }) as SelectedConfig<Keys>,
       )
+
       window.dispatchEvent(
         new CustomEvent('files:config-updated', { detail: { key, value } }),
       )

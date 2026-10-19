@@ -15,4 +15,5 @@ export function createApi(db: Database, config?: ConfigStore) {
 }
 
 export type ServerApi = ReturnType<typeof createApi>
+
 export type { Library } from '../db/schemas/library.js'
