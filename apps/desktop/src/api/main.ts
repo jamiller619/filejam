@@ -1,9 +1,22 @@
 import type { ServerApi } from '@files/server'
 import { ipcMain, type WebContents } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
+import { createFavoriteFoldersHandler } from './favoriteFolders.js'
 
 /** Only the owning window's main frame may call the server API. */
-export function registerApiIpc(api: ServerApi, renderer: WebContents) {
+export function registerApiIpc(
+  api: ServerApi,
+  renderer: WebContents,
+  scanRoot?: (root: string) => Promise<unknown>,
+) {
+  const addFavoriteFolders = createFavoriteFoldersHandler(api, scanRoot)
+  ipcMain.handle(
+    'favorites:addFolders',
+    withIpcMiddleware(
+      (_event, paths: unknown) => addFavoriteFolders(paths),
+      authorizeRenderer(renderer),
+    ),
+  )
   ipcMain.handle(
     'config:get',
     withIpcMiddleware(
@@ -90,6 +103,7 @@ export function registerApiIpc(api: ServerApi, renderer: WebContents) {
     ),
   )
   return () => {
+    ipcMain.removeHandler('favorites:addFolders')
     ipcMain.removeHandler('config:get')
     ipcMain.removeHandler('config:set')
 

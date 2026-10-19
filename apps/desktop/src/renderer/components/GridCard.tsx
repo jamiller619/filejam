@@ -1,5 +1,5 @@
 import { css } from 'inline-css-modules'
-import type { ReactNode } from 'react'
+import type { DragEventHandler, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import FileName from './FileName.js'
 
@@ -30,18 +30,20 @@ const styles = css`
 `
 
 type GridCardProps = {
+  draggable?: boolean
+  onDragStart?: DragEventHandler<HTMLAnchorElement>
   name: string
   title?: string
   children: ReactNode
   selected?: boolean
 } & (
-    | { to: string }
-    | {
+  | { to: string }
+  | {
       onClick: () => void
       'aria-label'?: string
       'aria-expanded'?: boolean
     }
-  )
+)
 
 export default function GridCard(props: GridCardProps) {
   const content = (
@@ -58,6 +60,8 @@ export default function GridCard(props: GridCardProps) {
           className={styles.cardAction}
           title={props.title ?? props.name}
           to={props.to}
+          draggable={props.draggable}
+          onDragStart={props.onDragStart}
         >
           {content}
         </Link>

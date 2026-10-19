@@ -6,6 +6,8 @@ import electron = require('electron')
 const { contextBridge, ipcRenderer } = electron
 
 type FilesApi = {
+  getDroppedFilePath: (file: File) => string
+  addFavoriteFolders: (paths: string[]) => Promise<string[]>
   openImage: (libraryId: number, path: string) => Promise<void>
   setControlsColor: (color: string) => Promise<void>
   collections: ServerApi['collections']
@@ -15,6 +17,9 @@ type FilesApi = {
 }
 
 const files: FilesApi = {
+  getDroppedFilePath: (file) => electron.webUtils.getPathForFile(file),
+  addFavoriteFolders: (paths) =>
+    ipcRenderer.invoke('favorites:addFolders', paths),
   openImage: (libraryId, path) =>
     ipcRenderer.invoke('window:openImage', libraryId, path),
   setControlsColor: (color) =>

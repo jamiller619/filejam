@@ -19,6 +19,7 @@ import {
   formatFileValueTitle,
   formatFullPath,
 } from '../utils/fileColumns.js'
+import { folderDragProps } from '../utils/folderDrag.js'
 import { folderUrl } from '../utils/folderUrl.js'
 import {
   readTablePreferences,
@@ -376,6 +377,14 @@ function FolderContents({
                 selected={entry.id === selectedId}
                 {...(entry.kind === 'directory'
                   ? {
+                      ...folderDragProps(
+                        libraryRoots.has(entry.libraryId)
+                          ? formatFullPath(
+                              libraryRoots.get(entry.libraryId) ?? '',
+                              entry.relativePath,
+                            )
+                          : undefined,
+                      ),
                       to: folderUrl({
                         libraryId: entry.libraryId,
                         relativePath: entry.relativePath,
@@ -493,6 +502,15 @@ function FolderContents({
                               <FilePreview entry={entry} />
                               {entry.kind === 'directory' ? (
                                 <Link
+                                  {...folderDragProps(
+                                    libraryRoots.has(entry.libraryId)
+                                      ? formatFullPath(
+                                          libraryRoots.get(entry.libraryId) ??
+                                            '',
+                                          entry.relativePath,
+                                        )
+                                      : undefined,
+                                  )}
                                   className={styles.name}
                                   title={entry.name}
                                   to={folderUrl({

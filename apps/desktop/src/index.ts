@@ -62,7 +62,10 @@ async function createWindow() {
     server.api.libraries,
   )
   removeScannerIpc = registerScannerIpc(server.scanner, current.webContents)
-  removeApiIpc = registerApiIpc(server.api, current.webContents)
+  const scanner = server.scanner
+  removeApiIpc = registerApiIpc(server.api, current.webContents, (root) =>
+    scanner.start(root),
+  )
 
   // The scanner bridge is privileged: this window only hosts local app content.
   current.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
