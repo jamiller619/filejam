@@ -94,6 +94,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   const otherLibraries = libraries.filter(
     (library) => !library.isTrash && !favoritePathSet.has(library.rootPath),
   )
+  const trashLibraries = libraries.filter((library) => library.isTrash)
 
   return (
     <nav {...props} className={clsx(styles.navbar, props.className)}>
@@ -137,14 +138,21 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           </li>
         ))}
         {loadFailed && <li role="status">Unable to load folders.</li>}
-        {libraries.filter((library) => library.isTrash).map((library) => (
-          <li key={library.id}>
-            <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>
-              <Icon name="trash" size="20" />
-              <span>{library.name}</span>
-            </NavLink>
-          </li>
-        ))}
+        {trashLibraries.map((library) => {
+          const drive = library.rootPath.match(/^[a-z]:/i)?.[0].toUpperCase()
+          const label =
+            trashLibraries.length > 1 && drive
+              ? `${drive} ${library.name}`
+              : library.name
+          return (
+            <li key={library.id}>
+              <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>
+                <Icon name="trash" size="20" />
+                <span>{label}</span>
+              </NavLink>
+            </li>
+          )
+        })}
         <li>
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>

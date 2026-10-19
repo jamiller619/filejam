@@ -17,7 +17,7 @@ const styles = css`
     align-items: center;
     gap: var(--suzy-space-2);
     width: 100%;
-    padding: var(--suzy-space-1);
+    padding: var(--suzy-space-2);
     border: 0;
     border-radius: inherit;
     background: none;
