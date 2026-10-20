@@ -26,6 +26,7 @@ export function createPreviewHandler(
     const libraryId = Number(url.searchParams.get('libraryId'))
     const path = url.searchParams.get('path')
     const color = url.searchParams.get('color')
+    const darkColor = url.searchParams.get('darkColor')
 
     const dimension = (name: string) =>
       Number(url.searchParams.get(name) ?? 256)
@@ -43,7 +44,8 @@ export function createPreviewHandler(
       ![width, height].every(
         (n) => Number.isInteger(n) && n >= 1 && n <= 2048,
       ) ||
-      (color !== null && !/^#[\da-f]{6}$/i.test(color))
+      (color !== null && !/^#[\da-f]{6}$/i.test(color)) ||
+      (darkColor !== null && !/^#[\da-f]{6}$/i.test(darkColor))
     ) {
       return new Response(null, { status: 400 })
     }
@@ -67,6 +69,7 @@ export function createPreviewHandler(
                   url.searchParams.get('variant') === 'grid' ? 'grid' : 'list',
                 libraryName: file === root ? library.name : undefined,
                 color: color ?? '#7ce2fe',
+                darkColor: darkColor ?? undefined,
               }),
               { headers: { ...headers, 'Content-Type': 'image/svg+xml' } },
             )

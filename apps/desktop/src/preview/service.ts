@@ -30,7 +30,7 @@ const mimeTypes = new Set([
 ])
 
 export class PreviewService {
-  private jobs = new Map<
+  #jobs = new Map<
     string,
     {
       promise: Promise<Success | null>
@@ -38,23 +38,25 @@ export class PreviewService {
       users: number
     }
   >()
-  private failures = new Map<string, number>()
-  private queue: { run: () => void; reject: () => void; priority: number }[] =
-    []
-  private active = 0
-  private closed = false
-  private cacheWrites: Promise<void> = Promise.resolve()
+  #failures = new Map<string, number>()
+  #queue: { run: () => void; reject: () => void; priority: number }[] = []
+  #active = 0
+  #closed = false
+  #cacheWrites: Promise<void> = Promise.resolve()
+  #cache: string
 
   constructor(
     readonly registry: PreviewRegistry,
-    private cache: string,
-  ) {}
+    cache: string,
+  ) {
+    this.#cache = cache
+  }
 
   async generate(
     request: PreviewRequest,
     signal: AbortSignal,
   ): Promise<Success | null> {
-    if (this.closed || signal.aborted) {
+    if (this.#closed || signal.aborted) {
       return null
     }
 
@@ -74,44 +76,47 @@ export class PreviewService {
         )
         .digest('hex')
 
-      if ((this.failures.get(key) ?? 0) > Date.now()) {
+      if ((this.#failures.get(key) ?? 0) > Date.now()) {
         continue
       }
 
-      let job = this.jobs.get(key)
+      let job = this.#jobs.get(key)
 
       if (!job) {
         const controller = new AbortController()
 
-        const promise = this.schedule(
+        const promise = this.#schedule(
           async () => {
-            const cached = await this.readCache(key)
+            const cached = await this.#readCache(key)
 
-            if (cached && (await this.unchanged(request))) {
+            if (cached && (await this.#unchanged(request))) {
               return cached
             }
 
-            const result = await this.execute(
+            const result = await this.#execute(
               provider,
               request,
               controller.signal,
             )
 
-            if (controller.signal.aborted || !(await this.unchanged(request))) {
+            if (
+              controller.signal.aborted ||
+              !(await this.#unchanged(request))
+            ) {
               return null
             }
 
             if (result.status !== 'success') {
-              if (this.failures.size >= 1000) {
-                this.failures.clear()
+              if (this.#failures.size >= 1000) {
+                this.#failures.clear()
               }
 
-              this.failures.set(key, Date.now() + 15000)
+              this.#failures.set(key, Date.now() + 15000)
 
               return null
             }
 
-            await this.writeCache(key, result)
+            await this.#writeCache(key, result)
 
             return result
           },
@@ -119,10 +124,10 @@ export class PreviewService {
           controller.signal,
         )
           .catch(() => null)
-          .finally(() => this.jobs.delete(key))
+          .finally(() => this.#jobs.delete(key))
 
         job = { promise, controller, users: 0 }
-        this.jobs.set(key, job)
+        this.#jobs.set(key, job)
       }
 
       job.users++
@@ -166,7 +171,7 @@ export class PreviewService {
     return null
   }
 
-  private async unchanged(request: PreviewRequest) {
+  async #unchanged(request: PreviewRequest) {
     const info = await stat(request.source.path).catch(() => null)
 
     return (
@@ -176,7 +181,7 @@ export class PreviewService {
     )
   }
 
-  private schedule<T>(
+  #schedule<T>(
     work: () => Promise<T>,
     priority: number,
     signal: AbortSignal,
@@ -190,47 +195,47 @@ export class PreviewService {
         },
         run: () => {
           signal.removeEventListener('abort', abort)
-          this.active++
+          this.#active++
 
           void work()
             .then(resolve, reject)
             .finally(() => {
-              this.active--
-              this.drain()
+              this.#active--
+              this.#drain()
             })
         },
       }
 
       const abort = () => {
-        const index = this.queue.indexOf(item)
+        const index = this.#queue.indexOf(item)
 
         if (index >= 0) {
-          this.queue.splice(index, 1)
+          this.#queue.splice(index, 1)
         }
 
         item.reject()
       }
 
-      if (this.closed || signal.aborted || this.queue.length >= 256) {
+      if (this.#closed || signal.aborted || this.#queue.length >= 256) {
         item.reject()
 
         return
       }
 
       signal.addEventListener('abort', abort, { once: true })
-      this.queue.push(item)
-      this.queue.sort((a, b) => b.priority - a.priority)
-      this.drain()
+      this.#queue.push(item)
+      this.#queue.sort((a, b) => b.priority - a.priority)
+      this.#drain()
     })
   }
 
-  private drain() {
-    while (!this.closed && this.active < 2 && this.queue.length) {
-      this.queue.shift()?.run()
+  #drain() {
+    while (!this.#closed && this.#active < 2 && this.#queue.length) {
+      this.#queue.shift()?.run()
     }
   }
 
-  private execute(
+  #execute(
     provider: RegisteredProvider,
     request: PreviewRequest,
     signal: AbortSignal,
@@ -324,9 +329,9 @@ export class PreviewService {
     })
   }
 
-  private async readCache(key: string): Promise<Success | null> {
+  async #readCache(key: string): Promise<Success | null> {
     try {
-      const path = join(this.cache, `${key}.json`)
+      const path = join(this.#cache, `${key}.json`)
 
       if ((await stat(path)).size > maxBytes * 1.4) {
         return null
@@ -348,12 +353,12 @@ export class PreviewService {
     }
   }
 
-  private writeCache(key: string, result: Success) {
-    this.cacheWrites = this.cacheWrites
+  #writeCache(key: string, result: Success) {
+    this.#cacheWrites = this.#cacheWrites
       .then(async () => {
-        await mkdir(this.cache, { recursive: true })
+        await mkdir(this.#cache, { recursive: true })
 
-        const temporary = join(this.cache, `${key}.${randomUUID()}.tmp`)
+        const temporary = join(this.#cache, `${key}.${randomUUID()}.tmp`)
 
         try {
           await writeFile(
@@ -364,13 +369,13 @@ export class PreviewService {
             }),
           )
 
-          await rename(temporary, join(this.cache, `${key}.json`))
+          await rename(temporary, join(this.#cache, `${key}.json`))
 
           const entries = await Promise.all(
-            (await readdir(this.cache))
+            (await readdir(this.#cache))
               .filter((name) => /^[a-f0-9]{64}\.json$/.test(name))
               .map(async (name) => {
-                const path = join(this.cache, name)
+                const path = join(this.#cache, name)
                 const info = await stat(path)
 
                 return { path, size: info.size, time: info.mtimeMs }
@@ -393,21 +398,21 @@ export class PreviewService {
       })
       .catch(() => undefined) // Cache availability must not prevent previews.
 
-    return this.cacheWrites
+    return this.#cacheWrites
   }
 
   async close() {
-    this.closed = true
+    this.#closed = true
 
-    for (const item of this.queue.splice(0)) {
+    for (const item of this.#queue.splice(0)) {
       item.reject()
     }
 
-    for (const job of this.jobs.values()) {
+    for (const job of this.#jobs.values()) {
       job.controller.abort()
     }
 
-    await Promise.allSettled([...this.jobs.values()].map((job) => job.promise))
-    await this.cacheWrites
+    await Promise.allSettled([...this.#jobs.values()].map((job) => job.promise))
+    await this.#cacheWrites
   }
 }

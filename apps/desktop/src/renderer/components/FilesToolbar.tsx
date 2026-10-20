@@ -3,8 +3,8 @@ import {
   ButtonGroup,
   Icon,
   Menu,
+  MenuItem,
   MenuSubmenu,
-  Select,
   Switch,
 } from '@files/ui'
 import type { Table } from '@tanstack/react-table'
@@ -27,6 +27,16 @@ const styles = css`
     padding-block: var(--suzy-space-2);
     padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
     background: var(--suzy-gray-2);
+  }
+  .sortSetting {
+    display: flex;
+    align-items: center;
+    gap: var(--suzy-space-2);
+    white-space: nowrap;
+  }
+  .dropdownIcon {
+    margin-inline-start: var(--suzy-space-1);
+    transform: rotate(180deg);
   }
   .columnSetting {
     display: flex;
@@ -54,8 +64,10 @@ type FilesToolbarProps<TData> = {
   relativePath?: string | undefined
   collectionId?: string | undefined
   viewMode: FileViewMode
+  groupBy: FileColumn | null
   flatten: boolean
   onFlattenChange: (flatten: boolean) => void
+  onGroupByChange: (groupBy: FileColumn | null) => void
   onViewModeChange: (viewMode: FileViewMode) => void
   table: Table<TData>
 }
@@ -67,6 +79,8 @@ export default function FilesToolbar<TData>({
   collectionId,
   table,
   viewMode,
+  groupBy,
+  onGroupByChange,
   onViewModeChange,
   flatten,
   onFlattenChange,
@@ -94,6 +108,16 @@ export default function FilesToolbar<TData>({
 
   const [favoriteError, setFavoriteError] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
+  const currentSort = table.getState().sorting[0]
+  const currentSortLabel = currentSort
+    ? fileColumnLabels[currentSort.id as FileColumn]
+    : 'Default order'
+  const currentSortDirection = currentSort
+    ? currentSort.desc
+      ? 'descending'
+      : 'ascending'
+    : undefined
+  const currentGroupLabel = groupBy ? fileColumnLabels[groupBy] : 'None'
 
   return (
     <>
@@ -110,34 +134,82 @@ export default function FilesToolbar<TData>({
             />
           </div>
         )}
-        <Select
-          aria-label="Sort files"
-          value={
-            table.getState().sorting[0]
-              ? `${table.getState().sorting[0]?.id}:${table.getState().sorting[0]?.desc ? 'desc' : 'asc'}`
-              : ''
-          }
-          onChange={(event) => {
-            const [id, direction] = event.target.value.split(':')
-
-            table.setSorting(id ? [{ id, desc: direction === 'desc' }] : [])
-          }}
-        >
-          <option value="">Default order</option>
-          {table.getAllLeafColumns().map((column) => (
-            <optgroup
-              key={column.id}
-              label={fileColumnLabels[column.id as FileColumn]}
+        <div className={styles.sortSetting}>
+          <span>Sort by</span>
+          <Menu
+            label="Sort by"
+            triggerVariant="text"
+            trigger={
+              <>
+                {currentSortLabel}
+                {currentSortDirection ? ` (${currentSortDirection})` : ''}
+                <Icon
+                  className={styles.dropdownIcon}
+                  name="chevron-up"
+                  size={12}
+                />
+              </>
+            }
+          >
+            <MenuItem
+              selected={!currentSort}
+              onClick={() => table.setSorting([])}
             >
-              <option value={`${column.id}:asc`}>
-                {fileColumnLabels[column.id as FileColumn]} ? ascending
-              </option>
-              <option value={`${column.id}:desc`}>
-                {fileColumnLabels[column.id as FileColumn]} ? descending
-              </option>
-            </optgroup>
-          ))}
-        </Select>
+              Default order
+            </MenuItem>
+            {table.getAllLeafColumns().map((column) => (
+              <MenuItem
+                key={column.id}
+                selected={currentSort?.id === column.id}
+                onClick={() => {
+                  const isCurrentSort = currentSort?.id === column.id
+
+                  table.setSorting([
+                    {
+                      id: column.id,
+                      desc: isCurrentSort ? !currentSort.desc : false,
+                    },
+                  ])
+                }}
+              >
+                {fileColumnLabels[column.id as FileColumn]}
+                {currentSort?.id === column.id
+                  ? ` (${currentSortDirection})`
+                  : ''}
+              </MenuItem>
+            ))}
+          </Menu>
+        </div>
+        <div className={styles.sortSetting}>
+          <span>Group by</span>
+          <Menu
+            label="Group by"
+            triggerVariant="text"
+            trigger={
+              <>
+                {currentGroupLabel}
+                <Icon
+                  className={styles.dropdownIcon}
+                  name="chevron-up"
+                  size={12}
+                />
+              </>
+            }
+          >
+            <MenuItem selected={!groupBy} onClick={() => onGroupByChange(null)}>
+              None
+            </MenuItem>
+            {table.getAllLeafColumns().map((column) => (
+              <MenuItem
+                key={column.id}
+                selected={groupBy === column.id}
+                onClick={() => onGroupByChange(column.id as FileColumn)}
+              >
+                {fileColumnLabels[column.id as FileColumn]}
+              </MenuItem>
+            ))}
+          </Menu>
+        </div>
         <ButtonGroup role="group" aria-label="File view">
           {(['list', 'grid'] as const).map((mode) => (
             <Button

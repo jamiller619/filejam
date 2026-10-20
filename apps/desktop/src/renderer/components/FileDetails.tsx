@@ -21,6 +21,7 @@ const metadata: readonly FileColumn[] = [
   'kind',
   'mimeType',
   'size',
+  'createdAt',
   'modifiedAt',
   'indexedAt',
   'tagReadError',

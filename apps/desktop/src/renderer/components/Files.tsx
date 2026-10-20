@@ -1,11 +1,11 @@
-import { Surface } from '@files/ui'
+import { Icon, Surface } from '@files/ui'
 import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useApi } from '../hooks/useApi.js'
@@ -28,7 +28,7 @@ import {
 } from '../utils/tablePreferences.js'
 import { useDetailsPane } from './DetailsPaneContext.js'
 import FileDetails from './FileDetails.js'
-import FileName from './FileName.js'
+import FileName, { fileColorForName } from './FileName.js'
 import FilePreview from './FilePreview.js'
 import FilesToolbar from './FilesToolbar.js'
 import FileTags from './FileTags.js'
@@ -39,8 +39,11 @@ export type { FileColumn } from '../utils/fileColumns.js'
 
 const emptyEntries: Listing['entries'] = []
 
+const selectedFileColor = { light: '#f9feff', dark: '#0d141f' }
+
 const defaultColumns: readonly FileColumn[] = [
   'name',
+  'createdAt',
   'modifiedAt',
   'size',
   'tags',
@@ -50,6 +53,12 @@ export type Folder = Parameters<Window['files']['entries']['listChildren']>[0]
 
 type Listing = Awaited<ReturnType<Window['files']['entries']['listChildren']>>
 
+type DateRangeGroup = {
+  key: string
+  label: string
+  order: number
+}
+
 export type FilesProps = {
   folder?: Folder | undefined
   collectionId?: string | undefined
@@ -58,6 +67,33 @@ export type FilesProps = {
 
 const styles = css`
   .gridEmpty { padding: var(--suzy-space-6); text-align: center; }
+  .groupHeading {
+    grid-column: 1 / -1;
+    padding: 0;
+    color: var(--suzy-gray-11);
+    font-weight: 600;
+  }
+  .groupToggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: var(--suzy-space-2);
+    padding: var(--suzy-space-2);
+    border: 0;
+    color: inherit;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    &:hover { color: var(--text); }
+    &:focus-visible { outline: 2px solid var(--suzy-accent-8); }
+  }
+  .groupChevron {
+    flex: 0 0 auto;
+    transition: transform 120ms ease;
+    [aria-expanded='true'] & { transform: rotate(90deg); }
+  }
   .scroll {
     padding-block-end: var(--suzy-space-2);
     border-radius: var(--suzy-radius-4);
@@ -83,6 +119,13 @@ const styles = css`
       padding: var(--suzy-space-6) var(--suzy-space-3);
       text-align: center;
       font-size: 1.125em;
+    }
+    .groupRow th {
+      position: static;
+      padding: var(--suzy-space-1) 0 0;
+      color: var(--suzy-gray-11);
+      background: var(--suzy-gray-2);
+      font-weight: 600;
     }
 
     th {
@@ -123,6 +166,9 @@ const styles = css`
       &[data-selected='true'] > td {
         background: var(--suzy-accent-9);
         color: var(--suzy-accent-1);
+      }
+      &[data-selected='true'] [data-extension-color] {
+        --file-name-color: var(--suzy-accent-1);
       }
       &:first-child > td:first-child {
         border-top-left-radius: var(--suzy-radius-4);
@@ -175,6 +221,56 @@ const styles = css`
   }
 `
 
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function getDateRangeGroup(date: Date, referenceDate: Date): DateRangeGroup {
+  const today = startOfDay(referenceDate)
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const thisWeek = new Date(today)
+  thisWeek.setDate(thisWeek.getDate() - thisWeek.getDay())
+
+  const lastWeek = new Date(thisWeek)
+  lastWeek.setDate(lastWeek.getDate() - 7)
+
+  const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const thisYear = new Date(today.getFullYear(), 0, 1)
+
+  if (date >= today) {
+    return { key: 'today', label: 'Today', order: 0 }
+  }
+
+  if (date >= yesterday) {
+    return { key: 'yesterday', label: 'Yesterday', order: 1 }
+  }
+
+  if (date >= thisWeek) {
+    return { key: 'this-week', label: 'Earlier this week', order: 2 }
+  }
+
+  if (date >= lastWeek) {
+    return { key: 'last-week', label: 'Last week', order: 3 }
+  }
+
+  if (date >= thisMonth) {
+    return { key: 'this-month', label: 'Earlier this month', order: 4 }
+  }
+
+  if (date >= lastMonth) {
+    return { key: 'last-month', label: 'Last month', order: 5 }
+  }
+
+  if (date >= thisYear) {
+    return { key: 'this-year', label: 'Earlier this year', order: 6 }
+  }
+
+  return { key: 'older', label: 'Older', order: 7 }
+}
+
 /** Displays indexed folder contents or a collection. */
 export default function Files({
   folder,
@@ -220,10 +316,19 @@ function FolderContents({
   const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
 
-  const { columnVisibility, sorting, viewMode, flatten, setPreferences } =
-    useTablePrefs(preferencesKey)
+  const {
+    columnVisibility,
+    sorting,
+    viewMode,
+    groupBy,
+    flatten,
+    setPreferences,
+  } = useTablePrefs(preferencesKey)
 
   const [viewError, setViewError] = useState('')
+  const [collapsedGroupKeys, setCollapsedGroupKeys] = useState(
+    () => new Set<string>(),
+  )
 
   const tableColumns = useMemo(
     () =>
@@ -231,7 +336,13 @@ function FolderContents({
         ...new Set([
           'name' as const,
           ...(columns.length ? columns : defaultColumns),
-          ...(['tags', 'kind', 'mimeType', 'relativePath'] as const),
+          ...([
+            'tags',
+            'kind',
+            'mimeType',
+            'relativePath',
+            'createdAt',
+          ] as const),
         ]),
       ].map((column) => ({
         id: column,
@@ -368,6 +479,55 @@ function FolderContents({
     })
   const selectedFile = listing?.entries.find((entry) => entry.id === selectedId)
 
+  const visibleRows = table.getRowModel().rows
+  const groupReferenceDate = new Date()
+  const rowGroups = groupBy
+    ? Array.from(
+        visibleRows
+          .reduce(
+            (groups, row) => {
+              const value = row.getValue(groupBy)
+              const dateRange =
+                value instanceof Date
+                  ? getDateRangeGroup(value, groupReferenceDate)
+                  : undefined
+              const key = dateRange
+                ? `date:${dateRange.key}`
+                : (JSON.stringify(value) ?? String(value))
+              const label = dateRange
+                ? dateRange.label
+                : groupBy === 'relativePath'
+                  ? row.getValue<string>(groupBy)
+                  : formatFileValue(row.original, groupBy)
+              const group = groups.get(key)
+
+              if (group) {
+                group.rows.push(row)
+              } else {
+                groups.set(key, {
+                  key,
+                  label,
+                  order: dateRange?.order,
+                  rows: [row],
+                })
+              }
+
+              return groups
+            },
+            new Map<
+              string,
+              {
+                key: string
+                label: string
+                order: number | undefined
+                rows: typeof visibleRows
+              }
+            >(),
+          )
+          .values(),
+      ).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    : [{ key: 'all', label: null, order: undefined, rows: visibleRows }]
+
   useEffect(() => {
     detailsPane.setVisible(selectedFile !== undefined)
 
@@ -383,6 +543,20 @@ function FolderContents({
 
     selectFile(id)
     viewFile(id)
+  }
+
+  function toggleGroup(key: string) {
+    setCollapsedGroupKeys((current) => {
+      const next = new Set(current)
+
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+
+      return next
+    })
   }
 
   if (loadFailed) {
@@ -405,11 +579,16 @@ function FolderContents({
         collectionId={collectionId}
         table={table}
         viewMode={viewMode}
+        groupBy={groupBy}
         flatten={flatten}
         onFlattenChange={(flatten) => {
           setListing(null)
           selectFile(null)
           setPreferences((current) => ({ ...current, flatten }))
+        }}
+        onGroupByChange={(groupBy) => {
+          setCollapsedGroupKeys(new Set())
+          setPreferences((current) => ({ ...current, groupBy }))
         }}
         onViewModeChange={(viewMode) =>
           setPreferences((current) => ({ ...current, viewMode }))
@@ -426,35 +605,69 @@ function FolderContents({
           <GridContainer
             aria-label={collectionId ? 'Collection files' : 'Folder contents'}
           >
-            {table.getRowModel().rows.map(({ original: entry }) => (
-              <GridCard
-                key={entry.id}
-                name={entry.name}
-                selected={selectedIds.has(entry.id)}
-                fileId={entry.id}
-                {...(entry.kind === 'directory'
-                  ? {
-                      ...folderDragProps(
-                        libraryRoots.has(entry.libraryId)
-                          ? formatFullPath(
-                              libraryRoots.get(entry.libraryId) ?? '',
-                              entry.relativePath,
-                            )
-                          : undefined,
-                      ),
-                      to: folderUrl({
-                        libraryId: entry.libraryId,
-                        relativePath: entry.relativePath,
-                      }),
-                    }
-                  : {
-                      onClick: () => activateFile(entry.id),
-                      'aria-label': `Show details for ${entry.name}`,
-                      'aria-expanded': selectedId === entry.id,
-                    })}
-              >
-                <FilePreview entry={entry} size="100%" variant="grid" />
-              </GridCard>
+            {rowGroups.map((group) => (
+              <Fragment key={group.key}>
+                {group.label !== null && (
+                  <li className={styles.groupHeading}>
+                    <button
+                      type="button"
+                      className={styles.groupToggle}
+                      aria-expanded={!collapsedGroupKeys.has(group.key)}
+                      onClick={() => toggleGroup(group.key)}
+                    >
+                      <Icon
+                        className={styles.groupChevron}
+                        name="chevron-right"
+                        size={12}
+                      />
+                      {group.label}
+                    </button>
+                  </li>
+                )}
+                {!collapsedGroupKeys.has(group.key) &&
+                  group.rows.map(({ original: entry }) => (
+                    <GridCard
+                      key={entry.id}
+                      name={entry.name}
+                      isDirectory={entry.kind === 'directory'}
+                      selected={selectedIds.has(entry.id)}
+                      fileId={entry.id}
+                      {...(entry.kind === 'directory'
+                        ? {
+                            ...folderDragProps(
+                              libraryRoots.has(entry.libraryId)
+                                ? formatFullPath(
+                                    libraryRoots.get(entry.libraryId) ?? '',
+                                    entry.relativePath,
+                                  )
+                                : undefined,
+                            ),
+                            to: folderUrl({
+                              libraryId: entry.libraryId,
+                              relativePath: entry.relativePath,
+                            }),
+                          }
+                        : {
+                            onClick: () => activateFile(entry.id),
+                            'aria-label': `Show details for ${entry.name}`,
+                            'aria-expanded': selectedId === entry.id,
+                          })}
+                    >
+                      <FilePreview
+                        entry={entry}
+                        size="100%"
+                        variant="grid"
+                        color={
+                          entry.kind === 'directory'
+                            ? undefined
+                            : selectedIds.has(entry.id)
+                              ? selectedFileColor
+                              : fileColorForName(entry.name)
+                        }
+                      />
+                    </GridCard>
+                  ))}
+              </Fragment>
             ))}
           </GridContainer>
         )
@@ -507,103 +720,141 @@ function FolderContents({
                   </td>
                 </tr>
               )}
-              {table.getRowModel().rows.map((row) => {
-                const entry = row.original
-
-                return (
-                  <tr
-                    key={entry.id}
-                    className={styles.row}
-                    data-selected={selectedIds.has(entry.id)}
-                    data-file-id={entry.id}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const column = cell.column.id as FileColumn
+              {rowGroups.map((group) => (
+                <Fragment key={group.key}>
+                  {group.label !== null && (
+                    <tr className={styles.groupRow}>
+                      <th colSpan={table.getVisibleLeafColumns().length}>
+                        <button
+                          type="button"
+                          className={styles.groupToggle}
+                          aria-expanded={!collapsedGroupKeys.has(group.key)}
+                          onClick={() => toggleGroup(group.key)}
+                        >
+                          <Icon
+                            className={styles.groupChevron}
+                            name="chevron-right"
+                            size={12}
+                          />
+                          {group.label}
+                        </button>
+                      </th>
+                    </tr>
+                  )}
+                  {!collapsedGroupKeys.has(group.key) &&
+                    group.rows.map((row) => {
+                      const entry = row.original
 
                       return (
-                        <td
-                          key={column}
-                          data-column={column}
-                          className={
-                            column === 'name'
-                              ? styles.nameCell
-                              : column === 'tags'
-                                ? styles.tags
-                                : undefined
-                          }
-                          title={
-                            column === 'tags'
-                              ? (entry.tagReadError ?? undefined)
-                              : formatFileValueTitle(entry, column)
-                          }
+                        <tr
+                          key={entry.id}
+                          className={styles.row}
+                          data-selected={selectedIds.has(entry.id)}
+                          data-file-id={entry.id}
                         >
-                          {column === 'tags' ? (
-                            <FileTags
-                              entry={entry}
-                              onChange={(updated) =>
-                                setListing((current) =>
-                                  current
-                                    ? {
-                                        ...current,
-                                        entries: current.entries.map((file) =>
-                                          file.id === updated.id
-                                            ? updated
-                                            : file,
-                                        ),
+                          {row.getVisibleCells().map((cell) => {
+                            const column = cell.column.id as FileColumn
+
+                            return (
+                              <td
+                                key={column}
+                                data-column={column}
+                                className={
+                                  column === 'name'
+                                    ? styles.nameCell
+                                    : column === 'tags'
+                                      ? styles.tags
+                                      : undefined
+                                }
+                                title={
+                                  column === 'tags'
+                                    ? (entry.tagReadError ?? undefined)
+                                    : formatFileValueTitle(entry, column)
+                                }
+                              >
+                                {column === 'tags' ? (
+                                  <FileTags
+                                    entry={entry}
+                                    onChange={(updated) =>
+                                      setListing((current) =>
+                                        current
+                                          ? {
+                                              ...current,
+                                              entries: current.entries.map(
+                                                (file) =>
+                                                  file.id === updated.id
+                                                    ? updated
+                                                    : file,
+                                              ),
+                                            }
+                                          : current,
+                                      )
+                                    }
+                                  />
+                                ) : column === 'name' ? (
+                                  <span className={styles.file}>
+                                    <FilePreview
+                                      entry={entry}
+                                      color={
+                                        entry.kind === 'directory'
+                                          ? undefined
+                                          : selectedIds.has(entry.id)
+                                            ? selectedFileColor
+                                            : fileColorForName(entry.name)
                                       }
-                                    : current,
-                                )
-                              }
-                            />
-                          ) : column === 'name' ? (
-                            <span className={styles.file}>
-                              <FilePreview entry={entry} />
-                              {entry.kind === 'directory' ? (
-                                <Link
-                                  {...folderDragProps(
-                                    libraryRoots.has(entry.libraryId)
-                                      ? formatFullPath(
-                                          libraryRoots.get(entry.libraryId) ??
-                                            '',
-                                          entry.relativePath,
-                                        )
-                                      : undefined,
-                                  )}
-                                  className={styles.name}
-                                  title={entry.name}
-                                  to={folderUrl({
-                                    libraryId: entry.libraryId,
-                                    relativePath: entry.relativePath,
-                                  })}
-                                >
-                                  <FileName name={entry.name} />
-                                </Link>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className={styles.name}
-                                  title={entry.name}
-                                  onClick={() => {
-                                    activateFile(entry.id)
-                                  }}
-                                  aria-label={`Show details for ${entry.name}`}
-                                  aria-expanded={selectedId === entry.id}
-                                >
-                                  <FileName name={entry.name} />
-                                </button>
-                              )}
-                            </span>
-                          ) : column === 'relativePath' ? (
-                            cell.getValue<string>()
-                          ) : (
-                            formatFileValue(entry, column)
-                          )}
-                        </td>
+                                    />
+                                    {entry.kind === 'directory' ? (
+                                      <Link
+                                        {...folderDragProps(
+                                          libraryRoots.has(entry.libraryId)
+                                            ? formatFullPath(
+                                                libraryRoots.get(
+                                                  entry.libraryId,
+                                                ) ?? '',
+                                                entry.relativePath,
+                                              )
+                                            : undefined,
+                                        )}
+                                        className={styles.name}
+                                        title={entry.name}
+                                        to={folderUrl({
+                                          libraryId: entry.libraryId,
+                                          relativePath: entry.relativePath,
+                                        })}
+                                      >
+                                        <FileName
+                                          name={entry.name}
+                                          isDirectory={true}
+                                        />
+                                      </Link>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className={styles.name}
+                                        title={entry.name}
+                                        onClick={() => {
+                                          activateFile(entry.id)
+                                        }}
+                                        aria-label={`Show details for ${entry.name}`}
+                                        aria-expanded={selectedId === entry.id}
+                                      >
+                                        <FileName name={entry.name} />
+                                      </button>
+                                    )}
+                                  </span>
+                                ) : column === 'relativePath' ? (
+                                  cell.getValue<string>()
+                                ) : (
+                                  formatFileValue(entry, column)
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
                       )
                     })}
-                  </tr>
-                )
-              })}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </Surface>
@@ -637,7 +888,7 @@ function useTablePrefs(preferencesKey: string) {
     readTablePreferences(preferencesKey),
   )
 
-  const { sorting, columnVisibility, viewMode, flatten } = preferences
+  const { sorting, columnVisibility, viewMode, groupBy, flatten } = preferences
 
   useEffect(() => {
     writeTablePreferences(preferencesKey, preferences)
@@ -647,6 +898,7 @@ function useTablePrefs(preferencesKey: string) {
     setPreferences,
     flatten,
     viewMode,
+    groupBy,
     sorting,
     columnVisibility,
   }

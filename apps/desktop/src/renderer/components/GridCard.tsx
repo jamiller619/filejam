@@ -9,7 +9,14 @@ const styles = css`
     border-radius: var(--suzy-radius-4);
     background: var(--suzy-gray-3);
     &:hover, &:focus-within { background: var(--suzy-gray-4); }
-    &[data-selected='true'] { background: var(--suzy-accent-9); color: var(--suzy-accent-1); }
+    &[data-selected='true'] {
+      background: var(--suzy-accent-9);
+      color: var(--suzy-accent-1);
+
+      [data-extension-color] {
+        --file-name-color: var(--suzy-accent-1);
+      }
+    }
   }
   .cardAction {
     display: flex;
@@ -34,6 +41,7 @@ type GridCardProps = {
   draggable?: boolean
   onDragStart?: DragEventHandler<HTMLAnchorElement>
   name: string
+  isDirectory?: boolean
   title?: string
   children: ReactNode
   selected?: boolean
@@ -50,7 +58,7 @@ export default function GridCard(props: GridCardProps) {
   const content = (
     <>
       {props.children}
-      <FileName name={props.name} />
+      <FileName name={props.name} isDirectory={props.isDirectory} />
     </>
   )
 

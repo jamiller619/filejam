@@ -1,6 +1,7 @@
 import { Menu as BaseMenu } from '@base-ui/react/menu'
-import type { ReactNode } from 'react'
+import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
+import type { ReactNode } from 'react'
 
 const styles = css`
   .trigger {
@@ -16,6 +17,18 @@ const styles = css`
     cursor: pointer;
     &:hover, &[data-popup-open] { background: var(--suzy-gray-3); }
     &:focus-visible { outline: 2px solid var(--suzy-accent-8); }
+  }
+  .textTrigger {
+    display: inline-flex;
+    width: auto;
+    align-items: center;
+    justify-content: center;
+    padding-inline: var(--suzy-space-2);
+    gap: var(--suzy-space-1);
+    font: inherit;
+    white-space: nowrap;
+    background: var(--suzy-gray-4);
+    &:hover, &[data-popup-open] { background: var(--suzy-gray-5); }
   }
   .popup {
     z-index: 5;
@@ -47,6 +60,13 @@ const styles = css`
     &[data-highlighted], &:hover { background: var(--suzy-gray-3); }
     &[data-disabled] { opacity: 0.5; cursor: default; }
   }
+  .itemIndicator {
+    display: grid;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    place-items: center;
+  }
   .submenuTrigger { justify-content: space-between; }
   .submenuPopup {
     z-index: 6;
@@ -73,16 +93,21 @@ const styles = css`
 export function Menu({
   label,
   trigger,
+  triggerVariant = 'icon',
   children,
 }: {
   label: string
   trigger: ReactNode
+  triggerVariant?: 'icon' | 'text'
   children: ReactNode
 }) {
   return (
     <BaseMenu.Root>
       <BaseMenu.Trigger
-        className={styles.trigger}
+        className={clsx(
+          styles.trigger,
+          triggerVariant === 'text' && styles.textTrigger,
+        )}
         aria-label={label}
         title={label}
       >
@@ -151,12 +176,21 @@ export function MenuCheckboxItem({
 export function MenuItem({
   children,
   onClick,
+  selected = false,
 }: {
   children: ReactNode
   onClick?: () => void
+  selected?: boolean
 }) {
   return (
-    <BaseMenu.Item className={styles.item} onClick={onClick}>
+    <BaseMenu.Item
+      className={styles.item}
+      aria-current={selected ? 'true' : undefined}
+      onClick={onClick}
+    >
+      <span className={styles.itemIndicator} aria-hidden="true">
+        {selected ? '✓' : null}
+      </span>
       {children}
     </BaseMenu.Item>
   )

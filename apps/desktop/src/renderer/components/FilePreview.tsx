@@ -1,6 +1,7 @@
 ﻿import { Button, Icon } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { FileColor } from './FileName.js'
 
 const styles = css`
   .container {
@@ -47,6 +48,39 @@ type Entry = {
   modifiedAt: Date | string | null
 }
 
+const visibilityListeners = new Map<Element, (visible: boolean) => void>()
+
+const previewObserver =
+  typeof IntersectionObserver === 'undefined'
+    ? null
+    : new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            visibilityListeners.get(entry.target)?.(entry.isIntersecting)
+          }
+        },
+        { rootMargin: '200px 0px' },
+      )
+
+function observeVisibility(
+  element: Element,
+  listener: (visible: boolean) => void,
+) {
+  if (!previewObserver) {
+    listener(true)
+
+    return () => undefined
+  }
+
+  visibilityListeners.set(element, listener)
+  previewObserver.observe(element)
+
+  return () => {
+    previewObserver.unobserve(element)
+    visibilityListeners.delete(element)
+  }
+}
+
 export default function FilePreview({
   entry,
   size = 40,
@@ -57,10 +91,13 @@ export default function FilePreview({
   entry: Entry
   size?: number | '100%'
   variant?: 'list' | 'grid'
-  color?: string
+  color?: FileColor | undefined
   onOpen?: () => void
 }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [nearViewport, setNearViewport] = useState(Boolean(onOpen))
   const [loadedSource, setLoadedSource] = useState('')
+  const [settledSource, setSettledSource] = useState('')
   const [originalSource, setOriginalSource] = useState('')
   const identity = `${entry.libraryId}:${entry.relativePath}:${entry.modifiedAt}`
   const imageCandidate = Boolean(onOpen && originalSource === identity)
@@ -104,46 +141,65 @@ export default function FilePreview({
     height: String(pixels),
     purpose: detail ? 'detail' : 'thumbnail',
     ...(imageCandidate ? { original: '1' } : {}),
-    ...(color ? { color } : {}),
+    ...(color ? { color: color.light, darkColor: color.dark } : {}),
   })
 
   const source = `files-preview://preview-image?${params}`
+  const shouldLoad = detail || nearViewport || settledSource === source
+
+  useEffect(() => {
+    const container = containerRef.current
+
+    if (detail || !container) {
+      return
+    }
+
+    return observeVisibility(container, setNearViewport)
+  }, [detail])
 
   return (
     <div
+      ref={containerRef}
       className={`${styles.container} ${imageCandidate ? styles.expandable : ''}`}
       style={{
         width: imageCandidate ? undefined : size,
         height: typeof size === 'number' ? size : 'auto',
       }}
     >
-      <img
-        key={source}
-        className={styles.preview}
-        src={source}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        onLoad={(event) => {
-          if (!new URL(event.currentTarget.src).searchParams.has('fallback')) {
-            setLoadedSource(source)
-          }
-        }}
-        onError={(event) => {
-          setLoadedSource('')
+      {shouldLoad && (
+        <img
+          key={source}
+          className={styles.preview}
+          src={source}
+          alt=""
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
+          onLoad={(event) => {
+            setSettledSource(source)
 
-          // Ask Electron for an icon if Chromium cannot decode the source image.
-          const image = event.currentTarget
+            if (
+              !new URL(event.currentTarget.src).searchParams.has('fallback')
+            ) {
+              setLoadedSource(source)
+            }
+          }}
+          onError={(event) => {
+            setLoadedSource('')
 
-          if (!new URL(image.src).searchParams.has('fallback')) {
-            const fallback = new URL(source)
+            // Ask Electron for an icon if Chromium cannot decode the source image.
+            const image = event.currentTarget
 
-            fallback.searchParams.delete('original')
-            fallback.searchParams.set('fallback', '1')
-            image.src = fallback.href
-          }
-        }}
-      />
+            if (!new URL(image.src).searchParams.has('fallback')) {
+              const fallback = new URL(source)
+
+              fallback.searchParams.delete('original')
+              fallback.searchParams.set('fallback', '1')
+              image.src = fallback.href
+            }
+          }}
+        />
+      )}
       {imageCandidate && loadedSource === source && (
         <Button
           className={styles.open}

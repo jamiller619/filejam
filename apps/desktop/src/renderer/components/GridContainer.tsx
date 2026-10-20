@@ -10,7 +10,7 @@ const styles = css`
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
-    gap: var(--suzy-space-2);
+    gap: var(--suzy-space-1);
     padding: 0;
     margin: 0;
     list-style: none;

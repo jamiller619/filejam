@@ -27,17 +27,28 @@ export async function previewIcon({
   variant,
   libraryName,
   color,
+  darkColor,
 }: {
   directory: boolean
   variant: 'list' | 'grid'
   libraryName: string | undefined
   color: string
+  darkColor?: string | undefined
 }) {
+  const colorValue = darkColor ? 'var(--preview-color)' : color
+  const colorStyle = darkColor
+    ? `<style>:root { --preview-color: ${color}; }
+        @media (prefers-color-scheme: dark) { :root { --preview-color: ${darkColor}; } }
+      </style>`
+    : ''
+
   if (directory && variant === 'grid') {
     let svg = (await asset('folder-art')).replace(
       'var(--folder-color, var(--suzy-accent-9))',
-      color,
+      colorValue,
     )
+
+    svg = svg.replace('</svg>', `${colorStyle}</svg>`)
 
     const overlay =
       libraryName && Object.hasOwn(libraryIcons, libraryName.toLowerCase())
@@ -64,5 +75,5 @@ export async function previewIcon({
 
   const icon = await asset(directory ? 'folder' : 'text.page')
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="color:${color}">${icon.replace('<svg ', '<svg x="12" y="12" ')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="color:${colorValue}">${colorStyle}${icon.replace('<svg ', '<svg x="12" y="12" ')}</svg>`
 }
