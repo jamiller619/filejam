@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Stats } from 'node:fs'
-import { lstat, realpath } from 'node:fs/promises'
+import { realpath, stat } from 'node:fs/promises'
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
@@ -71,7 +71,7 @@ async function scan(input: string) {
   try {
     // Canonicalize aliases so the same directory shares a library and cache key.
     const root = await realpath(input)
-    const rootMetadata = await lstat(root)
+    const rootMetadata = await stat(root)
 
     if (!rootMetadata.isDirectory()) {
       throw new Error('Scan root must be a directory')
@@ -95,39 +95,50 @@ async function scan(input: string) {
 
     const previous = new Set(cache.cache.keys())
 
-    const paths = await new fdir()
-      .withFullPaths()
-      .withErrors()
-      .withDirs()
-      // Exclude our own changing database files and cache directory when they
-      // live under the scan root.
-      .filter(
-        (path) =>
-          !isIgnoredScanPath(path) &&
-          !isTrashMetadata(root, path) &&
-          ![
-            databasePath,
-            `${databasePath}-wal`,
-            `${databasePath}-shm`,
-            `${databasePath}-journal`,
-          ].includes(resolve(path)),
-      )
-      .exclude((name, path) => {
-        const rel = relative(cacheDirectory, resolve(path))
-
-        return (
-          isIgnoredScanPath(name) ||
-          isTrashMetadata(root, path) ||
-          rel === '' ||
-          (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel))
+    const createCrawler = () =>
+      new fdir()
+        .withFullPaths()
+        .withErrors()
+        .withDirs()
+        // Exclude our own changing database files and cache directory when they
+        // live under the scan root.
+        .filter(
+          (path) =>
+            !isIgnoredScanPath(path) &&
+            !isTrashMetadata(root, path) &&
+            ![
+              databasePath,
+              `${databasePath}-wal`,
+              `${databasePath}-shm`,
+              `${databasePath}-journal`,
+            ].includes(resolve(path)),
         )
-      })
-      .crawl(root)
-      .withPromise()
+        .exclude((name, path) => {
+          const rel = relative(cacheDirectory, resolve(path))
+
+          return (
+            isIgnoredScanPath(name) ||
+            isTrashMetadata(root, path) ||
+            rel === '' ||
+            (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel))
+          )
+        })
+
+    const [paths, directPaths] = await Promise.all([
+      createCrawler()
+        .withSymlinks({ resolvePaths: false })
+        .crawl(root)
+        .withPromise(),
+      // fdir follows a linked directory's children but omits the link itself.
+      // Keep the direct listing so linked and empty directories are persisted.
+      createCrawler().crawl(root).withPromise(),
+    ])
 
     // Persistence needs a parent ID before it can insert a child. Sorting by
     // depth guarantees parents come first, including empty directories.
-    const orderedPaths = [...new Set(paths.map((path) => resolve(path)))]
+    const orderedPaths = [
+      ...new Set([...paths, ...directPaths].map((path) => resolve(path))),
+    ]
       .filter((path) => path !== root)
       .sort(
         (a, b) =>
@@ -160,13 +171,14 @@ async function scan(input: string) {
           break
         }
 
-        const metadata = path === root ? rootMetadata : await lstat(path)
+        const metadata = path === root ? rootMetadata : await stat(path)
 
         metadataByPath.set(path, metadata)
 
         const key = relative(root, path)
-        // Reuse the lstat snapshot instead of getFileDescriptor(), which stats
-        // again and follows symlinks. Keep the existing on-disk cache format.
+        // Reuse the stat snapshot instead of getFileDescriptor(), which would
+        // repeat the lookup. stat intentionally follows symbolic links so they
+        // are indexed and change-tracked like their targets.
         const baseline = cache.cache.getKey<FileDescriptorMeta>(key)
 
         if (metadata.isFile()) {

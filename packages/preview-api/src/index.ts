@@ -22,9 +22,15 @@ export interface PreviewRequest {
   purpose: 'thumbnail' | 'detail'
 }
 
+export interface PreviewExecutables {
+  ffmpeg: string
+  ffprobe: string
+}
+
 export interface PreviewContext {
   signal: AbortSignal
   log: (message: string) => void
+  executables: PreviewExecutables
 }
 
 export type PreviewResult =

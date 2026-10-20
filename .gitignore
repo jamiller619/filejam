@@ -1,5 +1,5 @@
 node_modules/
-packages/preview-video/bin/
+apps/desktop/dist/bin/
 dist/
 *.tsbuildinfo
 .env

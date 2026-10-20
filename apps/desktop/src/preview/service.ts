@@ -10,7 +10,11 @@ import {
 } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { PreviewRequest, PreviewResult } from '@files/preview-api'
+import type {
+  PreviewExecutables,
+  PreviewRequest,
+  PreviewResult,
+} from '@files/preview-api'
 import { utilityProcess } from 'electron'
 import type { PreviewRegistry, RegisteredProvider } from './registry.js'
 
@@ -48,6 +52,7 @@ export class PreviewService {
   constructor(
     readonly registry: PreviewRegistry,
     cache: string,
+    readonly executables: PreviewExecutables,
   ) {
     this.#cache = cache
   }
@@ -322,6 +327,7 @@ export class PreviewService {
           child.postMessage({
             type: 'generate',
             entry: provider.entry,
+            executables: this.executables,
             request,
           })
         }

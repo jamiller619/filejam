@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url'
 import type { ServerApi } from '@files/server'
+import mime from 'mime'
 import { authorizePreview, PreviewAccessError } from './authorize.js'
 import { previewMimeType } from './formats.js'
 import { previewIcon } from './icons.js'
@@ -14,7 +15,7 @@ const headers = {
 
 export function createPreviewHandler(
   libraries: Pick<ServerApi['libraries'], 'list'>,
-  fetchFile: (url: string) => Promise<Response>,
+  fetchFile: (url: string, init?: RequestInit) => Promise<Response>,
   service?: PreviewService,
 ) {
   return async (request: Request): Promise<Response> => {
@@ -25,6 +26,56 @@ export function createPreviewHandler(
     const url = new URL(request.url)
     const libraryId = Number(url.searchParams.get('libraryId'))
     const path = url.searchParams.get('path')
+
+    if (
+      !Number.isSafeInteger(libraryId) ||
+      libraryId <= 0 ||
+      path === null ||
+      path.includes('\0') ||
+      (url.pathname !== '' && url.pathname !== '/')
+    ) {
+      return new Response(null, { status: 400 })
+    }
+
+    if (url.host === 'video') {
+      try {
+        const { file, info } = await authorizePreview(
+          libraries,
+          libraryId,
+          path,
+        )
+        const mimeType = mime.getType(file)
+
+        if (!info.isFile() || !mimeType?.startsWith('video/')) {
+          return new Response(null, { status: 415 })
+        }
+
+        const range = request.headers.get('range')
+        const response = await fetchFile(
+          pathToFileURL(file).href,
+          range ? { headers: { Range: range } } : undefined,
+        )
+        const contentLength = response.headers.get('content-length')
+        const contentRange = response.headers.get('content-range')
+
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: {
+            ...headers,
+            'Accept-Ranges': response.headers.get('accept-ranges') ?? 'bytes',
+            'Content-Type': mimeType,
+            ...(contentLength ? { 'Content-Length': contentLength } : {}),
+            ...(contentRange ? { 'Content-Range': contentRange } : {}),
+          },
+        })
+      } catch (error) {
+        return new Response(null, {
+          status: error instanceof PreviewAccessError ? error.status : 404,
+        })
+      }
+    }
+
     const color = url.searchParams.get('color')
     const darkColor = url.searchParams.get('darkColor')
 
@@ -36,11 +87,6 @@ export function createPreviewHandler(
 
     if (
       url.host !== 'preview-image' ||
-      (url.pathname !== '' && url.pathname !== '/') ||
-      !Number.isSafeInteger(libraryId) ||
-      libraryId <= 0 ||
-      path === null ||
-      path.includes('\0') ||
       ![width, height].every(
         (n) => Number.isInteger(n) && n >= 1 && n <= 2048,
       ) ||

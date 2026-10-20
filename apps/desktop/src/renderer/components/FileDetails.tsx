@@ -75,6 +75,15 @@ const styles = css`
       display: flex;
       justify-content: center;
       margin-block: var(--suzy-space-4);
+
+      video {
+        display: block;
+        width: 100%;
+        max-height: min(50vh, 420px);
+        border-radius: var(--suzy-radius-4);
+        background: #000;
+        corner-shape: var(--suzy-corner-shape);
+      }
     }
     .metadata {
       display: grid;
@@ -187,6 +196,12 @@ export default function FileDetails({
   }, [])
 
   const closeButton = useRef<HTMLButtonElement>(null)
+  const isVideo = entry.mimeType?.startsWith('video/') ?? false
+  const videoSource = `files-preview://video?${new URLSearchParams({
+    libraryId: String(entry.libraryId),
+    path: entry.relativePath,
+    v: String(entry.modifiedAt),
+  })}`
 
   useEffect(() => {
     const opener = document.activeElement
@@ -242,23 +257,34 @@ export default function FileDetails({
         <ScrollArea>
           <div className={styles.contentBody}>
             <div className={styles.preview}>
-              <FilePreview
-                entry={entry}
-                size="100%"
-                onOpen={() => {
-                  setImageError(null)
+              {isVideo ? (
+                // biome-ignore lint/a11y/useMediaCaption: Local videos do not include a separate captions source.
+                <video key={videoSource} controls preload="metadata">
+                  <source
+                    src={videoSource}
+                    type={entry.mimeType ?? undefined}
+                  />
+                  Your browser does not support playing this video.
+                </video>
+              ) : (
+                <FilePreview
+                  entry={entry}
+                  size="100%"
+                  onOpen={() => {
+                    setImageError(null)
 
-                  void window.files
-                    .openImage(entry.libraryId, entry.relativePath)
-                    .catch(() => {
-                      setImageError({
-                        id: entry.id,
-                        message:
-                          'This image could not be opened. It may have been moved, deleted, or be unsupported.',
+                    void window.files
+                      .openImage(entry.libraryId, entry.relativePath)
+                      .catch(() => {
+                        setImageError({
+                          id: entry.id,
+                          message:
+                            'This image could not be opened. It may have been moved, deleted, or be unsupported.',
+                        })
                       })
-                    })
-                }}
-              />
+                  }}
+                />
+              )}
             </div>
             {imageError?.id === entry.id && (
               <p role="alert">{imageError.message}</p>

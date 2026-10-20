@@ -1,13 +1,14 @@
 import { Eyebrow, Icon } from '@files/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
-import { type DragEvent, type HTMLAttributes, useRef, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import type { HTMLAttributes } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useConfig } from '~/hooks/useConfig.js'
 import { useCollections } from '../hooks/useCollections.js'
+import { useFavoriteFolderDrop } from '../hooks/useFavoriteFolderDrop.js'
+import { useFolderDrag } from '../hooks/useFolderDrag.js'
 import { useLibraries } from '../hooks/useLibraries.js'
-import { folderDragProps, folderDragType } from '../utils/folderDrag.js'
-import { folderUrl } from '../utils/folderUrl.js'
+import { folderUrl, isCurrentFolderUrl } from '../utils/folderUrl.js'
 import { getLibraryIcon } from '../utils/libraryIcon.js'
 
 const styles = css`
@@ -73,6 +74,7 @@ const styles = css`
 `
 
 export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
+  const location = useLocation()
   const { libraries, loadFailed } = useLibraries()
 
   const { collections: allCollections, loadFailed: collectionsFailed } =
@@ -82,9 +84,8 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
     (item) => !['recents', 'favorites'].includes(item.id),
   )
 
-  const [dragging, setDragging] = useState(false)
-  const [dropError, setDropError] = useState('')
-  const busy = useRef(false)
+  const { dropError, dropTargetProps } = useFavoriteFolderDrop()
+  const folderDragProps = useFolderDrag()
   const { values } = useConfig(['user.favoriteFolders'])
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
 
@@ -130,58 +131,8 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
 
   const trashLibraries = libraries.filter((library) => library.isTrash)
 
-  function dragOver(event: DragEvent) {
-    if (
-      !event.dataTransfer.types.some(
-        (type) => type === folderDragType || type === 'Files',
-      )
-    ) {
-      return
-    }
-
-    event.preventDefault()
-    event.dataTransfer.dropEffect = busy.current ? 'none' : 'copy'
-    setDragging(!busy.current)
-  }
-
-  async function drop(event: DragEvent) {
-    event.preventDefault()
-    setDragging(false)
-
-    if (busy.current) {
-      return
-    }
-
-    busy.current = true
-    setDropError('')
-
-    try {
-      // Read native File objects while the drop's data store is still available.
-      const internal = event.dataTransfer.getData(folderDragType)
-
-      const paths = internal
-        ? JSON.parse(internal)
-        : Array.from(event.dataTransfer.files, (file) =>
-            window.files.getDroppedFilePath(file),
-          )
-
-      const updated = await window.files.addFavoriteFolders(paths)
-
-      window.dispatchEvent(
-        new CustomEvent('files:config-updated', {
-          detail: { key: 'user.favoriteFolders', value: updated },
-        }),
-      )
-
-      window.dispatchEvent(new Event('files:libraries-updated'))
-    } catch {
-      setDropError(
-        'Unable to add favorites. Drop accessible folders outside Trash.',
-      )
-    } finally {
-      busy.current = false
-    }
-  }
+  const currentFolder = (libraryId: number, relativePath = '') =>
+    isCurrentFolderUrl(location, { libraryId, relativePath })
 
   return (
     <nav {...props} className={clsx(styles.navbar, props.className)}>
@@ -192,22 +143,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             <span>Home</span>
           </NavLink>
         </li>
-        <li
-          className={styles.favorites}
-          data-dragging={dragging}
-          onDragEnter={dragOver}
-          onDragOver={dragOver}
-          onDragLeave={(event) => {
-            if (
-              !event.currentTarget.contains(event.relatedTarget as Node | null)
-            ) {
-              setDragging(false)
-            }
-          }}
-          onDrop={(event) => {
-            void drop(event)
-          }}
-        >
+        <li className={styles.favorites} {...dropTargetProps}>
           <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
           {favoriteFolders.length === 0 && (
             <div className={styles.dropHint}>Drop folders here</div>
@@ -215,9 +151,12 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           <ol aria-label="Favorite folders">
             {favoriteFolders.map(({ path, library, relativePath }) => (
               <li key={path}>
-                <NavLink
+                <Link
                   to={folderUrl({ libraryId: library.id, relativePath })}
                   title={path}
+                  aria-current={
+                    currentFolder(library.id, relativePath) ? 'page' : undefined
+                  }
                   {...folderDragProps(path)}
                 >
                   <Icon
@@ -230,7 +169,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
                     {relativePath.split('/').filter(Boolean).at(-1) ??
                       library.name}
                   </span>
-                </NavLink>
+                </Link>
               </li>
             ))}
           </ol>
@@ -241,14 +180,15 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
         </li>
         {otherLibraries.map((library) => (
           <li key={library.id}>
-            <NavLink
+            <Link
               to={`/libraries/${library.id}`}
               title={library.rootPath}
+              aria-current={currentFolder(library.id) ? 'page' : undefined}
               {...folderDragProps(library.rootPath)}
             >
               <Icon name={getLibraryIcon(library.name)} size="20" />
               <span>{library.name}</span>
-            </NavLink>
+            </Link>
           </li>
         ))}
         {loadFailed && <li role="status">Unable to load folders.</li>}
@@ -262,10 +202,14 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
 
           return (
             <li key={library.id}>
-              <NavLink to={`/libraries/${library.id}`} title={library.rootPath}>
+              <Link
+                to={`/libraries/${library.id}`}
+                title={library.rootPath}
+                aria-current={currentFolder(library.id) ? 'page' : undefined}
+              >
                 <Icon name="trash" size="20" />
                 <span>{label}</span>
-              </NavLink>
+              </Link>
             </li>
           )
         })}

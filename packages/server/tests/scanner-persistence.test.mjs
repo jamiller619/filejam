@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -29,10 +29,10 @@ test('reads each entry metadata once on initial, unchanged, and changed scans', 
     import { parentPort, workerData } from 'node:worker_threads'
     const counts = Object.fromEntries(workerData.paths.map(path => [path, 0]))
     const count = path => { if (Object.hasOwn(counts, path)) counts[path]++ }
-    const lstat = promises.lstat
-    promises.lstat = (path, ...args) => { count(path); return lstat(path, ...args) }
-    const stat = fs.statSync
-    fs.statSync = (path, ...args) => { count(path); return stat(path, ...args) }
+    const promiseStat = promises.stat
+    promises.stat = (path, ...args) => { count(path); return promiseStat(path, ...args) }
+    const statSync = fs.statSync
+    fs.statSync = (path, ...args) => { count(path); return statSync(path, ...args) }
     syncBuiltinESMExports()
     const post = parentPort.postMessage.bind(parentPort)
     parentPort.postMessage = message => post({ ...message, counts: { ...counts } })
@@ -185,5 +185,71 @@ test('persists parents and metadata incrementally, repairs cache hits, and remov
     await scanner.close()
     connection.close()
     await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('follows file and directory symlinks when persisting entries', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'scanner-symlinks-'))
+  const root = join(directory, 'root')
+  const targetDirectory = join(directory, 'target-directory')
+  const targetFile = join(directory, 'target.txt')
+  const databasePath = join(directory, 'files.sqlite')
+  const linkedFile = join(root, 'linked.txt')
+  const linkedDirectory = join(root, 'linked-directory')
+
+  await mkdir(root)
+  await mkdir(targetDirectory)
+  await writeFile(targetFile, 'target contents')
+  await writeFile(join(targetDirectory, 'nested.txt'), 'nested contents')
+
+  try {
+    try {
+      await symlink(targetFile, linkedFile, 'file')
+      await symlink(
+        targetDirectory,
+        linkedDirectory,
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+    } catch (error) {
+      if (error.code === 'EPERM') {
+        t.skip('Creating symbolic links is not permitted')
+
+        return
+      }
+
+      throw error
+    }
+
+    const scanner = new FileScanner(join(directory, 'cache'), databasePath)
+
+    try {
+      await scanner.start(root)
+      await finish(scanner)
+
+      assert.deepEqual(await scanner.results(), {
+        added: ['linked.txt', join('linked-directory', 'nested.txt')],
+        changed: [],
+        removed: [],
+      })
+
+      await writeFile(targetFile, 'changed target contents')
+      await scanner.start(root)
+      await finish(scanner)
+
+      assert.deepEqual(await scanner.results(), {
+        added: [],
+        changed: ['linked.txt'],
+        removed: [],
+      })
+    } finally {
+      await scanner.close()
+    }
+  } finally {
+    await rm(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    })
   }
 })

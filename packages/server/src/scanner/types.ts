@@ -12,7 +12,8 @@ export interface ScanStatus {
 /**
  * File changes relative to the persisted cache baseline, using root-relative paths
  * with native separators. Empty until a scan completes; reset on each start.
- * Directories and symlinks are indexed in SQLite but excluded from these lists.
+ * Directories are indexed in SQLite but excluded from these lists. Symbolic
+ * links are followed and reported according to the kind of their targets.
  */
 export interface ScanResults {
   added: string[]

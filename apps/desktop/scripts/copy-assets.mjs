@@ -1,13 +1,13 @@
 import { fileURLToPath } from 'node:url'
 import { inlineCssModules } from 'inline-css-modules/vite'
 import { build } from 'vite'
+import { copyMediaBinaries } from './copy-media-binaries.mjs'
 import { copyPreviewAssets } from './copy-preview-assets.mjs'
-import { copyPreviewBinaries } from './copy-preview-binaries.mjs'
 
 await import('../../../packages/ui/scripts/copy-assets.mjs')
 
 await copyPreviewAssets()
-await copyPreviewBinaries()
+await copyMediaBinaries()
 
 await build({
   configFile: false,

@@ -12,7 +12,7 @@ import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
 import { useFileSelection } from '../hooks/useFileSelection.js'
 import { useLibraries } from '../hooks/useLibraries.js'
-import { useToast } from '../hooks/useToast.js'
+import { usePageFolderStats } from '../pages/Page.js'
 import {
   type FileColumn,
   fileColumnLabels,
@@ -86,7 +86,7 @@ const styles = css`
     font-weight: 600;
     text-align: left;
     cursor: pointer;
-    &:hover { color: var(--text); }
+    &:hover { color: var(--suzy-gray-12); }
     &:focus-visible { outline: 2px solid var(--suzy-accent-8); }
   }
   .groupChevron {
@@ -387,35 +387,6 @@ function FolderContents({
 
   useEffect(() => window.scanner.onUpdated(refresh), [refresh])
 
-  const { add: addToast, close: closeToast } = useToast()
-  const scanPending = !!listing && !listing.scanned && !loadFailed
-
-  useEffect(() => {
-    if (!scanPending) {
-      return
-    }
-
-    // Avoid flashing a notification for scans that finish almost immediately.
-    let toastId: string | undefined
-
-    const timer = window.setTimeout(() => {
-      toastId = addToast({
-        title: 'Scanning folder…',
-        description:
-          'This folder has not finished scanning. Files may be missing.',
-        timeout: 0,
-      })
-    }, 500)
-
-    return () => {
-      window.clearTimeout(timer)
-
-      if (toastId) {
-        closeToast(toastId)
-      }
-    }
-  }, [scanPending, addToast, closeToast])
-
   useEffect(() => {
     if (!folder || !listing || listing.scanned) {
       return
@@ -478,6 +449,34 @@ function FolderContents({
       onNavigate: viewFile,
     })
   const selectedFile = listing?.entries.find((entry) => entry.id === selectedId)
+
+  const folderStats = useMemo(() => {
+    if (!folder || !listing) {
+      return null
+    }
+
+    return listing.entries.reduce(
+      (stats, entry) => {
+        if (entry.kind === 'directory') {
+          stats.folderCount += 1
+        } else {
+          stats.fileCount += 1
+        }
+
+        stats.totalSize += entry.size ?? 0
+
+        return stats
+      },
+      {
+        fileCount: 0,
+        folderCount: 0,
+        totalSize: 0,
+        scanning: !listing.scanned,
+      },
+    )
+  }, [folder, listing])
+
+  usePageFolderStats(folderStats)
 
   const visibleRows = table.getRowModel().rows
   const groupReferenceDate = new Date()

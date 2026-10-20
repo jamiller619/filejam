@@ -1,39 +1,10 @@
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
 import type { PreviewProvider } from '@files/preview-api'
 
-const require = createRequire(import.meta.url)
-
-function binary(name: 'ffmpeg' | 'ffprobe'): string {
-  const bundled = fileURLToPath(
-    new URL(
-      `../bin/${name}${process.platform === 'win32' ? '.exe' : ''}`,
-      import.meta.url,
-    ),
-  )
-
-  if (existsSync(bundled)) {
-    return bundled.replace('app.asar', 'app.asar.unpacked')
-  }
-
-  const path =
-    name === 'ffmpeg'
-      ? require('ffmpeg-static')
-      : require('@derhuerst/ffprobe-static')
-
-  if (typeof path !== 'string') {
-    throw new Error(`No ${name} binary for this platform`)
-  }
-
-  return path.replace('app.asar', 'app.asar.unpacked')
-}
-
-function run(name: 'ffmpeg' | 'ffprobe', args: string[], signal: AbortSignal) {
+function run(executable: string, args: string[], signal: AbortSignal) {
   return new Promise<Buffer>((resolve, reject) => {
     execFile(
-      binary(name),
+      executable,
       args,
       {
         signal,
@@ -48,11 +19,11 @@ function run(name: 'ffmpeg' | 'ffprobe', args: string[], signal: AbortSignal) {
 }
 
 const provider: PreviewProvider = {
-  async generate(request, { signal }) {
+  async generate(request, { executables, signal }) {
     const probe = JSON.parse(
       (
         await run(
-          'ffprobe',
+          executables.ffprobe,
           [
             '-v',
             'error',
@@ -103,7 +74,7 @@ const provider: PreviewProvider = {
     const timestamp = stream.nb_frames === '1' ? 0 : duration / 3
 
     const bytes = await run(
-      'ffmpeg',
+      executables.ffmpeg,
       [
         '-v',
         'error',

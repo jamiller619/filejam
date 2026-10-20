@@ -1,5 +1,9 @@
 import { pathToFileURL } from 'node:url'
-import type { PreviewProvider, PreviewRequest } from '@files/preview-api'
+import type {
+  PreviewExecutables,
+  PreviewProvider,
+  PreviewRequest,
+} from '@files/preview-api'
 
 const controller = new AbortController()
 
@@ -10,7 +14,12 @@ process.parentPort?.on(
   }: {
     data:
       | { type: 'cancel' }
-      | { type: 'generate'; entry: string; request: PreviewRequest }
+      | {
+          type: 'generate'
+          entry: string
+          executables: PreviewExecutables
+          request: PreviewRequest
+        }
   }) => {
     if (data.type === 'cancel') {
       controller.abort()
@@ -27,6 +36,7 @@ process.parentPort?.on(
       }
 
       const result = await provider.generate(data.request, {
+        executables: data.executables,
         signal: controller.signal,
         log: (message) => console.info(message),
       })

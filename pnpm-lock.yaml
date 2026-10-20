@@ -175,6 +175,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@derhuerst/ffprobe-static':
+        specifier: 5.3.0
+        version: 5.3.0
       '@files/preview-api':
         specifier: workspace:*
         version: link:../../packages/preview-api
@@ -199,6 +202,9 @@ importers:
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
+      ffmpeg-static:
+        specifier: 5.3.0
+        version: 5.3.0
       inline-css-modules:
         specifier: ^0.3.0
         version: 0.3.0(esbuild@0.28.2)(vite@8.3.4(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15))
@@ -254,15 +260,9 @@ importers:
 
   packages/preview-video:
     dependencies:
-      '@derhuerst/ffprobe-static':
-        specifier: 5.3.0
-        version: 5.3.0
       '@files/preview-api':
         specifier: workspace:*
         version: link:../preview-api
-      ffmpeg-static:
-        specifier: 5.3.0
-        version: 5.3.0
     devDependencies:
       '@types/node':
         specifier: ^26.6.4

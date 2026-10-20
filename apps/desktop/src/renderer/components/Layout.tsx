@@ -5,6 +5,7 @@ import { Group, Panel, Separator } from 'react-resizable-panels'
 import { useConfig } from '../hooks/useConfig.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import Navbar from './Navbar.js'
+import { PageFooterHostContext } from './PageFooterContext.js'
 import SuspenseOutlet from './SuspenseOutlet.js'
 import Titlebar from './Titlebar.js'
 
@@ -92,8 +93,14 @@ const styles = css`
         background: var(--suzy-gray-2);
 
         .page {
+          display: grid;
           flex: 1;
           grid-row: auto;
+          grid-template-rows: minmax(0, 1fr) auto;
+        }
+
+        .pageFooter:empty {
+          display: none;
         }
 
         .details {
@@ -115,6 +122,9 @@ export default function Layout() {
   const saveNavbarTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [detailsHost, setDetailsHost] = useState<HTMLDivElement | null>(null)
   const [detailsVisible, setDetailsVisible] = useState(false)
+  const [pageFooterHost, setPageFooterHost] = useState<HTMLDivElement | null>(
+    null,
+  )
 
   const detailsPane = useMemo(
     () => ({ host: detailsHost, setVisible: setDetailsVisible }),
@@ -134,38 +144,44 @@ export default function Layout() {
 
   return (
     <DetailsPaneContext value={detailsPane}>
-      <div className={styles.window}>
-        <Group className={styles.layout} data-details-visible={detailsVisible}>
-          <Panel
-            className={`${styles.pane} ${styles.navigation}`}
-            defaultSize={values['window.navbarWidth']}
-            minSize={120}
-            maxSize={250}
-            onResize={({ inPixels }) => {
-              clearTimeout(saveNavbarTimer.current)
-              saveNavbarTimer.current = setTimeout(() => {
-                void updateConfig('window.navbarWidth', Math.round(inPixels))
-              }, 250)
-            }}
+      <PageFooterHostContext value={pageFooterHost}>
+        <div className={styles.window}>
+          <Group
+            className={styles.layout}
+            data-details-visible={detailsVisible}
           >
-            <Navbar className={styles.navbar} />
-          </Panel>
-          <Separator className={styles.navigationSeparator} />
-          <Panel className={`${styles.pane} ${styles.content}`}>
-            <Titlebar className={styles.titlebar} />
-            <div className={styles.workspace}>
-              <main className={styles.page}>
-                <ScrollArea>
-                  <div className={styles.pageContent}>
-                    <SuspenseOutlet />
-                  </div>
-                </ScrollArea>
-              </main>
-              <div ref={setDetailsHost} className={styles.details} />
-            </div>
-          </Panel>
-        </Group>
-      </div>
+            <Panel
+              className={`${styles.pane} ${styles.navigation}`}
+              defaultSize={values['window.navbarWidth']}
+              minSize={120}
+              maxSize={250}
+              onResize={({ inPixels }) => {
+                clearTimeout(saveNavbarTimer.current)
+                saveNavbarTimer.current = setTimeout(() => {
+                  void updateConfig('window.navbarWidth', Math.round(inPixels))
+                }, 250)
+              }}
+            >
+              <Navbar className={styles.navbar} />
+            </Panel>
+            <Separator className={styles.navigationSeparator} />
+            <Panel className={`${styles.pane} ${styles.content}`}>
+              <Titlebar className={styles.titlebar} />
+              <div className={styles.workspace}>
+                <main className={styles.page}>
+                  <ScrollArea>
+                    <div className={styles.pageContent}>
+                      <SuspenseOutlet />
+                    </div>
+                  </ScrollArea>
+                  <div ref={setPageFooterHost} className={styles.pageFooter} />
+                </main>
+                <div ref={setDetailsHost} className={styles.details} />
+              </div>
+            </Panel>
+          </Group>
+        </div>
+      </PageFooterHostContext>
     </DetailsPaneContext>
   )
 }

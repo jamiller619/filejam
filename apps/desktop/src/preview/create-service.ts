@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { mediaExecutables } from '../media/executables.js'
 import { PreviewRegistry } from './registry.js'
 import { PreviewService } from './service.js'
 
@@ -48,5 +49,9 @@ export async function createPreviewService(userData: string) {
     }
   }
 
-  return new PreviewService(registry, join(userData, 'preview-cache'))
+  return new PreviewService(
+    registry,
+    join(userData, 'preview-cache'),
+    mediaExecutables,
+  )
 }

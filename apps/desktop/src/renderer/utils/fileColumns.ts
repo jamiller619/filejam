@@ -36,6 +36,20 @@ const sizeFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 1,
 })
 
+export function formatFileSize(size: number): string {
+  if (size === 0) {
+    return '0 B'
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+  const index = Math.min(
+    Math.floor(Math.log(size) / Math.log(1000)),
+    units.length - 1,
+  )
+
+  return `${sizeFormatter.format(size / 1000 ** index)} ${units[index]}`
+}
+
 export function formatFullPath(rootPath: string, relativePath: string): string {
   const separator = rootPath.includes('\\') ? '\\' : '/'
   const root = rootPath.replace(/[\\/]+$/, '')
@@ -72,18 +86,7 @@ export function formatFileValue(entry: FileEntry, column: FileColumn): string {
   }
 
   if (column === 'size' && typeof value === 'number') {
-    if (value === 0) {
-      return '0 B'
-    }
-
-    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-
-    const index = Math.min(
-      Math.floor(Math.log(value) / Math.log(1000)),
-      units.length - 1,
-    )
-
-    return `${sizeFormatter.format(value / 1000 ** index)} ${units[index]}`
+    return formatFileSize(value)
   }
 
   if (typeof value === 'boolean') {

@@ -5,3 +5,17 @@ export function folderUrl(folder: Folder) {
 
   return `/libraries/${folder.libraryId}${folder.relativePath ? `?${query}` : ''}`
 }
+
+export function isCurrentFolderUrl(
+  location: { pathname: string; search: string },
+  folder: Folder,
+) {
+  if (location.pathname !== `/libraries/${folder.libraryId}`) {
+    return false
+  }
+
+  const currentRelativePath =
+    new URLSearchParams(location.search).get('folder') ?? ''
+
+  return currentRelativePath === folder.relativePath
+}

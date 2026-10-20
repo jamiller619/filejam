@@ -3,10 +3,10 @@ import { createRequire } from 'node:module'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export async function copyPreviewBinaries() {
-  const root = new URL('../../../packages/preview-video/', import.meta.url)
+export async function copyMediaBinaries() {
+  const root = new URL('../', import.meta.url)
   const require = createRequire(new URL('package.json', root))
-  const destination = fileURLToPath(new URL('bin/', root))
+  const destination = fileURLToPath(new URL('dist/bin/', root))
 
   await mkdir(destination, { recursive: true })
 
@@ -17,7 +17,7 @@ export async function copyPreviewBinaries() {
 
     if (!binary) {
       throw new Error(
-        `Unsupported preview media platform: ${process.platform}/${process.arch}`,
+        `Unsupported media platform: ${process.platform}/${process.arch}`,
       )
     }
 

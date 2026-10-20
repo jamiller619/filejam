@@ -12,7 +12,10 @@ import { getOsTrashRoots } from './trash/roots.js'
 import { readWindowState, trackWindowState } from './window-state.js'
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'files-preview', privileges: { standard: true, secure: true } },
+  {
+    scheme: 'files-preview',
+    privileges: { standard: true, secure: true, stream: true },
+  },
 ])
 
 if (!app.isPackaged && process.env.FILES_RENDERER_URL) {
@@ -236,7 +239,7 @@ if (!app.requestSingleInstanceLock()) {
       'files-preview',
       createPreviewHandler(
         server.api.libraries,
-        (url) => net.fetch(url),
+        (url, init) => net.fetch(url, init),
         previews,
       ),
     )

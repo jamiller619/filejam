@@ -1,5 +1,5 @@
 import type { Stats } from 'node:fs'
-import { lstat, readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import mime from 'mime'
 import { upsertEntry } from '../api/entries.js'
@@ -31,7 +31,7 @@ export async function openScanDatabase(
     async function prepare(path: string, snapshot?: Stats) {
       // All filesystem and external tag reads finish before opening a write
       // transaction. Parent IDs are resolved later, in parent-first order.
-      const metadata = snapshot ?? (await lstat(path))
+      const metadata = snapshot ?? (await stat(path))
       const key = pathKey(path)
 
       const kind = metadata.isDirectory()
@@ -140,10 +140,7 @@ export async function openScanDatabase(
       skipUnchanged(path: string, metadata: Stats) {
         const key = pathKey(path)
 
-        const exists =
-          persisted.has(key) &&
-          !metadata.isDirectory() &&
-          !metadata.isSymbolicLink()
+        const exists = persisted.has(key) && !metadata.isDirectory()
 
         if (exists) {
           unseen.delete(key)
