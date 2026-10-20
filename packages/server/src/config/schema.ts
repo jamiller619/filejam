@@ -45,6 +45,10 @@ export type NavigationWidth = number
  * The absolute paths of the user's favorite folders.
  */
 export type FavoriteFolders = string[]
+/**
+ * Whether dates are displayed relative to the current time or as absolute dates and times.
+ */
+export type DateFormat = 'relative' | 'absolute'
 
 export interface FilesAppConfigSchema {
   'app.locale': ApplicationLocale
@@ -59,6 +63,7 @@ export interface FilesAppConfigSchema {
   'window.main': MainWindowState
   'window.imageViewer': ImageViewerWindowState
   'user.favoriteFolders': FavoriteFolders
+  'user.dateformat': DateFormat
 }
 /**
  * The last position, size, and display mode of the main window.

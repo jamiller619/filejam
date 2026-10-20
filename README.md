@@ -124,29 +124,9 @@ IPC is restricted to the registered window's main frame. Navigation and new wind
 are blocked so the bridge remains available only to local app content. Handlers
 are removed when the window closes or the app shuts down.
 
-### File columns and tags
+### File columns
 
 `Files` accepts a folder reference (`{ libraryId, relativePath }`, with `''`
 for the library root) and an optional `columns` array. Column names are typed from
-the returned file record; the default is `['name', 'modifiedAt', 'size', 'tags']`.
-For example, use `columns={['name', 'size', 'osTags', 'embeddedTags']}` to show tag
-sources separately. Size and modified time are refreshed from the filesystem on
-every scan.
-
-Tags have three independent sources:
-
-- `appTags`: edited with the Tags column's Edit button and stored only in the app.
-- `osTags`: Windows `System.Keywords`, macOS Finder tags, or Linux
-  `user.xdg.tags` extended attributes. Windows uses PowerShell and the Shell
-  property handler; macOS uses `xattr`/`plutil`; Linux requires `python3`.
-- `embeddedTags`: keyword/subject fields from common image, audio, video, PDF,
-  Office, OpenDocument, and XMP files, read using bundled ExifTool. Unix hosts
-  require Perl. The supported extension list lives in `metadata/readTags.ts`.
-
-`tags` combines these sources without duplicate labels. Windows properties may
-expose the same keywords as embedded metadata. Tag imports are read-only and do
-not change the original files. Rescanning replaces successfully read external
-sources, preserves app tags, and retains the last imported values when a reader
-fails. `tagReadError` records failures, also shown beside the combined Tags column.
-Existing databases migrate automatically at startup; rescan existing libraries to
-populate their imported tags. WSL uses the Linux reader, not Windows Shell properties.
+the returned file record; the default is `['name', 'createdAt', 'modifiedAt',
+'size']`. Size and modified time are refreshed from the filesystem on every scan.

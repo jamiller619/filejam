@@ -34,7 +34,6 @@
     "@libsql/client": "^0.18.0",
     "drizzle-orm": "^0.45.4",
     "env-paths": "^4.0.0",
-    "exiftool-vendored": "35.20.0",
     "fdir": "^6.5.0",
     "file-entry-cache": "^11.1.5",
     "find-up-simple": "^1.0.1",

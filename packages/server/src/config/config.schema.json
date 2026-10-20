@@ -47,7 +47,8 @@
     "window.navbarWidth",
     "window.main",
     "window.imageViewer",
-    "user.favoriteFolders"
+    "user.favoriteFolders",
+    "user.dateformat"
   ],
   "properties": {
     "app.locale": {
@@ -128,6 +129,13 @@
       "default": [],
       "uniqueItems": true,
       "description": "The absolute paths of the user's favorite folders."
+    },
+    "user.dateformat": {
+      "title": "Date Format",
+      "type": "string",
+      "enum": ["relative", "absolute"],
+      "default": "relative",
+      "description": "Whether dates are displayed relative to the current time or as absolute dates and times."
     }
   },
   "$defs": {

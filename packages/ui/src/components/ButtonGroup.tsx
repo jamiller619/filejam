@@ -7,15 +7,21 @@ const styles = css`
     display: flex;
     border-radius: var(--suzy-radius-4);
     overflow: hidden;
-    outline: 3px solid var(--suzy-gray-4);
-    outline-offset: -2px;
+    outline: 2px solid var(--suzy-gray-4);
+    background: var(--suzy-gray-2);
 
     button {
-      border-radius: 0;
+      border-radius: 100px;
+      corner-shape: round;
+      background: transparent;
+      margin: 1px;
+
+      &[data-disabled] {
+        background: transparent;
+      }
 
       &[aria-pressed='true'] {
-        background: var(--suzy-accent-9);
-        color: var(--suzy-accent-1);
+        background: var(--suzy-gray-6);
       }
     }
   }

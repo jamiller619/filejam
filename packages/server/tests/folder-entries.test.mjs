@@ -36,6 +36,7 @@ test('folder contents are immediate children isolated by library and report scan
     const root = await save(library.id, '', null, 'directory')
     const nested = await save(library.id, 'nested', root.id, 'directory')
 
+    await save(library.id, 'alpha', root.id, 'directory')
     await save(library.id, 'z.txt', root.id)
     await save(library.id, 'a.txt', root.id)
     await save(library.id, 'nested/hidden.txt', nested.id)
@@ -48,7 +49,7 @@ test('folder contents are immediate children isolated by library and report scan
 
     assert.deepEqual(
       listing.entries.map((entry) => entry.name),
-      ['a.txt', 'nested', 'z.txt'],
+      ['alpha', 'nested', 'a.txt', 'z.txt'],
     )
 
     assert.equal(listing.scanned, false)
@@ -169,7 +170,6 @@ test('folder sizes include nested contents and reflect updates and deletions', a
       )
 
     assert.deepEqual(await sizes(), { empty: 0, folder: 47, outside: 1000 })
-    assert.equal((await api.entries.setAppTags(folder.id, ['tag'])).size, 47)
     await save('folder/a', folder.id, 'file', 20)
     assert.equal((await sizes()).folder, 55)
     await api.entries.completeScan(library.id, [deep.id])

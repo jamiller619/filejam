@@ -1,3 +1,4 @@
+import type { Config } from '@files/server'
 import { formatDistanceToNow } from 'date-fns'
 
 type FileEntry = Awaited<
@@ -5,13 +6,9 @@ type FileEntry = Awaited<
 >['entries'][number]
 
 export type FileColumn = keyof FileEntry
+export type DateFormat = Config['user.dateformat']
 
 export const fileColumnLabels: Record<FileColumn, string> = {
-  tags: 'Tags',
-  appTags: 'App tags',
-  osTags: 'OS tags',
-  embeddedTags: 'Embedded tags',
-  tagReadError: 'Tag import issue',
   id: 'ID',
   libraryId: 'Library ID',
   parentId: 'Parent ID',
@@ -60,29 +57,32 @@ export function formatFullPath(rootPath: string, relativePath: string): string {
 export function formatFileValueTitle(
   entry: FileEntry,
   column: FileColumn,
+  dateFormat: DateFormat,
 ): string | undefined {
   const value = entry[column]
 
-  if (column === 'modifiedAt' && value instanceof Date) {
+  if (dateFormat === 'relative' && value instanceof Date) {
     return dateFormatter.format(value)
   }
 
   return undefined
 }
 
-export function formatFileValue(entry: FileEntry, column: FileColumn): string {
+export function formatFileValue(
+  entry: FileEntry,
+  column: FileColumn,
+  dateFormat: DateFormat,
+): string {
   const value = entry[column]
 
   if (value === null || value === undefined) {
     return '—'
   }
 
-  if (column === 'modifiedAt' && value instanceof Date) {
-    return formatDistanceToNow(value, { addSuffix: true })
-  }
-
   if (value instanceof Date) {
-    return dateFormatter.format(value)
+    return dateFormat === 'relative'
+      ? formatDistanceToNow(value, { addSuffix: true })
+      : dateFormatter.format(value)
   }
 
   if (column === 'size' && typeof value === 'number') {

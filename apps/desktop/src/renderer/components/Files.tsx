@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
+import { useConfig } from '../hooks/useConfig.js'
 import { useFileSelection } from '../hooks/useFileSelection.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { usePageFolderStats } from '../pages/Page.js'
@@ -31,7 +32,6 @@ import FileDetails from './FileDetails.js'
 import FileName, { fileColorForName } from './FileName.js'
 import FilePreview from './FilePreview.js'
 import FilesToolbar from './FilesToolbar.js'
-import FileTags from './FileTags.js'
 import GridCard from './GridCard.js'
 import GridContainer from './GridContainer.js'
 
@@ -46,7 +46,6 @@ const defaultColumns: readonly FileColumn[] = [
   'createdAt',
   'modifiedAt',
   'size',
-  'tags',
 ]
 
 export type Folder = Parameters<Window['files']['entries']['listChildren']>[0]
@@ -209,12 +208,6 @@ const styles = css`
       }
     }
   }
-  .tags {
-    button, form {
-      position: relative;
-      z-index: 1;
-    }
-  }
   .nameCell {
     width: 100%;
     max-width: 0;
@@ -307,6 +300,8 @@ function FolderContents({
   const api = useApi()
   const detailsPane = useDetailsPane()
   const { libraries, loadFailed: librariesFailed } = useLibraries()
+  const { values: configValues } = useConfig(['user.dateformat'])
+  const dateFormat = configValues?.['user.dateformat'] ?? 'relative'
 
   const libraryRoots = useMemo(
     () => new Map(libraries.map((library) => [library.id, library.rootPath])),
@@ -336,13 +331,7 @@ function FolderContents({
         ...new Set([
           'name' as const,
           ...(columns.length ? columns : defaultColumns),
-          ...([
-            'tags',
-            'kind',
-            'mimeType',
-            'relativePath',
-            'createdAt',
-          ] as const),
+          ...(['kind', 'mimeType', 'relativePath', 'createdAt'] as const),
         ]),
       ].map((column) => ({
         id: column,
@@ -497,7 +486,7 @@ function FolderContents({
                 ? dateRange.label
                 : groupBy === 'relativePath'
                   ? row.getValue<string>(groupBy)
-                  : formatFileValue(row.original, groupBy)
+                  : formatFileValue(row.original, groupBy, dateFormat)
               const group = groups.get(key)
 
               if (group) {
@@ -761,36 +750,15 @@ function FolderContents({
                                 className={
                                   column === 'name'
                                     ? styles.nameCell
-                                    : column === 'tags'
-                                      ? styles.tags
-                                      : undefined
+                                    : undefined
                                 }
-                                title={
-                                  column === 'tags'
-                                    ? (entry.tagReadError ?? undefined)
-                                    : formatFileValueTitle(entry, column)
-                                }
+                                title={formatFileValueTitle(
+                                  entry,
+                                  column,
+                                  dateFormat,
+                                )}
                               >
-                                {column === 'tags' ? (
-                                  <FileTags
-                                    entry={entry}
-                                    onChange={(updated) =>
-                                      setListing((current) =>
-                                        current
-                                          ? {
-                                              ...current,
-                                              entries: current.entries.map(
-                                                (file) =>
-                                                  file.id === updated.id
-                                                    ? updated
-                                                    : file,
-                                              ),
-                                            }
-                                          : current,
-                                      )
-                                    }
-                                  />
-                                ) : column === 'name' ? (
+                                {column === 'name' ? (
                                   <span className={styles.file}>
                                     <FilePreview
                                       entry={entry}
@@ -844,7 +812,7 @@ function FolderContents({
                                 ) : column === 'relativePath' ? (
                                   cell.getValue<string>()
                                 ) : (
-                                  formatFileValue(entry, column)
+                                  formatFileValue(entry, column, dateFormat)
                                 )}
                               </td>
                             )
@@ -864,6 +832,7 @@ function FolderContents({
           <FileDetails
             entry={selectedFile}
             rootPath={libraryRoots.get(selectedFile.libraryId)}
+            dateFormat={dateFormat}
             closing={detailsClosing}
             onClose={() => setDetailsClosing(true)}
             onClosed={() => {

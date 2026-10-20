@@ -1,14 +1,15 @@
 import { Switch as BaseSwitch } from '@base-ui/react/switch'
-import type { ComponentProps } from 'react'
 import { css } from 'inline-css-modules'
+import type { ComponentProps } from 'react'
 
 const styles = css`
   .root {
     position: relative;
     display: inline-flex;
-    width: 36px;
-    height: 20px;
-    flex: 0 0 36px;
+    width: calc(var(--suzy-control-height) + var(--suzy-space-3));
+    height: calc(var(--suzy-control-height) - var(--suzy-space-2));
+    min-height: calc(var(--suzy-control-height) - var(--suzy-space-2));
+    flex: 0 0 calc(var(--suzy-control-height) + var(--suzy-space-3));
     align-items: center;
     padding: 2px;
     border: 0;
@@ -23,14 +24,18 @@ const styles = css`
   }
   .thumb {
     display: block;
-    width: 16px;
-    height: 16px;
+    width: calc(var(--suzy-control-height) - var(--suzy-space-3) - 2px);
+    height: calc(var(--suzy-control-height) - var(--suzy-space-3) - 2px);
     border-radius: var(--suzy-radius-full);
     background: white;
     box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
     transform: translateX(0);
     transition: transform var(--suzy-duration-fast) var(--suzy-ease-standard);
-    [data-checked] & { transform: translateX(16px); }
+    [data-checked] & {
+      transform: translateX(
+        calc(var(--suzy-space-5) - var(--suzy-space-1) + 2px)
+      );
+    }
   }
 `
 

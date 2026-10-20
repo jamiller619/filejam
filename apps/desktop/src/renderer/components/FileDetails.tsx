@@ -1,7 +1,7 @@
-import { Button, Icon, Pill, ScrollArea } from '@files/ui'
+import { Button, Icon, ScrollArea } from '@files/ui'
 import { css } from 'inline-css-modules'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { FileColumn } from '../utils/fileColumns.js'
+import type { DateFormat, FileColumn } from '../utils/fileColumns.js'
 import {
   fileColumnLabels,
   formatFileValue,
@@ -24,7 +24,6 @@ const metadata: readonly FileColumn[] = [
   'createdAt',
   'modifiedAt',
   'indexedAt',
-  'tagReadError',
 ]
 
 const styles = css`
@@ -111,17 +110,13 @@ const styles = css`
         color: var(--suzy-text);
       }
     }
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--suzy-space-2);
-    }
   }
 `
 
 export default function FileDetails({
   entry,
   rootPath,
+  dateFormat,
   closing,
   onClose,
   onClosed,
@@ -129,6 +124,7 @@ export default function FileDetails({
 }: {
   entry: FileEntry
   rootPath: string | undefined
+  dateFormat: DateFormat
   closing: boolean
   onClose: () => void
   onClosed: () => void
@@ -293,12 +289,12 @@ export default function FileDetails({
               {metadata.map((column) => (
                 <div key={column}>
                   <dt>{fileColumnLabels[column]}</dt>
-                  <dd title={formatFileValueTitle(entry, column)}>
+                  <dd title={formatFileValueTitle(entry, column, dateFormat)}>
                     {column === 'relativePath'
                       ? rootPath === undefined
                         ? '—'
                         : formatFullPath(rootPath, entry.relativePath)
-                      : formatFileValue(entry, column)}
+                      : formatFileValue(entry, column, dateFormat)}
                   </dd>
                 </div>
               ))}
@@ -308,14 +304,6 @@ export default function FileDetails({
               entryId={entry.id}
               onChange={onCollectionsChange}
             />
-            <section aria-label="Tags">
-              <h5>Tags</h5>
-              <div className={styles.tags}>
-                {entry.tags.length
-                  ? entry.tags.map((tag) => <Pill key={tag}>{tag}</Pill>)
-                  : 'No tags'}
-              </div>
-            </section>
           </div>
         </ScrollArea>
       </div>

@@ -2,7 +2,6 @@ import { and, asc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 import type { Database } from '../db/index.js'
 import { entries, type NewEntry } from '../db/schemas/entry.js'
 import { libraries } from '../db/schemas/library.js'
-import { mergeTags, normalizeTags } from '../metadata/tags.js'
 import { entrySize } from './entrySize.js'
 
 export function createEntriesApi(db: Database) {
@@ -83,15 +82,16 @@ export function createEntriesApi(db: Database) {
               : eq(entries.parentId, directory.id),
           ),
         )
-        .orderBy(asc(entries.name), asc(entries.id))
+        .orderBy(
+          sql`case when ${entries.kind} = 'directory' then 0 else 1 end`,
+          asc(entries.name),
+          asc(entries.id),
+        )
 
       return {
-        entries: children
-          .filter((entry) => !folder.recursive || entry.kind !== 'directory')
-          .map((entry) => ({
-            ...entry,
-            tags: mergeTags(entry),
-          })),
+        entries: children.filter(
+          (entry) => !folder.recursive || entry.kind !== 'directory',
+        ),
         scanned:
           directory.childrenScannedAt !== null &&
           !directory.childrenDirty &&
@@ -101,38 +101,6 @@ export function createEntriesApi(db: Database) {
                 entry.kind !== 'directory' ||
                 (entry.childrenScannedAt !== null && !entry.childrenDirty),
             )),
-      }
-    },
-    async setAppTags(id: number, tags: string[]) {
-      if (
-        !Number.isSafeInteger(id) ||
-        id <= 0 ||
-        !Array.isArray(tags) ||
-        tags.length > 100 ||
-        tags.some((tag) => typeof tag !== 'string' || tag.length > 256)
-      ) {
-        throw new Error('Invalid file tags')
-      }
-
-      const [entry] = await db
-        .update(entries)
-        .set({ appTags: normalizeTags(tags) })
-        .where(eq(entries.id, id))
-        .returning()
-
-      if (!entry) {
-        throw new Error('File not found')
-      }
-
-      const [sized] = await db
-        .select({ size: entrySize })
-        .from(entries)
-        .where(eq(entries.id, id))
-
-      return {
-        ...entry,
-        size: sized?.size ?? entry.size,
-        tags: mergeTags(entry),
       }
     },
     async listPaths(libraryId: number) {

@@ -36,7 +36,6 @@ test('collections span libraries, preserve membership on rescan, and cascade del
       name: 'one.txt',
       kind: 'file',
       indexedAt: new Date(),
-      appTags: ['test'],
     }
 
     const one = await api.entries.upsert(values)
@@ -57,7 +56,6 @@ test('collections span libraries, preserve membership on rescan, and cascade del
       new Set([first.id, second.id]),
     )
 
-    assert.deepEqual(listing.entries[0].tags, ['test'])
     await api.entries.upsert({ ...values, size: 100 })
     listing = await api.collections.listEntries(collection.id)
     assert.equal(listing.entries.find((entry) => entry.id === one.id).size, 100)

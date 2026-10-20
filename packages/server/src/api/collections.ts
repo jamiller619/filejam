@@ -3,7 +3,6 @@ import { and, asc, desc, eq } from 'drizzle-orm'
 import type { Database } from '../db/index.js'
 import { collectionEntries, collections } from '../db/schemas/collection.js'
 import { entries } from '../db/schemas/entry.js'
-import { mergeTags } from '../metadata/tags.js'
 
 export function createCollectionsApi(db: Database) {
   const requireCollection = async (id: string) => {
@@ -104,10 +103,7 @@ export function createCollectionsApi(db: Database) {
       return {
         collection,
         scanned: true,
-        entries: rows.map(({ entry }) => ({
-          ...entry,
-          tags: mergeTags(entry),
-        })),
+        entries: rows.map(({ entry }) => entry),
       }
     },
     async forEntry(entryId: number) {

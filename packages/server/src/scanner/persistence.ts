@@ -5,7 +5,6 @@ import mime from 'mime'
 import { upsertEntry } from '../api/entries.js'
 import { createApi } from '../api/index.js'
 import { initDatabase } from '../db/index.js'
-import { createTagReader } from '../metadata/readTags.js'
 
 /** Open a worker-owned connection. Pools migrate once before dispatching scans. */
 export async function openScanDatabase(
@@ -15,7 +14,6 @@ export async function openScanDatabase(
 ) {
   const connection = await initDatabase(databasePath, runMigrations)
   const api = createApi(connection.db)
-  const tagReader = createTagReader()
 
   try {
     const library = await api.libraries.ensureRoot(root)
@@ -29,8 +27,8 @@ export async function openScanDatabase(
     const pathKey = (path: string) => relative(root, path).split(sep).join('/')
 
     async function prepare(path: string, snapshot?: Stats) {
-      // All filesystem and external tag reads finish before opening a write
-      // transaction. Parent IDs are resolved later, in parent-first order.
+      // Filesystem reads finish before opening a write transaction. Parent IDs
+      // are resolved later, in parent-first order.
       const metadata = snapshot ?? (await stat(path))
       const key = pathKey(path)
 
@@ -48,7 +46,6 @@ export async function openScanDatabase(
         path,
         parentKey: key === '' ? null : pathKey(dirname(path)),
         values: {
-          ...(await tagReader.read(path, kind, metadata)),
           libraryId: library.id,
           relativePath: key,
           name,
@@ -133,10 +130,7 @@ export async function openScanDatabase(
     return {
       async close() {
         connection.close()
-        await tagReader.close()
       },
-      prepareTags: (paths: string[], metadata?: ReadonlyMap<string, Stats>) =>
-        tagReader.prepare(paths, metadata),
       skipUnchanged(path: string, metadata: Stats) {
         const key = pathKey(path)
 
@@ -169,7 +163,6 @@ export async function openScanDatabase(
     }
   } catch (error) {
     connection.close()
-    await tagReader.close()
 
     throw error
   }

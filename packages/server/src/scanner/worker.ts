@@ -222,8 +222,6 @@ async function scan(input: string) {
         break
       }
 
-      await database.prepareTags(savePaths, metadataByPath)
-
       const saved = await database.saveBatch(
         savePaths,
         metadataByPath,

@@ -19,7 +19,7 @@ export function readTablePreferences(page: string): TablePreferences {
     viewMode: 'list',
     groupBy: null,
     sorting: [],
-    columnVisibility: { tags: false },
+    columnVisibility: {},
   }
 
   try {

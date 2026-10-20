@@ -50,6 +50,17 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     )
 
     assert.equal(migrations.length, 3)
+
+    const entryColumns = await connection.db.all(
+      "SELECT name FROM pragma_table_info('entries')",
+    )
+
+    assert.ok(
+      ['app_tags', 'os_tags', 'embedded_tags', 'tag_read_error'].every(
+        (name) => !entryColumns.some((column) => column.name === name),
+      ),
+    )
+
     await connection.db.delete(libraries)
     assert.deepEqual(await connection.db.select().from(entries), [])
   } finally {

@@ -45,3 +45,31 @@ test('config API reads, validates, and persists config values', async () => {
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+test('config API validates and persists the date format', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'files-date-format-'))
+  const file = join(directory, 'config.json')
+  const store = new ConfigStore(file, { 'user.dateformat': 'relative' })
+  const config = createConfigApi(store)
+
+  try {
+    assert.equal(await config.get('user.dateformat'), 'relative')
+
+    await config.set('user.dateformat', 'absolute')
+
+    assert.equal(await config.get('user.dateformat'), 'absolute')
+    assert.equal(
+      JSON.parse(await readFile(file, 'utf8'))['user.dateformat'],
+      'absolute',
+    )
+
+    await assert.rejects(
+      config.set('user.dateformat', 'calendar'),
+      /Invalid config value/,
+    )
+
+    assert.equal(await config.get('user.dateformat'), 'absolute')
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})

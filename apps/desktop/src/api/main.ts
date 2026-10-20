@@ -83,14 +83,6 @@ export function registerApiIpc(
   )
 
   ipcMain.handle(
-    'entries:setAppTags',
-    withIpcMiddleware(
-      (_event, id: number, tags: string[]) => api.entries.setAppTags(id, tags),
-      authorizeRenderer(renderer),
-    ),
-  )
-
-  ipcMain.handle(
     'collections:list',
     withIpcMiddleware(
       (_event) => api.collections.list(),
@@ -152,7 +144,6 @@ export function registerApiIpc(
     ipcMain.removeHandler('collections:setMembership')
     ipcMain.removeHandler('collections:recordView')
 
-    ipcMain.removeHandler('entries:setAppTags')
     ipcMain.removeHandler('libraries:list')
     ipcMain.removeHandler('entries:listChildren')
   }

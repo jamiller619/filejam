@@ -22,7 +22,7 @@ type FilesApi = {
       Awaited<ReturnType<ServerApi['libraries']['list']>>[number] | null
     >
   }
-  entries: Pick<ServerApi['entries'], 'listChildren' | 'setAppTags'>
+  entries: Pick<ServerApi['entries'], 'listChildren'>
 }
 
 const files: FilesApi = {
@@ -49,8 +49,6 @@ const files: FilesApi = {
     set: (key, value) => ipcRenderer.invoke('config:set', key, value),
   },
   entries: {
-    setAppTags: (id, tags) =>
-      ipcRenderer.invoke('entries:setAppTags', id, tags),
     listChildren: (folder) =>
       ipcRenderer.invoke('entries:listChildren', folder),
   },

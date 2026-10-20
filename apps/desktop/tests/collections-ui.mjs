@@ -40,7 +40,6 @@ async function run() {
       relativePath: 'Example.txt',
       kind: 'file',
       indexedAt: new Date(),
-      appTags: ['example'],
     })
 
     await api.entries.completeScan(library.id, [])
@@ -88,21 +87,6 @@ async function run() {
 
     await waitFor(
       `document.querySelector('button[aria-label="Show details for Example.txt"]') !== null`,
-    )
-
-    assert.equal(
-      await js(
-        `Array.from(document.querySelectorAll('th')).some(el => el.textContent === 'Tags')`,
-      ),
-      false,
-    )
-
-    await js(
-      `document.querySelector('details summary').click(); Array.from(document.querySelectorAll('details label')).find(el => el.textContent.trim() === 'Tags').querySelector('input').click()`,
-    )
-
-    await waitFor(
-      `Array.from(document.querySelectorAll('th')).some(el => el.textContent === 'Tags')`,
     )
 
     const spacing = await js(

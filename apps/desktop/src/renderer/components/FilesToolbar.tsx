@@ -22,7 +22,6 @@ const styles = css`
     display: flex;
     align-items: center;
     gap: var(--suzy-space-3);
-    justify-content: flex-end;
     padding-block: var(--suzy-space-2);
     padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
     background: var(--suzy-gray-2);
@@ -32,6 +31,9 @@ const styles = css`
     flex: 0 0 auto;
     align-items: center;
     gap: var(--suzy-space-3);
+  }
+  .trailingControls {
+    margin-inline-start: auto;
   }
   .overflowedControls {
     position: absolute;
@@ -57,14 +59,14 @@ const styles = css`
     padding-inline: var(--suzy-space-2);
     white-space: nowrap;
   }
-  /* .favoriteButton {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: 0;
-  } */
+  .favoriteButton {
+    gap: var(--suzy-space-2);
+  }
   .favoriteButton[aria-pressed='true'] {
     color: var(--suzy-accent-9);
+  }
+  .favoriteLabel {
+    color: #fff;
   }
 `
 
@@ -133,8 +135,8 @@ function FavoriteSetting({ busy, isFavorite, onChange }: FavoriteSettingProps) {
         onClick={() => onChange(!isFavorite)}
       >
         <Icon name={isFavorite ? 'heart-filled' : 'heart'} size={20} />
+        <span className={styles.favoriteLabel}>Favorite</span>
       </Button>
-      <span>Favorite</span>
     </div>
   )
 }
@@ -200,6 +202,7 @@ export default function FilesToolbar<TData>({
   const [favoriteBusy, setFavoriteBusy] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const toolbarRef = useRef<HTMLDivElement>(null)
+  const sortControlsRef = useRef<HTMLDivElement>(null)
   const primaryControlsRef = useRef<HTMLDivElement>(null)
   const overflowControlsRef = useRef<HTMLDivElement>(null)
   const currentSort = table.getState().sorting[0]
@@ -220,10 +223,11 @@ export default function FilesToolbar<TData>({
 
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current
+    const sortControls = sortControlsRef.current
     const primaryControls = primaryControlsRef.current
     const overflowControls = overflowControlsRef.current
 
-    if (!toolbar || !primaryControls || !overflowControls) {
+    if (!toolbar || !sortControls || !primaryControls || !overflowControls) {
       return
     }
 
@@ -234,10 +238,12 @@ export default function FilesToolbar<TData>({
         Number.parseFloat(toolbarStyle.paddingInlineStart) -
         Number.parseFloat(toolbarStyle.paddingInlineEnd)
       const gap = Number.parseFloat(toolbarStyle.columnGap)
+      const visibleControlGroups = hasOverflowControls ? 3 : 2
       const controlsWidth =
+        sortControls.offsetWidth +
         primaryControls.offsetWidth +
         overflowControls.offsetWidth +
-        (hasOverflowControls ? gap : 0)
+        gap * (visibleControlGroups - 1)
 
       setShowMore(hasOverflowControls && controlsWidth > availableWidth)
     }
@@ -246,6 +252,7 @@ export default function FilesToolbar<TData>({
 
     const observer = new ResizeObserver(updateOverflow)
     observer.observe(toolbar)
+    observer.observe(sortControls)
     observer.observe(primaryControls)
     observer.observe(overflowControls)
 
@@ -273,18 +280,7 @@ export default function FilesToolbar<TData>({
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
       <div ref={toolbarRef} className={styles.toolbar} role="toolbar">
-        <div ref={primaryControlsRef} className={styles.controlGroup}>
-          {currentFolderPath && !collectionId && (
-            <div className={styles.menuSetting}>
-              <span>Flatten view</span>
-              <Switch
-                aria-label="Flatten view"
-                title="Show files from all subfolders and hide folders"
-                checked={flatten}
-                onCheckedChange={onFlattenChange}
-              />
-            </div>
-          )}
+        <div ref={sortControlsRef} className={styles.controlGroup}>
           <ToolbarMenu
             label="Sort by"
             value={`${currentSortLabel}${
@@ -333,6 +329,22 @@ export default function FilesToolbar<TData>({
               </MenuItem>
             ))}
           </ToolbarMenu>
+        </div>
+        <div
+          ref={primaryControlsRef}
+          className={`${styles.controlGroup} ${styles.trailingControls}`}
+        >
+          {currentFolderPath && !collectionId && (
+            <div className={styles.menuSetting}>
+              <span>Flatten view</span>
+              <Switch
+                aria-label="Flatten view"
+                title="Show files from all subfolders and hide folders"
+                checked={flatten}
+                onCheckedChange={onFlattenChange}
+              />
+            </div>
+          )}
           <ButtonGroup role="group" aria-label="File view">
             {(['list', 'grid'] as const).map((mode) => (
               <Button

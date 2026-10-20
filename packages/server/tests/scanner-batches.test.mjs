@@ -33,7 +33,7 @@ async function inDatabaseProcess(directory, source) {
   )
 }
 
-test('scan batches roll back parents and bookkeeping, preserve IDs and tags, and respect cancellation', async () => {
+test('scan batches roll back parents and bookkeeping, preserve IDs, and respect cancellation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-batch-'))
   const root = join(directory, 'root')
 
@@ -52,7 +52,6 @@ test('scan batches roll back parents and bookkeeping, preserve IDs and tags, and
         const nested = join(root, 'nested')
         const file = join(nested, 'file.txt')
         const orphan = join(root, 'missing', 'orphan.txt')
-        await scan.prepareTags([root, nested, file, orphan])
         await assert.rejects(scan.saveBatch([root, nested, orphan]), /Missing parent directory/)
         assert.deepEqual(await connection.db.select().from(entries), [])
         // A rolled-back parent must not leak into the next batch's ID map.
@@ -63,7 +62,6 @@ test('scan batches roll back parents and bookkeeping, preserve IDs and tags, and
         assert.deepEqual(await scan.saveBatch([root], undefined, () => ++checks === 2), [])
         assert.deepEqual(await connection.db.select().from(entries), [])
 
-        await scan.prepareTags([root, nested, file])
         const saved = await scan.saveBatch([root, nested, file])
         assert.deepEqual(saved.map(entry => entry.kind), ['directory', 'directory', 'file'])
         let rows = await connection.db.select().from(entries)
@@ -72,14 +70,10 @@ test('scan batches roll back parents and bookkeeping, preserve IDs and tags, and
         const original = rows.find(row => row.relativePath === 'nested/file.txt')
         assert.equal(parent.parentId, rootRow.id)
         assert.equal(original.parentId, parent.id)
-        const api = createApi(connection.db)
-        await api.entries.setAppTags(original.id, ['personal'])
-        await scan.prepareTags([file])
         await scan.saveBatch([file])
         rows = await connection.db.select().from(entries)
         const updated = rows.find(row => row.relativePath === 'nested/file.txt')
         assert.equal(updated.id, original.id)
-        assert.deepEqual(updated.appTags, ['personal'])
         await scan.complete()
         rows = await connection.db.select().from(entries)
         assert.equal(rows.find(row => row.id === parent.id).childrenDirty, false)
@@ -157,13 +151,11 @@ test('large saves commit bounded batches and retain earlier batches after a late
       try {
         const paths = [root, ...Array.from({ length: 70 }, (_, index) => join(root, index + '.txt'))]
         const orphan = join(root, 'missing', 'orphan.txt')
-        await scan.prepareTags([...paths, orphan])
         await assert.rejects(scan.saveBatch([...paths, orphan]), /Missing parent directory/)
         // The first 64 entries committed; the second transaction rolled back.
         let rows = await connection.db.select().from(entries)
         assert.equal(rows.length, 64)
         assert.equal(scan.skipUnchanged(paths[64], await lstat(paths[64])), false)
-        await scan.prepareTags(paths.slice(64))
         await scan.saveBatch(paths.slice(64))
         rows = await connection.db.select().from(entries)
         assert.equal(rows.length, 71)
