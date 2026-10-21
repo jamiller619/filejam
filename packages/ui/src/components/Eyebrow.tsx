@@ -4,12 +4,11 @@ import type { ComponentPropsWithRef } from 'react'
 
 const styles = css`
   .eyebrow {
-    color: var(--suzy-gray-10);
+    color: lch(from var(--suzy-gray-11) l c h / 75%);
     font-size: var(--suzy-font-size-1);
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.5;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+    /* letter-spacing: 0.07em; */
   }
 `
 

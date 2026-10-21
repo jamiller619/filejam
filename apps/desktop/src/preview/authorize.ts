@@ -22,7 +22,7 @@ export async function authorizePreview(
   if (
     !Number.isSafeInteger(libraryId) ||
     libraryId <= 0 ||
-    path.includes('\0')
+    path.includes('\0') // NULL byte check
   ) {
     throw new PreviewAccessError(400)
   }

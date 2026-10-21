@@ -1,3 +1,4 @@
+import type { Library } from '@files/server'
 import { Eyebrow, Icon } from '@files/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
@@ -10,6 +11,7 @@ import { useFolderDrag } from '../hooks/useFolderDrag.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { folderUrl, isCurrentFolderUrl } from '../utils/folderUrl.js'
 import { getLibraryIcon } from '../utils/libraryIcon.js'
+import { normalizePath } from '../utils/normalizePath.js'
 
 const styles = css`
   .navbar {
@@ -86,47 +88,16 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
 
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
   const folderDragProps = useFolderDrag()
-  const { values } = useConfig(['user.favoriteFolders'])
-  const favoritePaths = values?.['user.favoriteFolders'] ?? []
+  const favoriteFolders = useFavoriteFolders(libraries)
 
-  const favoriteFolders = favoritePaths.flatMap((path) => {
-    const library = libraries.find((item) => {
-      if (item.isTrash) {
-        return false
-      }
-
-      const normalize = (value: string) => {
-        const normalized = value.replaceAll('\\', '/').replace(/\/+$/, '')
-
-        return /^[a-z]:|^\\\\/i.test(value)
-          ? normalized.toLowerCase()
-          : normalized
-      }
-
-      const root = normalize(item.rootPath)
-      const target = normalize(path)
-
-      return target === root || target.startsWith(`${root}/`)
-    })
-
-    if (!library) {
-      return []
-    }
-
-    const root = library.rootPath.replace(/[\\/]+$/, '')
-
-    const relativePath = path
-      .slice(root.length)
-      .replace(/^[\\/]+/, '')
-      .replaceAll('\\', '/')
-
-    return [{ path, library, relativePath }]
-  })
-
-  const favoritePathSet = new Set(favoritePaths)
+  const favoriteLibraryIds = new Set(
+    favoriteFolders
+      .filter((favorite) => favorite.relativePath === '')
+      .map((favorite) => favorite.library.id),
+  )
 
   const otherLibraries = libraries.filter(
-    (library) => !library.isTrash && !favoritePathSet.has(library.rootPath),
+    (library) => !library.isTrash && !favoriteLibraryIds.has(library.id),
   )
 
   const trashLibraries = libraries.filter((library) => library.isTrash)
@@ -248,4 +219,37 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
       </ol>
     </nav>
   )
+}
+
+function useFavoriteFolders(libraries: Library[]) {
+  const { values } = useConfig(['user.favoriteFolders'])
+  const favoritePaths = values?.['user.favoriteFolders'] ?? []
+
+  const favoriteFolders = favoritePaths.flatMap((path) => {
+    const library = libraries.find((item) => {
+      if (item.isTrash) {
+        return false
+      }
+
+      const root = normalizePath(item.rootPath)
+      const target = normalizePath(path)
+
+      return target === root || target.startsWith(`${root}/`)
+    })
+
+    if (!library) {
+      return []
+    }
+
+    const root = library.rootPath.replace(/[\\/]+$/, '')
+
+    const relativePath = path
+      .slice(root.length)
+      .replace(/^[\\/]+/, '')
+      .replaceAll('\\', '/')
+
+    return [{ path, library, relativePath }]
+  })
+
+  return favoriteFolders
 }

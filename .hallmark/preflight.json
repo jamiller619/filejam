@@ -1,0 +1,8 @@
+{
+  "scannedAt": "2026-10-21",
+  "fontStack": "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+  "palette": "Suzy light and dark CSS custom properties",
+  "motion": "Suzy duration and easing tokens; no animation library",
+  "spacing": "Suzy 4px spacing scale",
+  "framework": "React 19 desktop renderer"
+}

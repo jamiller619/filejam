@@ -17,7 +17,7 @@ import type { FileViewMode } from '../utils/tablePreferences.js'
 const styles = css`
   .toolbar {
     position: sticky;
-    top: 36px;
+    top: var(--files-sticky-offset, 36px);
     z-index: 2;
     display: flex;
     align-items: center;

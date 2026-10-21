@@ -37,7 +37,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
       })[key],
   })
 
-  let scanner = new FileScanner(cache, join(directory, 'files.sqlite'), 1)
+  let scanner = new FileScanner(cache, join(directory, 'files.sqlite'))
 
   try {
     await writeFile(join(root, 'a.txt'), 'a')
@@ -56,7 +56,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
     })
 
     await scanner.close()
-    scanner = new FileScanner(cache, join(directory, 'files.sqlite'), 1)
+    scanner = new FileScanner(cache, join(directory, 'files.sqlite'))
     await scanner.start(root)
     assert.equal((await finished(scanner)).state, 'completed')
 

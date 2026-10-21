@@ -28,7 +28,19 @@ function CollectionContent({ id }: { id: string }) {
   const { name } = collection
 
   return (
-    <Page title={name}>
+    <Page
+      title={name}
+      split={{
+        storageKey: JSON.stringify(['collection', id]),
+        content: (
+          <Files
+            collectionId={id}
+            preferencesScope="secondary"
+            reportFolderStats={false}
+          />
+        ),
+      }}
+    >
       <Files collectionId={id} />
     </Page>
   )

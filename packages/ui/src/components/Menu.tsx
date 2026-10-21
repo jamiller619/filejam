@@ -49,7 +49,7 @@ const styles = css`
   .item, .checkboxItem, .submenuTrigger {
     display: flex;
     width: 100%;
-    min-height: 32px;
+    height: 28px;
     box-sizing: border-box;
     align-items: center;
     gap: var(--suzy-space-2);
@@ -61,7 +61,13 @@ const styles = css`
     font: inherit;
     text-align: start;
     cursor: pointer;
-    &[data-highlighted], &:hover { background: var(--suzy-gray-3); }
+    &[data-highlighted], &:hover {
+      background: lch(from var(--suzy-gray-11) l c h / 20%);
+    }
+    &[aria-current='true'] {
+      color: var(--suzy-accent-1);
+      background: var(--suzy-accent-9);
+    }
     &[data-disabled] { opacity: 0.5; cursor: default; }
   }
   .itemIndicator {

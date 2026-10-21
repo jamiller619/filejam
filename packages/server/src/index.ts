@@ -1,4 +1,3 @@
-import os from 'node:os'
 import { join } from 'node:path'
 import type { ResolveDefaultFolder } from './api/defaultLibraries.js'
 import { createApi } from './api/index.js'
@@ -69,11 +68,10 @@ async function start(options: BootOptions) {
 
     await api.libraries.ensureTrashRoots(options.trashRoots ?? [])
 
-    scanner = new FileScanner(
-      config.get('appdata.cachePath'),
-      databasePath,
-      os.availableParallelism(),
-    )
+    // Keep background indexing bounded. Scans are dominated by filesystem and
+    // SQLite I/O, so matching worker count to CPU cores only creates contention
+    // with interactive reads such as file previews.
+    scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
 
     // A round trip confirms the worker loaded before exposing the server.
     await scanner.status()

@@ -34,6 +34,10 @@ const idle = (): ScanStatus => ({
 
 type Slot = { worker: ScannerWorker; root: string | undefined }
 
+export type FileScannerOptions = {
+  maxConcurrentScans?: number
+}
+
 /** Bounded pool. A canonical root has at most one active scan and one queued refresh. */
 export class FileScanner implements ScannerApi {
   readonly #progress = new ScanProgressReporter()
@@ -43,6 +47,7 @@ export class FileScanner implements ScannerApi {
   readonly #listeners = new Set<() => void>()
   readonly #queue = new Set<string>()
   readonly #ready: Promise<void>
+  readonly maxConcurrentScans: number
   #tail: Promise<unknown> = Promise.resolve()
   #closing: Promise<void> | undefined
   #closed = false
@@ -51,12 +56,15 @@ export class FileScanner implements ScannerApi {
   constructor(
     readonly cacheDirectory: string,
     readonly databasePath: string,
-    readonly concurrency = 2,
+    options: FileScannerOptions = {},
   ) {
-    if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
-      throw new Error('Concurrency must be a positive integer')
+    const { maxConcurrentScans = 1 } = options
+
+    if (!Number.isSafeInteger(maxConcurrentScans) || maxConcurrentScans < 1) {
+      throw new Error('Maximum concurrent scans must be a positive integer')
     }
 
+    this.maxConcurrentScans = maxConcurrentScans
     this.#ready = this.#makeSlot()
       .worker.initialize()
       .then(() => {})
@@ -194,7 +202,9 @@ export class FileScanner implements ScannerApi {
 
       const slot =
         this.#slots.find((slot) => !slot.root) ??
-        (this.#slots.length < this.concurrency ? this.#makeSlot() : undefined)
+        (this.#slots.length < this.maxConcurrentScans
+          ? this.#makeSlot()
+          : undefined)
 
       if (!slot) {
         break

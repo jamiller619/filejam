@@ -37,7 +37,23 @@ export default function Library({
   }
 
   return (
-    <Page title={segments.at(-1) ?? library.name}>
+    <Page
+      title={segments.at(-1) ?? library.name}
+      split={{
+        storageKey: JSON.stringify([
+          'library',
+          folder.libraryId,
+          folder.relativePath,
+        ]),
+        content: (
+          <Files
+            folder={folder}
+            preferencesScope="secondary"
+            reportFolderStats={false}
+          />
+        ),
+      }}
+    >
       <Files folder={folder} />
     </Page>
   )

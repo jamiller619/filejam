@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, Icon } from '@files/ui'
+import { Button, ButtonGroup, Icon, Input } from '@files/ui'
 import { css } from 'inline-css-modules'
 import {
   Link,
@@ -13,7 +13,7 @@ import { folderUrl } from '../utils/folderUrl.js'
 const style = css`
   .toolbar {
     display: grid;
-    grid-template-columns: 1fr minmax(0, auto) 1fr;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     width: 100%;
     min-width: 0;
@@ -21,7 +21,7 @@ const style = css`
     app-region: drag;
     gap: var(--suzy-space-3);
 
-    button, a {
+    button, a, input {
       app-region: no-drag;
     }
 
@@ -29,9 +29,12 @@ const style = css`
       justify-self: start;
     }
 
-    .start {
+    .breadcrumbs {
       display: flex;
       align-items: center;
+      justify-self: start;
+      width: fit-content;
+      max-width: 100%;
       overflow-x: auto;
       white-space: nowrap;
       scrollbar-width: none;
@@ -44,8 +47,7 @@ const style = css`
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
+        width: 24px;
         padding: 0;
       }
 
@@ -55,6 +57,20 @@ const style = css`
 
       gap: var(--suzy-space-2);
       min-width: 0;
+    }
+
+    .location {
+      display: grid;
+      justify-self: start;
+      width: fit-content;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .path {
+      width: 100%;
+      font-size: var(--suzy-font-size-1);
+      color: var(--suzy-text-muted);
     }
 
     .crumb {
@@ -72,6 +88,16 @@ const style = css`
         text-decoration: underline;
       }
     }
+
+    .search {
+      justify-self: center;
+
+      input {
+        width: 100%;
+        corner-shape: round;
+        border-radius: 100px;
+      }
+    }
   }
 `
 
@@ -80,6 +106,15 @@ export default function Toolbar() {
     <div className={style.toolbar}>
       <NavButtons />
       <Breadcrumbs />
+      <Search />
+    </div>
+  )
+}
+
+function Search() {
+  return (
+    <div className={style.search}>
+      <Input icon="magnifying-glass" type="search" />
     </div>
   )
 }
@@ -123,49 +158,72 @@ function Breadcrumbs() {
 
   const segments = (searchParams.get('folder') ?? '').split('/').filter(Boolean)
   const isHome = useMatch('/') !== null
+  const relativePath = segments.join('/')
+  const fullPath = library
+    ? formatFolderPath(library.rootPath, relativePath)
+    : ''
 
   return (
-    <nav className={style.start} aria-label="Folder breadcrumbs">
-      <Button
-        render={<Link to="/" />}
-        nativeButton={false}
-        aria-label="Home"
-        aria-current={isHome ? 'page' : undefined}
-        variant="ghost"
-        disabled={isHome}
-      >
-        <Icon name="home" size={18} />
-      </Button>
-      {library && (
-        <>
-          <span aria-hidden="true">/</span>
-          <Link
-            className={style.link}
-            to={folderUrl({ libraryId: library.id, relativePath: '' })}
-            aria-current={segments.length ? undefined : 'page'}
-          >
-            {library.name}
-          </Link>
-          {segments.map((segment, index) => {
-            const relativePath = segments.slice(0, index + 1).join('/')
+    <div className={style.location}>
+      <nav className={style.breadcrumbs} aria-label="Folder breadcrumbs">
+        <Button
+          render={<Link to="/" />}
+          nativeButton={false}
+          aria-label="Home"
+          aria-current={isHome ? 'page' : undefined}
+          variant="ghost"
+          disabled={isHome}
+        >
+          <Icon name="home" size={18} />
+        </Button>
+        {library && (
+          <>
+            <span aria-hidden="true">/</span>
+            <Link
+              className={style.link}
+              to={folderUrl({ libraryId: library.id, relativePath: '' })}
+              aria-current={segments.length ? undefined : 'page'}
+            >
+              {library.name}
+            </Link>
+            {segments.map((segment, index) => {
+              const segmentPath = segments.slice(0, index + 1).join('/')
 
-            return (
-              <span key={relativePath} className={style.crumb}>
-                <span aria-hidden="true">/</span>
-                <Link
-                  className={style.link}
-                  to={folderUrl({ libraryId: library.id, relativePath })}
-                  aria-current={
-                    index === segments.length - 1 ? 'page' : undefined
-                  }
-                >
-                  {segment}
-                </Link>
-              </span>
-            )
-          })}
-        </>
+              return (
+                <span key={segmentPath} className={style.crumb}>
+                  <span aria-hidden="true">/</span>
+                  <Link
+                    className={style.link}
+                    to={folderUrl({
+                      libraryId: library.id,
+                      relativePath: segmentPath,
+                    })}
+                    aria-current={
+                      index === segments.length - 1 ? 'page' : undefined
+                    }
+                  >
+                    {segment}
+                  </Link>
+                </span>
+              )
+            })}
+          </>
+        )}
+      </nav>
+      {fullPath && (
+        <span className={style.path} title={fullPath}>
+          {fullPath}
+        </span>
       )}
-    </nav>
+    </div>
   )
+}
+
+function formatFolderPath(rootPath: string, relativePath: string) {
+  const separator = rootPath.includes('\\') ? '\\' : '/'
+  const root = rootPath.replace(/[\\/]+$/, '')
+
+  return relativePath
+    ? `${root}${separator}${relativePath.replaceAll('/', separator)}`
+    : root
 }

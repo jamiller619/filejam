@@ -4,6 +4,8 @@ export type { EyebrowProps } from './components/Eyebrow.js'
 export { default as Eyebrow } from './components/Eyebrow.js'
 export type { IconName, IconProps } from './components/Icon.js'
 export { default as Icon } from './components/Icon.js'
+export type { InputProps } from './components/Input.js'
+export { default as Input } from './components/Input.js'
 
 export {
   Menu,

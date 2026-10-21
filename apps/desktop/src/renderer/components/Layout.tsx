@@ -1,4 +1,3 @@
-import { ScrollArea } from '@files/ui'
 import { css } from 'inline-css-modules'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
@@ -85,11 +84,6 @@ const styles = css`
           overflow: hidden;
         }
 
-        .pageContent {
-          box-sizing: border-box;
-          min-height: 100%;
-          padding-block-start: 36px;
-        }
       }
 
       .workspace {
@@ -178,11 +172,7 @@ export default function Layout() {
               <Titlebar className={styles.titlebar} />
               <div className={styles.workspace}>
                 <main className={styles.page}>
-                  <ScrollArea>
-                    <div className={styles.pageContent}>
-                      <SuspenseOutlet />
-                    </div>
-                  </ScrollArea>
+                  <SuspenseOutlet />
                   <div ref={setPageFooterHost} className={styles.pageFooter} />
                 </main>
                 <div ref={setDetailsHost} className={styles.details} />

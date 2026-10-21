@@ -63,6 +63,8 @@ export type FilesProps = {
   folder?: Folder | undefined
   collectionId?: string | undefined
   columns?: readonly FileColumn[]
+  preferencesScope?: string | undefined
+  reportFolderStats?: boolean | undefined
 }
 
 const styles = css`
@@ -142,7 +144,7 @@ const styles = css`
       font-weight: 400;
       white-space: nowrap;
       position: sticky;
-      top: 84px;
+      top: calc(var(--files-sticky-offset, 36px) + 48px);
       z-index: 1;
       background: var(--suzy-gray-2);
     }
@@ -282,15 +284,23 @@ export default function Files({
   folder,
   collectionId,
   columns = defaultColumns,
+  preferencesScope,
+  reportFolderStats = true,
 }: FilesProps) {
   const { pathname } = useLocation()
 
-  const preferencesKey = JSON.stringify([
+  const preferencesKeyParts = [
     pathname,
     collectionId ?? null,
     folder?.libraryId ?? null,
     folder?.relativePath ?? null,
-  ])
+  ]
+
+  if (preferencesScope) {
+    preferencesKeyParts.push(preferencesScope)
+  }
+
+  const preferencesKey = JSON.stringify(preferencesKeyParts)
 
   // Remount the request state when the folder changes, hiding stale results.
   return (
@@ -300,6 +310,7 @@ export default function Files({
       folder={folder}
       collectionId={collectionId}
       columns={columns}
+      reportFolderStats={reportFolderStats}
     />
   )
 }
@@ -309,6 +320,7 @@ function FolderContents({
   folder,
   collectionId,
   columns = defaultColumns,
+  reportFolderStats = true,
 }: FilesProps & { preferencesKey: string }) {
   const api = useApi()
   const detailsPane = useDetailsPane()
@@ -478,7 +490,7 @@ function FolderContents({
     )
   }, [folder, listing])
 
-  usePageFolderStats(folderStats)
+  usePageFolderStats(folderStats, reportFolderStats)
 
   const visibleRows = table.getRowModel().rows
   const groupReferenceDate = new Date()

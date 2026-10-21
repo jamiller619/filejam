@@ -72,8 +72,11 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
       }
       mock.module(${JSON.stringify(clientUrl)}, { namedExports: { ScannerWorker: FakeWorker } })
       const { FileScanner } = await import(${JSON.stringify(scannerUrl)})
-      assert.throws(() => new FileScanner('cache', 'db', 0), /positive integer/)
-      const scanner = new FileScanner('cache', 'db')
+      assert.throws(() => new FileScanner('cache', 'db', { maxConcurrentScans: 0 }), /positive integer/)
+      const defaultScanner = new FileScanner('cache', 'db')
+      assert.equal(defaultScanner.maxConcurrentScans, 1)
+      await defaultScanner.close()
+      const scanner = new FileScanner('cache', 'db', { maxConcurrentScans: 2 })
       await assert.rejects(scanner.startAll([roots[0], '']), /root is required/)
       assert.equal((await scanner.status()).state, 'idle')
       await scanner.startAll([...roots, join(roots[0], '..', 'a')])
@@ -166,7 +169,7 @@ test('real workers index and reconcile concurrent libraries with isolated caches
       const { initLogger, closeLogger } = await import(${JSON.stringify(new URL('../dist/logger.js', import.meta.url).href)})
       await initLogger({ get: key => ({ 'appdata.logsPath': join(directory, 'logs'), 'log.level': 'info', 'log.retentionDays': 1 })[key] })
       const databasePath = join(directory, 'files.sqlite')
-      const scanner = new FileScanner(join(directory, 'cache'), databasePath)
+      const scanner = new FileScanner(join(directory, 'cache'), databasePath, { maxConcurrentScans: 2 })
       let overlap = false
       scanner.onUpdated(() => { void scanner.status().then(s => { if (s.active.length === 2) overlap = true }).catch(() => {}) })
       async function finish() {

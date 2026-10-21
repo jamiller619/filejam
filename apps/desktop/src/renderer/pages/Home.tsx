@@ -7,13 +7,8 @@ import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { folderDragProps } from '../utils/folderDrag.js'
 import { folderUrl } from '../utils/folderUrl.js'
+import { normalizePath } from '../utils/normalizePath.js'
 import Page from './Page.js'
-
-function normalizePath(path: string) {
-  const normalized = path.replaceAll('\\', '/').replace(/\/+$/, '')
-
-  return /^[a-z]:|^\\\\/i.test(path) ? normalized.toLowerCase() : normalized
-}
 
 export default function Home() {
   const { libraries, loadFailed } = useLibraries()

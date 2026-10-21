@@ -72,7 +72,7 @@ Run `pnpm --filter @files/server test` to check initialization and persistence.
 
 ## File scanner
 
-`FileScanner` from `@files/server/scanner` owns a bounded pool of Node worker threads (two by default). All crawling,
+`FileScanner` from `@files/server/scanner` owns a bounded pool of Node worker threads (one by default). All crawling,
 metadata checks, and cache reads/writes happen there. Supply an application-owned
 cache directory (for example, under Electron's `app.getPath('userData')`). Use one
 scanner pool per cache directory and close it during application shutdown.
@@ -93,9 +93,10 @@ listings refresh as indexing progresses and completes. Symlink traversal is
 disabled. A cache directory inside the scanned tree
 is excluded. Failed or cancelled scans do not commit a new baseline. Cancellation
 is cooperative: crawling and cache reconciliation may finish before it is handled.
-Different library roots scan concurrently; another start for an active or queued
-root is rejected. The optional third constructor argument sets the concurrency
-limit. `status()` includes per-library snapshots plus active and queued roots,
+Different library roots can scan concurrently; another start for an active or
+queued root is rejected. Pass `{ maxConcurrentScans: 2 }` as the optional third
+constructor argument when libraries are on separate drives and can benefit from
+parallel I/O. `status()` includes per-library snapshots plus active and queued roots,
 and remains scanning until all work finishes. Use `results(root)` for a particular
 library; `results()` returns the most recently explicitly requested root (the last
 root in `startAll`). Watcher events coalesce into at most one follow-up scan per
