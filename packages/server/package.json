@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./config-schema": {
+      "types": "./dist/config/config.d.ts",
+      "import": "./dist/config/config.js"
+    },
     "./scanner": {
       "types": "./dist/scanner/index.d.ts",
       "import": "./dist/scanner/index.js"

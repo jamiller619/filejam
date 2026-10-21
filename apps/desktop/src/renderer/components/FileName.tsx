@@ -1,4 +1,11 @@
 import { css } from 'inline-css-modules'
+import {
+  colorForFileName,
+  type FileColor,
+  fileColorForName,
+} from '../utils/fileColors.js'
+
+export { type FileColor, fileColorForName }
 
 const styles = css`
   .name {
@@ -31,108 +38,6 @@ const styles = css`
   .suffix { flex-shrink: 0; }
 `
 
-const extensionColors = {
-  blue: new Set(['doc', 'docx', 'md', 'odt', 'pdf', 'rtf', 'tex', 'txt']),
-  cyan: new Set(['avi', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'mpg', 'webm']),
-  green: new Set(['csv', 'ods', 'tsv', 'xls', 'xlsx']),
-  orange: new Set(['7z', 'bz2', 'gz', 'rar', 'tar', 'tgz', 'xz', 'zip']),
-  pink: new Set(['aac', 'flac', 'm4a', 'mp3', 'ogg', 'opus', 'wav', 'wma']),
-  purple: new Set([
-    'avif',
-    'bmp',
-    'gif',
-    'heic',
-    'ico',
-    'jpeg',
-    'jpg',
-    'png',
-    'raw',
-    'svg',
-    'tif',
-    'tiff',
-    'webp',
-  ]),
-  red: new Set([
-    'bash',
-    'c',
-    'cpp',
-    'cs',
-    'css',
-    'go',
-    'h',
-    'html',
-    'java',
-    'js',
-    'json',
-    'jsx',
-    'kt',
-    'php',
-    'ps1',
-    'py',
-    'rb',
-    'rs',
-    'scss',
-    'sh',
-    'sql',
-    'swift',
-    'ts',
-    'tsx',
-    'xml',
-    'yaml',
-    'yml',
-    'zsh',
-  ]),
-  yellow: new Set(['odp', 'ppt', 'pptx']),
-} as const
-
-type ExtensionColor = keyof typeof extensionColors
-
-export type FileColor = { light: string; dark: string }
-
-const colorPalette: Record<ExtensionColor, FileColor> = {
-  blue: { light: '#006adc', dark: '#70b8ff' },
-  cyan: { light: '#00749e', dark: '#4ccce6' },
-  green: { light: '#18794e', dark: '#4cc38a' },
-  orange: { light: '#cc4e00', dark: '#ffa057' },
-  pink: { light: '#cd1d8d', dark: '#f65cb6' },
-  purple: { light: '#8145b5', dark: '#be93e4' },
-  red: { light: '#ce2c31', dark: '#ff6369' },
-  yellow: { light: '#946800', dark: '#f5d90a' },
-}
-
-const defaultFileColor: FileColor = { light: '#211f26', dark: '#eeeef0' }
-
-const fallbackColors = Object.keys(extensionColors) as ExtensionColor[]
-
-function colorForExtension(name: string): ExtensionColor | undefined {
-  const separator = name.lastIndexOf('.')
-
-  if (separator <= 0 || separator === name.length - 1) {
-    return undefined
-  }
-
-  const extension = name.slice(separator + 1).toLowerCase()
-
-  for (const color of fallbackColors) {
-    if (extensionColors[color].has(extension)) {
-      return color
-    }
-  }
-
-  const hash = Array.from(extension).reduce(
-    (value, character) => (value * 31 + character.charCodeAt(0)) >>> 0,
-    0,
-  )
-
-  return fallbackColors[hash % fallbackColors.length]
-}
-
-export function fileColorForName(name: string): FileColor {
-  const color = colorForExtension(name)
-
-  return color ? colorPalette[color] : defaultFileColor
-}
-
 /** Keep both ends of a filename visible, with the ellipsis in the middle. */
 export default function FileName({
   name,
@@ -148,7 +53,7 @@ export default function FileName({
     <span
       className={styles.name}
       title={name}
-      data-extension-color={isDirectory ? undefined : colorForExtension(name)}
+      data-extension-color={isDirectory ? undefined : colorForFileName(name)}
     >
       <span className={styles.start}>
         {characters.slice(0, midpoint).join('')}

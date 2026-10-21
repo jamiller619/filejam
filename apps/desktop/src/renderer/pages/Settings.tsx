@@ -1,3 +1,4 @@
+import { schema as configSchema } from '@files/server/config-schema'
 import { Select } from '@files/ui'
 import { css } from 'inline-css-modules'
 import { useState } from 'react'
@@ -7,6 +8,14 @@ import Page from './Page.js'
 const styles = css`
   .content {
     max-width: 640px;
+    margin: 0 auto;
+
+    h3 {
+      font-weight: 500;
+    }
+  }
+  .section + .section {
+    margin-block-start: var(--suzy-space-6);
   }
   .heading {
     margin-block: 0 var(--suzy-space-4);
@@ -62,34 +71,53 @@ export default function Settings() {
 
   return (
     <Page title="Settings">
-      <section className={styles.content} aria-labelledby="settings-heading">
-        <h2 id="settings-heading" className={styles.heading}>
-          Settings
-        </h2>
-        <div className={styles.setting}>
-          <div>
-            <label className={styles.label} htmlFor="date-format">
-              Date format
-            </label>
-            <p className={styles.description} id="date-format-description">
-              Show dates relative to now or as absolute dates and times.
-            </p>
-          </div>
-          <Select
-            id="date-format"
-            aria-describedby="date-format-description"
-            value={dateFormat}
-            disabled={loading || loadFailed || saving}
-            onChange={(event) => {
-              void changeDateFormat(
-                event.currentTarget.value as 'relative' | 'absolute',
-              )
-            }}
-          >
-            <option value="relative">Relative</option>
-            <option value="absolute">Absolute</option>
-          </Select>
-        </div>
+      <div className={styles.content}>
+        {configSchema['x-ui'].categories.map((category) => {
+          if (category.namespace !== 'user') {
+            return null
+          }
+
+          const headingId = `${category.namespace}-settings-heading`
+
+          return (
+            <section
+              key={category.namespace}
+              className={styles.section}
+              aria-labelledby={headingId}
+            >
+              <h3 id={headingId} className={styles.heading}>
+                {category.title} Settings
+              </h3>
+              <div className={styles.setting}>
+                <div>
+                  <label className={styles.label} htmlFor="date-format">
+                    Date format
+                  </label>
+                  <p
+                    className={styles.description}
+                    id="date-format-description"
+                  >
+                    Show dates relative to now or as absolute dates and times.
+                  </p>
+                </div>
+                <Select
+                  id="date-format"
+                  aria-describedby="date-format-description"
+                  value={dateFormat}
+                  disabled={loading || loadFailed || saving}
+                  onChange={(event) => {
+                    void changeDateFormat(
+                      event.currentTarget.value as 'relative' | 'absolute',
+                    )
+                  }}
+                >
+                  <option value="relative">Relative</option>
+                  <option value="absolute">Absolute</option>
+                </Select>
+              </div>
+            </section>
+          )
+        })}
         {loadFailed && (
           <p className={`${styles.status} ${styles.error}`} role="alert">
             Unable to load settings.
@@ -105,7 +133,7 @@ export default function Settings() {
             Saving…
           </p>
         )}
-      </section>
+      </div>
     </Page>
   )
 }

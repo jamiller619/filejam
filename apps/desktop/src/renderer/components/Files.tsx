@@ -14,6 +14,7 @@ import { useConfig } from '../hooks/useConfig.js'
 import { useFileSelection } from '../hooks/useFileSelection.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { usePageFolderStats } from '../pages/Page.js'
+import { colorForFileValue } from '../utils/fileColors.js'
 import {
   type FileColumn,
   fileColumnLabels,
@@ -114,6 +115,15 @@ const styles = css`
       text-align: right;
     }
 
+    [data-value-color='blue'] { color: light-dark(#006adc, #70b8ff); }
+    [data-value-color='cyan'] { color: light-dark(#00749e, #4ccce6); }
+    [data-value-color='green'] { color: light-dark(#18794e, #4cc38a); }
+    [data-value-color='orange'] { color: light-dark(#cc4e00, #ffa057); }
+    [data-value-color='pink'] { color: light-dark(#cd1d8d, #f65cb6); }
+    [data-value-color='purple'] { color: light-dark(#8145b5, #be93e4); }
+    [data-value-color='red'] { color: light-dark(#ce2c31, #ff6369); }
+    [data-value-color='yellow'] { color: light-dark(#946800, #f5d90a); }
+
     .emptyState {
       padding: var(--suzy-space-6) var(--suzy-space-3);
       text-align: center;
@@ -168,6 +178,9 @@ const styles = css`
       }
       &[data-selected='true'] [data-extension-color] {
         --file-name-color: var(--suzy-accent-1);
+      }
+      &[data-selected='true'] [data-value-color] {
+        color: var(--suzy-accent-1);
       }
       &:first-child > td:first-child {
         border-top-left-radius: var(--suzy-radius-4);
@@ -810,9 +823,25 @@ function FolderContents({
                                     )}
                                   </span>
                                 ) : column === 'relativePath' ? (
-                                  cell.getValue<string>()
+                                  <span
+                                    data-value-color={colorForFileValue(
+                                      column,
+                                      entry[column],
+                                      groupReferenceDate,
+                                    )}
+                                  >
+                                    {cell.getValue<string>()}
+                                  </span>
                                 ) : (
-                                  formatFileValue(entry, column, dateFormat)
+                                  <span
+                                    data-value-color={colorForFileValue(
+                                      column,
+                                      entry[column],
+                                      groupReferenceDate,
+                                    )}
+                                  >
+                                    {formatFileValue(entry, column, dateFormat)}
+                                  </span>
                                 )}
                               </td>
                             )

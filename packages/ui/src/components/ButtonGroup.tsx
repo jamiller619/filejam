@@ -11,6 +11,10 @@ const styles = css`
     background: var(--suzy-gray-2);
 
     button {
+      width: 28px;
+      height: 28px;
+      min-height: 28px;
+      padding: 0;
       border-radius: 100px;
       corner-shape: round;
       background: transparent;

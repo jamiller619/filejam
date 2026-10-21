@@ -2,6 +2,7 @@ import { Menu as BaseMenu } from '@base-ui/react/menu'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { ReactNode } from 'react'
+import Icon from './Icon.js'
 
 const styles = css`
   .trigger {
@@ -30,16 +31,19 @@ const styles = css`
     background: var(--suzy-gray-4);
     &:hover, &[data-popup-open] { background: var(--suzy-gray-5); }
   }
+  .positioner {
+    z-index: var(--suzy-z-dropdown);
+  }
   .popup {
     z-index: 5;
     min-width: 180px;
     max-height: min(32rem, var(--available-height));
     overflow: auto;
-    padding: var(--suzy-space-2);
+    padding: 2px;
     border: 1px solid var(--suzy-gray-5);
     border-radius: var(--suzy-radius-3);
     color: var(--text);
-    background: var(--suzy-surface);
+    background: var(--suzy-gray-5);
     box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
   }
   .item, .checkboxItem, .submenuTrigger {
@@ -77,7 +81,7 @@ const styles = css`
     border: 1px solid var(--suzy-gray-5);
     border-radius: var(--suzy-radius-3);
     color: var(--text);
-    background: var(--suzy-surface);
+    background: var(--suzy-gray-5);
     box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
   }
   .checkboxItem { justify-content: flex-start; }
@@ -114,7 +118,12 @@ export function Menu({
         {trigger}
       </BaseMenu.Trigger>
       <BaseMenu.Portal>
-        <BaseMenu.Positioner side="bottom" align="end">
+        <BaseMenu.Positioner
+          className={styles.positioner}
+          side="bottom"
+          align="start"
+          sideOffset={2}
+        >
           <BaseMenu.Popup className={styles.popup}>{children}</BaseMenu.Popup>
         </BaseMenu.Positioner>
       </BaseMenu.Portal>
@@ -166,7 +175,7 @@ export function MenuCheckboxItem({
       onCheckedChange={onCheckedChange}
     >
       <BaseMenu.CheckboxItemIndicator className={styles.checkboxIndicator}>
-        ✓
+        <Icon name="checkmark" size={14} />
       </BaseMenu.CheckboxItemIndicator>
       {children}
     </BaseMenu.CheckboxItem>
@@ -189,7 +198,7 @@ export function MenuItem({
       onClick={onClick}
     >
       <span className={styles.itemIndicator} aria-hidden="true">
-        {selected ? '✓' : null}
+        {selected ? <Icon name="checkmark" size={14} /> : null}
       </span>
       {children}
     </BaseMenu.Item>

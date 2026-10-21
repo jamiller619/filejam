@@ -50,6 +50,15 @@ const styles = css`
       .navigationSeparator {
         grid-column: 2;
         grid-row: 2;
+        width: 2px;
+        background-color: lch(from var(--suzy-gray-2) l c h / 90%);
+        transition: background-color 120ms ease;
+
+        &[data-separator='hover'],
+        &[data-separator='active'] {
+          background-color: var(--suzy-accent-9);
+          transition-delay: 500ms;
+        }
       }
 
       .content {

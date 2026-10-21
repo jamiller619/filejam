@@ -76,10 +76,43 @@ const style = css`
 `
 
 export default function Toolbar() {
+  return (
+    <div className={style.toolbar}>
+      <NavButtons />
+      <Breadcrumbs />
+    </div>
+  )
+}
+
+function NavButtons() {
   const navigate = useNavigate()
   const location = useLocation()
   const canGoBack = location.key !== 'default' && window.history.state?.idx > 0
   const canGoForward = window.history.state?.idx < window.history.length - 1
+
+  return (
+    <ButtonGroup>
+      <Button
+        aria-label="Back"
+        title="Back"
+        disabled={!canGoBack}
+        onClick={() => navigate(-1)}
+      >
+        <Icon name="chevron-left" size={18} />
+      </Button>
+      <Button
+        aria-label="Forward"
+        title="Forward"
+        disabled={!canGoForward}
+        onClick={() => navigate(1)}
+      >
+        <Icon name="chevron-right" size={18} />
+      </Button>
+    </ButtonGroup>
+  )
+}
+
+function Breadcrumbs() {
   const match = useMatch('/libraries/:libraryId')
   const [searchParams] = useSearchParams()
   const { libraries } = useLibraries()
@@ -92,67 +125,47 @@ export default function Toolbar() {
   const isHome = useMatch('/') !== null
 
   return (
-    <div className={style.toolbar}>
-      <ButtonGroup>
-        <Button
-          aria-label="Back"
-          title="Back"
-          disabled={!canGoBack}
-          onClick={() => navigate(-1)}
-        >
-          <Icon name="chevron-left" size={18} />
-        </Button>
-        <Button
-          aria-label="Forward"
-          title="Forward"
-          disabled={!canGoForward}
-          onClick={() => navigate(1)}
-        >
-          <Icon name="chevron-right" size={18} />
-        </Button>
-      </ButtonGroup>
-      <nav className={style.start} aria-label="Folder breadcrumbs">
-        <Button
-          render={<Link to="/" />}
-          nativeButton={false}
-          aria-label="Home"
-          aria-current={isHome ? 'page' : undefined}
-          variant="ghost"
-          disabled={isHome}
-        >
-          <Icon name="home" size={18} />
-        </Button>
-        {library && (
-          <>
-            <span aria-hidden="true">/</span>
-            <Link
-              className={style.link}
-              to={folderUrl({ libraryId: library.id, relativePath: '' })}
-              aria-current={segments.length ? undefined : 'page'}
-            >
-              {library.name}
-            </Link>
-            {segments.map((segment, index) => {
-              const relativePath = segments.slice(0, index + 1).join('/')
+    <nav className={style.start} aria-label="Folder breadcrumbs">
+      <Button
+        render={<Link to="/" />}
+        nativeButton={false}
+        aria-label="Home"
+        aria-current={isHome ? 'page' : undefined}
+        variant="ghost"
+        disabled={isHome}
+      >
+        <Icon name="home" size={18} />
+      </Button>
+      {library && (
+        <>
+          <span aria-hidden="true">/</span>
+          <Link
+            className={style.link}
+            to={folderUrl({ libraryId: library.id, relativePath: '' })}
+            aria-current={segments.length ? undefined : 'page'}
+          >
+            {library.name}
+          </Link>
+          {segments.map((segment, index) => {
+            const relativePath = segments.slice(0, index + 1).join('/')
 
-              return (
-                <span key={relativePath} className={style.crumb}>
-                  <span aria-hidden="true">/</span>
-                  <Link
-                    className={style.link}
-                    to={folderUrl({ libraryId: library.id, relativePath })}
-                    aria-current={
-                      index === segments.length - 1 ? 'page' : undefined
-                    }
-                  >
-                    {segment}
-                  </Link>
-                </span>
-              )
-            })}
-          </>
-        )}
-      </nav>
-    </div>
+            return (
+              <span key={relativePath} className={style.crumb}>
+                <span aria-hidden="true">/</span>
+                <Link
+                  className={style.link}
+                  to={folderUrl({ libraryId: library.id, relativePath })}
+                  aria-current={
+                    index === segments.length - 1 ? 'page' : undefined
+                  }
+                >
+                  {segment}
+                </Link>
+              </span>
+            )
+          })}
+        </>
+      )}
+    </nav>
   )
 }

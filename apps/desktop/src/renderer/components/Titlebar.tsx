@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { css } from 'inline-css-modules'
-import { type HTMLAttributes, useEffect, useRef } from 'react'
+import { type HTMLAttributes, type RefObject, useEffect, useRef } from 'react'
 import { useApi } from '../hooks/useApi.js'
 import Toolbar from './Toolbar.js'
 
@@ -18,11 +18,26 @@ const styles = css`
 `
 
 export default function Titlebar(props: HTMLAttributes<HTMLDivElement>) {
-  const api = useApi()
   const titlebar = useRef<HTMLElement>(null)
 
+  useSyncColorTheme(titlebar)
+
+  return (
+    <header
+      {...props}
+      ref={titlebar}
+      className={clsx(styles.titlebar, props.className)}
+    >
+      <Toolbar />
+    </header>
+  )
+}
+
+function useSyncColorTheme(ref: RefObject<HTMLElement | null>) {
+  const api = useApi()
+
   useEffect(() => {
-    const element = titlebar.current
+    const element = ref.current
 
     if (!element || !api) {
       return
@@ -69,15 +84,5 @@ export default function Titlebar(props: HTMLAttributes<HTMLDivElement>) {
       observer.disconnect()
       colorScheme.removeEventListener('change', syncColor)
     }
-  }, [api])
-
-  return (
-    <header
-      {...props}
-      ref={titlebar}
-      className={clsx(styles.titlebar, props.className)}
-    >
-      <Toolbar />
-    </header>
-  )
+  }, [api, ref])
 }

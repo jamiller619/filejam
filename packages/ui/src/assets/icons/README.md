@@ -16,6 +16,7 @@ component in `../../components/Icon.tsx` preserves their paths, transforms,
 | `chevron-left` | `chevron.left.svg` |
 | `chevron-right` | `chevron.right.svg` |
 | `chevron-up` | `chevron.up.svg` |
+| `checkmark` | `checkmark.svg` |
 | `home` | `house.svg` |
 | `clock` | `clock.svg` |
 | `star` | `star.svg` |
@@ -24,6 +25,7 @@ component in `../../components/Icon.tsx` preserves their paths, transforms,
 | `image` | `photo.svg` |
 | `hard-drive` | `internaldrive.svg` |
 | `list` | `list.bullet.svg` |
+| `columns` | `rectangle.split.3x1.svg` |
 | `magnifying-glass` | `magnifyingglass.svg` |
 | `close` | `xmark.svg` |
 

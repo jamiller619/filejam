@@ -202,6 +202,7 @@ export default function FilesToolbar<TData>({
   const [favoriteBusy, setFavoriteBusy] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const toolbarRef = useRef<HTMLDivElement>(null)
+  const viewControlsRef = useRef<HTMLDivElement>(null)
   const sortControlsRef = useRef<HTMLDivElement>(null)
   const primaryControlsRef = useRef<HTMLDivElement>(null)
   const overflowControlsRef = useRef<HTMLDivElement>(null)
@@ -223,11 +224,18 @@ export default function FilesToolbar<TData>({
 
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current
+    const viewControls = viewControlsRef.current
     const sortControls = sortControlsRef.current
     const primaryControls = primaryControlsRef.current
     const overflowControls = overflowControlsRef.current
 
-    if (!toolbar || !sortControls || !primaryControls || !overflowControls) {
+    if (
+      !toolbar ||
+      !viewControls ||
+      !sortControls ||
+      !primaryControls ||
+      !overflowControls
+    ) {
       return
     }
 
@@ -238,8 +246,9 @@ export default function FilesToolbar<TData>({
         Number.parseFloat(toolbarStyle.paddingInlineStart) -
         Number.parseFloat(toolbarStyle.paddingInlineEnd)
       const gap = Number.parseFloat(toolbarStyle.columnGap)
-      const visibleControlGroups = hasOverflowControls ? 3 : 2
+      const visibleControlGroups = hasOverflowControls ? 4 : 3
       const controlsWidth =
+        viewControls.offsetWidth +
         sortControls.offsetWidth +
         primaryControls.offsetWidth +
         overflowControls.offsetWidth +
@@ -252,6 +261,7 @@ export default function FilesToolbar<TData>({
 
     const observer = new ResizeObserver(updateOverflow)
     observer.observe(toolbar)
+    observer.observe(viewControls)
     observer.observe(sortControls)
     observer.observe(primaryControls)
     observer.observe(overflowControls)
@@ -280,6 +290,22 @@ export default function FilesToolbar<TData>({
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
       <div ref={toolbarRef} className={styles.toolbar} role="toolbar">
+        <div ref={viewControlsRef} className={styles.controlGroup}>
+          <ButtonGroup role="group" aria-label="File view">
+            {(['list', 'grid'] as const).map((mode) => (
+              <Button
+                key={mode}
+                className={styles.viewButton}
+                aria-label={`${viewLabels[mode]} view`}
+                title={`${viewLabels[mode]} view`}
+                aria-pressed={viewMode === mode}
+                onClick={() => onViewModeChange(mode)}
+              >
+                <Icon name={mode} size={18} />
+              </Button>
+            ))}
+          </ButtonGroup>
+        </div>
         <div ref={sortControlsRef} className={styles.controlGroup}>
           <ToolbarMenu
             label="Sort by"
@@ -345,20 +371,6 @@ export default function FilesToolbar<TData>({
               />
             </div>
           )}
-          <ButtonGroup role="group" aria-label="File view">
-            {(['list', 'grid'] as const).map((mode) => (
-              <Button
-                key={mode}
-                className={styles.viewButton}
-                aria-label={`${viewLabels[mode]} view`}
-                title={`${viewLabels[mode]} view`}
-                aria-pressed={viewMode === mode}
-                onClick={() => onViewModeChange(mode)}
-              >
-                <Icon name={mode} size={18} />
-              </Button>
-            ))}
-          </ButtonGroup>
         </div>
         <div
           ref={overflowControlsRef}
@@ -372,16 +384,7 @@ export default function FilesToolbar<TData>({
             />
           )}
           {viewMode === 'list' && (
-            <Menu
-              label="Columns"
-              triggerVariant="text"
-              trigger={
-                <>
-                  Columns
-                  <DropdownIcon />
-                </>
-              }
-            >
+            <Menu label="Columns" trigger={<Icon name="columns" size={18} />}>
               <ColumnSettings table={table} />
             </Menu>
           )}
