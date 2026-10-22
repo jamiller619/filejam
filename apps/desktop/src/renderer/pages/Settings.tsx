@@ -1,7 +1,7 @@
 import { schema as configSchema } from '@files/server/config-schema'
-import { Icon, Select } from '@files/ui'
+import { Button, Icon, type IconName, Select } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useState } from 'react'
+import { type HTMLAttributes, type ReactNode, useState } from 'react'
 import AddLibrary from '../components/AddLibrary.js'
 import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
@@ -45,41 +45,52 @@ const styles = css`
     border-radius: var(--suzy-radius-4);
     background: var(--suzy-gray-3);
   }
-  .libraryList {
+  .list {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    /* border: 1px solid var(--suzy-border); */
     border-radius: var(--suzy-radius-4);
-    background: var(--suzy-gray-3);
+
     list-style: none;
   }
-  .libraryRow {
+  .settingRow {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--suzy-space-3);
     min-height: 48px;
     padding: var(--suzy-space-3);
-
-    & + & {
-      border-block-start: 2px solid var(--suzy-gray-2);
-    }
+    background: var(--suzy-gray-3);
+    margin-block-end: 2px;
   }
-  .libraryIcon {
-    color: var(--suzy-text-muted);
-  }
-  .libraryDetails {
+  .rowContent {
+    display: flex;
+    align-items: center;
+    gap: var(--suzy-space-3);
     min-width: 0;
   }
-  .libraryName {
+  .rowAction {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+  }
+  .dateFormatSelect {
+    width: 160px;
+  }
+  .icon {
+    color: var(--suzy-text-muted);
+  }
+  .details {
+    min-width: 0;
+  }
+  .title {
     display: block;
     overflow: hidden;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .libraryPath {
+  .subtitle {
     display: block;
     margin-block-start: var(--suzy-space-1);
     overflow: hidden;
@@ -115,7 +126,14 @@ const styles = css`
     font-size: var(--suzy-font-size-1);
   }
   .error {
-    color: var(--suzy-red-11);
+    color: var(--suzy-danger-11);
+  }
+
+  .editIcon {
+    color: var(--suzy-info-10);
+  }
+  .deleteIcon {
+    color: var(--suzy-danger-10);
   }
 `
 
@@ -157,27 +175,14 @@ export default function Settings() {
           const headingId = `${category.namespace}-settings-heading`
 
           return (
-            <section
+            <Section
               key={category.namespace}
-              className={styles.section}
-              aria-labelledby={headingId}
+              title={`${category.title} settings`}
+              headingId={headingId}
             >
-              <h3 id={headingId} className={styles.heading}>
-                {category.title} Settings
-              </h3>
-              <div className={styles.setting}>
-                <div>
-                  <label className={styles.label} htmlFor="date-format">
-                    Date format
-                  </label>
-                  <p
-                    className={styles.description}
-                    id="date-format-description"
-                  >
-                    Show dates relative to now or as absolute dates and times.
-                  </p>
-                </div>
+              <SettingRow title="Date format" subtitle={dateFormat}>
                 <Select
+                  className={styles.dateFormatSelect}
                   id="date-format"
                   aria-describedby="date-format-description"
                   value={dateFormat}
@@ -191,15 +196,15 @@ export default function Settings() {
                   <option value="relative">Relative</option>
                   <option value="absolute">Absolute</option>
                 </Select>
-              </div>
-            </section>
+              </SettingRow>
+            </Section>
           )
         })}
-        <section className={styles.section} aria-labelledby="libraries-heading">
-          <div className={styles.sectionHeading}>
-            <h3 id="libraries-heading">Libraries</h3>
-            <AddLibrary />
-          </div>
+        <Section
+          title="Libraries"
+          headingId="libraries-heading"
+          headerActions={<AddLibrary />}
+        >
           {librariesLoadFailed ? (
             <p className={`${styles.emptyState} ${styles.error}`} role="alert">
               Unable to load libraries.
@@ -214,28 +219,23 @@ export default function Settings() {
               No libraries added yet. Add a folder to start indexing it.
             </div>
           ) : (
-            <ul className={styles.libraryList}>
-              {userLibraries.map((library) => (
-                <li key={library.id} className={styles.libraryRow}>
-                  <Icon
-                    className={styles.libraryIcon}
-                    name="folder"
-                    size={20}
-                  />
-                  <div className={styles.libraryDetails}>
-                    <span className={styles.libraryName}>{library.name}</span>
-                    <span
-                      className={styles.libraryPath}
-                      title={library.rootPath}
-                    >
-                      {library.rootPath}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            userLibraries.map((library) => (
+              <SettingRow
+                key={library.id}
+                icon="folder"
+                title={library.name}
+                subtitle={library.rootPath}
+              >
+                <Button variant="ghost" className={styles.editIcon}>
+                  <Icon name="edit" size={20} />
+                </Button>
+                <Button variant="ghost" className={styles.deleteIcon}>
+                  <Icon name="trash" size={20} />
+                </Button>
+              </SettingRow>
+            ))
           )}
-        </section>
+        </Section>
         {loadFailed && (
           <p className={`${styles.status} ${styles.error}`} role="alert">
             Unable to load settings.
@@ -253,5 +253,56 @@ export default function Settings() {
         )}
       </div>
     </Page>
+  )
+}
+
+type SettingRowProps = {
+  children?: ReactNode
+  icon?: IconName
+  title?: string
+  subtitle?: string
+}
+
+function SettingRow({ children, icon, title, subtitle }: SettingRowProps) {
+  return (
+    <div className={styles.settingRow}>
+      <div className={styles.rowContent}>
+        {icon && <Icon className={styles.icon} name={icon} size={20} />}
+        <div className={styles.details}>
+          <span className={styles.title}>{title}</span>
+          <span className={styles.subtitle} title={subtitle}>
+            {subtitle}
+          </span>
+        </div>
+      </div>
+      {children && <div className={styles.rowAction}>{children}</div>}
+    </div>
+  )
+}
+
+type SectionProps = HTMLAttributes<HTMLDivElement> & {
+  children?: ReactNode
+  headingId: string
+  title: string
+  headerActions?: ReactNode
+}
+
+function Section({
+  children,
+  headerActions,
+  title,
+  headingId,
+  ...props
+}: SectionProps) {
+  return (
+    <section {...props} className={styles.section} aria-labelledby={headingId}>
+      <div className={styles.sectionHeading}>
+        <h3 id={headingId} className={styles.heading}>
+          {title}
+        </h3>
+        {headerActions}
+      </div>
+      <div className={styles.list}>{children}</div>
+    </section>
   )
 }

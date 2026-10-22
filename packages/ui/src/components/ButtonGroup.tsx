@@ -1,6 +1,9 @@
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
-import type { HTMLAttributes } from 'react'
+import { motion } from 'motion/react'
+import type { ComponentProps } from 'react'
+import { pressed } from '../interactions.js'
+import { ButtonGroupContext } from './ButtonGroupContext.js'
 
 const styles = css`
   .buttonGroup {
@@ -31,7 +34,7 @@ const styles = css`
   }
 `
 
-type ButtonGroupProps = HTMLAttributes<HTMLDivElement> & {
+type ButtonGroupProps = ComponentProps<typeof motion.div> & {
   children?: React.ReactNode
 }
 
@@ -41,8 +44,14 @@ export default function ButtonGroup({
   ...props
 }: ButtonGroupProps) {
   return (
-    <div className={clsx(styles.buttonGroup, className)} {...props}>
-      {children}
-    </div>
+    <ButtonGroupContext value={true}>
+      <motion.div
+        className={clsx(styles.buttonGroup, className)}
+        whileTap={pressed}
+        {...props}
+      >
+        {children}
+      </motion.div>
+    </ButtonGroupContext>
   )
 }

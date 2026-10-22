@@ -13,13 +13,13 @@ import { folderUrl } from '../utils/folderUrl.js'
 const style = css`
   .toolbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) 1fr;
     align-items: center;
     width: 100%;
     min-width: 0;
     max-width: 100%;
     app-region: drag;
-    gap: var(--suzy-space-3);
+    gap: var(--suzy-space-4);
 
     button, a, input {
       app-region: no-drag;
@@ -70,7 +70,8 @@ const style = css`
     .path {
       width: 100%;
       font-size: var(--suzy-font-size-1);
-      color: var(--suzy-text-muted);
+      color: lch(from var(--suzy-gray-11) l c h / 75%);
+      padding-inline-start: var(--suzy-space-1);
     }
 
     .crumb {
@@ -91,6 +92,11 @@ const style = css`
 
     .search {
       justify-self: center;
+      width: 100%;
+
+      > span {
+        width: 100%;
+      }
 
       input {
         width: 100%;
@@ -112,9 +118,32 @@ export default function Toolbar() {
 }
 
 function Search() {
+  const libraryMatch = useMatch('/libraries/:libraryId')
+  const homeMatch = useMatch('/')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const search = searchParams.get('search') ?? ''
+  const canSearch = libraryMatch !== null || homeMatch !== null
+
   return (
     <div className={style.search}>
-      <Input icon="magnifying-glass" type="search" />
+      <Input
+        aria-label="Search open folders"
+        disabled={!canSearch}
+        icon="magnifying-glass"
+        type="search"
+        value={canSearch ? search : ''}
+        onChange={(event) => {
+          const next = new URLSearchParams(searchParams)
+
+          if (event.currentTarget.value) {
+            next.set('search', event.currentTarget.value)
+          } else {
+            next.delete('search')
+          }
+
+          void setSearchParams(next, { replace: true })
+        }}
+      />
     </div>
   )
 }

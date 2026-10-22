@@ -19,6 +19,7 @@ test('folder contents are immediate children isolated by library and report scan
     const folder = { libraryId: library.id, relativePath: '' }
 
     assert.deepEqual(await api.entries.listChildren(folder), {
+      folder: null,
       entries: [],
       scanned: false,
     })
@@ -46,6 +47,8 @@ test('folder contents are immediate children isolated by library and report scan
     await save(other.id, 'other.txt', otherRoot.id)
 
     const listing = await api.entries.listChildren(folder)
+
+    assert.equal(listing.folder.id, root.id)
 
     assert.deepEqual(
       listing.entries.map((entry) => entry.name),
@@ -103,6 +106,37 @@ test('folder contents are immediate children isolated by library and report scan
       ['deep', 'hidden.txt'],
     )
 
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({
+          ...folder,
+          search: 'A.TXT',
+        })
+      ).entries.map((entry) => entry.relativePath),
+      ['a.txt', 'nested/deep/a.txt'],
+    )
+
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({
+          ...folder,
+          search: 'deep',
+        })
+      ).entries.map((entry) => entry.relativePath),
+      ['nested/deep'],
+    )
+
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({
+          ...folder,
+          relativePath: 'nested',
+          search: 'z.txt',
+        })
+      ).entries,
+      [],
+    )
+
     await assert.rejects(
       () => api.entries.listChildren({ libraryId: '1', relativePath: '' }),
       /Invalid folder/,
@@ -112,6 +146,11 @@ test('folder contents are immediate children isolated by library and report scan
 
     await assert.rejects(
       () => api.entries.listChildren({ ...folder, recursive: 'yes' }),
+      /Invalid folder/,
+    )
+
+    await assert.rejects(
+      () => api.entries.listChildren({ ...folder, search: 123 }),
       /Invalid folder/,
     )
   } finally {

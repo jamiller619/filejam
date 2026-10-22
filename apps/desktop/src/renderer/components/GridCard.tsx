@@ -42,6 +42,7 @@ type GridCardProps = {
   onDragStart?: DragEventHandler<HTMLAnchorElement>
   name: string
   isDirectory?: boolean
+  highlight?: string | undefined
   title?: string
   children: ReactNode
   selected?: boolean
@@ -58,7 +59,11 @@ export default function GridCard(props: GridCardProps) {
   const content = (
     <>
       {props.children}
-      <FileName name={props.name} isDirectory={props.isDirectory} />
+      <FileName
+        name={props.name}
+        isDirectory={props.isDirectory}
+        highlight={props.highlight}
+      />
     </>
   )
 

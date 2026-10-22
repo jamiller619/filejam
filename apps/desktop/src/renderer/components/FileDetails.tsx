@@ -181,17 +181,8 @@ export default function FileDetails({
     }
   }, [closing])
 
-  useLayoutEffect(() => {
-    const host = panel.current?.parentElement
-
-    return () => {
-      if (host) {
-        host.style.width = '0px'
-      }
-    }
-  }, [])
-
   const closeButton = useRef<HTMLButtonElement>(null)
+  const isFolder = entry.kind === 'directory'
   const isVideo = entry.mimeType?.startsWith('video/') ?? false
   const videoSource = `files-preview://video?${new URLSearchParams({
     libraryId: String(entry.libraryId),
@@ -236,7 +227,7 @@ export default function FileDetails({
       className={styles.panel}
       data-closing={closing}
       inert={closing}
-      aria-label={`File details: ${entry.name}`}
+      aria-label={`${isFolder ? 'Folder' : 'File'} details: ${entry.name}`}
     >
       <header className={styles.header}>
         <h4 className={styles.title}>{entry.name}</h4>
@@ -244,9 +235,9 @@ export default function FileDetails({
           ref={closeButton}
           // className={styles.close}
           onClick={onClose}
-          aria-label="Close file details"
+          aria-label="Hide file details"
         >
-          <Icon name="close" size={16} />
+          <Icon name="hide-details" size={16} />
         </Button>
       </header>
       <div className={styles.content}>
@@ -299,11 +290,13 @@ export default function FileDetails({
                 </div>
               ))}
             </dl>
-            <FileCollections
-              key={entry.id}
-              entryId={entry.id}
-              onChange={onCollectionsChange}
-            />
+            {!isFolder && (
+              <FileCollections
+                key={entry.id}
+                entryId={entry.id}
+                onChange={onCollectionsChange}
+              />
+            )}
           </div>
         </ScrollArea>
       </div>

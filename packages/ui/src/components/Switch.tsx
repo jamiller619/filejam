@@ -1,6 +1,8 @@
 import { Switch as BaseSwitch } from '@base-ui/react/switch'
 import { css } from 'inline-css-modules'
+import { motion } from 'motion/react'
 import type { ComponentProps } from 'react'
+import { pressed } from '../interactions.js'
 
 const styles = css`
   .root {
@@ -22,12 +24,12 @@ const styles = css`
       width: calc(100% - var(--suzy-space-2));
       height: calc(100% - var(--suzy-space-1));
       border-radius: var(--suzy-radius-full);
-      background: var(--suzy-gray-6);
+      background-color: var(--suzy-gray-6);
       content: '';
-      transition: background-color var(--suzy-duration-fast)
+      transition: background-color var(--suzy-duration-normal)
         var(--suzy-ease-standard);
     }
-    &[data-checked]::before { background: var(--suzy-accent-8); }
+    &[data-checked]::before { background-color: var(--suzy-accent-8); }
     &[data-disabled] { opacity: 0.5; cursor: not-allowed; }
     &:focus-visible { outline: 2px solid var(--suzy-accent-8); outline-offset: 2px; }
   }
@@ -42,8 +44,8 @@ const styles = css`
     background: white;
     box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
     transform: translateX(0);
-    transition: transform var(--suzy-duration-fast) var(--suzy-ease-standard);
-    [data-checked] & {
+    transition: transform var(--suzy-duration-normal) var(--suzy-ease-standard);
+    &[data-checked] {
       transform: translateX(var(--suzy-space-4));
     }
   }
@@ -55,6 +57,7 @@ export default function Switch({ className, ...props }: SwitchProps) {
   return (
     <BaseSwitch.Root
       {...props}
+      render={<motion.button whileTap={pressed} />}
       className={[styles.root, className].filter(Boolean).join(' ')}
     >
       <BaseSwitch.Thumb className={styles.thumb} />

@@ -63,7 +63,7 @@ export default function AddLibrary() {
         onClick={() => void addLibrary()}
       >
         <Icon name="add" size={18} />
-        <span>{addingLibrary ? 'Adding…' : 'Add library'}</span>
+        <span>{addingLibrary ? 'Adding library...' : 'Add library'}</span>
       </Button>
       {addLibraryFailed && (
         <p className={styles.error} role="alert">

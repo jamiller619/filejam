@@ -36,18 +36,29 @@ const styles = css`
     justify-content: flex-end;
   }
   .suffix { flex-shrink: 0; }
+  .match {
+    border-radius: 2px;
+    color: #171700;
+    background: #fff200;
+    box-shadow: 0 0 0 1px #e6d900;
+  }
 `
 
 /** Keep both ends of a filename visible, with the ellipsis in the middle. */
 export default function FileName({
   name,
   isDirectory = false,
+  highlight,
 }: {
   name: string
   isDirectory?: boolean | undefined
+  highlight?: string | undefined
 }) {
   const characters = Array.from(name)
   const midpoint = Math.ceil(characters.length / 2)
+  const start = characters.slice(0, midpoint).join('')
+  const end = characters.slice(midpoint).join('')
+  const matches = findMatches(name, highlight)
 
   return (
     <span
@@ -56,13 +67,72 @@ export default function FileName({
       data-extension-color={isDirectory ? undefined : colorForFileName(name)}
     >
       <span className={styles.start}>
-        {characters.slice(0, midpoint).join('')}
+        {highlightMatches(start, 0, matches)}
       </span>
       <span className={styles.end}>
         <span className={styles.suffix}>
-          {characters.slice(midpoint).join('')}
+          {highlightMatches(end, start.length, matches)}
         </span>
       </span>
     </span>
   )
+}
+
+type Match = { start: number; end: number }
+
+function findMatches(name: string, search?: string): Match[] {
+  const query = search?.trim().toLowerCase()
+
+  if (!query) {
+    return []
+  }
+
+  const normalizedName = name.toLowerCase()
+  const matches: Match[] = []
+  let start = normalizedName.indexOf(query)
+
+  while (start !== -1) {
+    const end = start + query.length
+
+    matches.push({ start, end })
+    start = normalizedName.indexOf(query, end)
+  }
+
+  return matches
+}
+
+function highlightMatches(text: string, offset: number, matches: Match[]) {
+  if (!matches.length) {
+    return text
+  }
+
+  const end = offset + text.length
+  const parts: React.ReactNode[] = []
+  let cursor = offset
+
+  for (const match of matches) {
+    const matchStart = Math.max(match.start, offset)
+    const matchEnd = Math.min(match.end, end)
+
+    if (matchStart >= matchEnd) {
+      continue
+    }
+
+    if (cursor < matchStart) {
+      parts.push(text.slice(cursor - offset, matchStart - offset))
+    }
+
+    parts.push(
+      <mark className={styles.match} key={`${matchStart}-${matchEnd}`}>
+        {text.slice(matchStart - offset, matchEnd - offset)}
+      </mark>,
+    )
+    cursor = matchEnd
+  }
+
+  if (cursor < end) {
+    parts.push(text.slice(cursor - offset))
+  }
+
+  return parts.length ? parts : text
 }

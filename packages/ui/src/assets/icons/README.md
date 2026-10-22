@@ -21,6 +21,7 @@ component in `../../components/Icon.tsx` preserves their paths, transforms,
 | `clock` | `clock.svg` |
 | `star` | `star.svg` |
 | `download` | `arrow.down.to.line.svg` |
+| `edit` | `square.and.pencil.svg` |
 | `trash` | `trash.svg` |
 | `image` | `photo.svg` |
 | `hard-drive` | `internaldrive.svg` |
@@ -28,6 +29,7 @@ component in `../../components/Icon.tsx` preserves their paths, transforms,
 | `columns` | `rectangle.split.3x1.svg` |
 | `magnifying-glass` | `magnifyingglass.svg` |
 | `close` | `xmark.svg` |
+| `hide-details` | `inset.filled.righthalf.arrow.right.rectangle.svg` |
 
 ```tsx
 import { Icon } from '@files/ui'

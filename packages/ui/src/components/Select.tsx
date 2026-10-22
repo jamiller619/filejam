@@ -1,6 +1,8 @@
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
+import { motion } from 'motion/react'
 import type { ComponentProps } from 'react'
+import { pressed } from '../interactions.js'
 import Icon from './Icon.js'
 
 const styles = css`
@@ -36,13 +38,19 @@ const styles = css`
   }
 `
 
-export type SelectProps = ComponentProps<'select'>
+const MotionSelect = motion.select
+
+export type SelectProps = ComponentProps<typeof MotionSelect>
 
 /** A native select with shared styling and platform keyboard behavior. */
 export default function Select({ className, ...props }: SelectProps) {
   return (
     <span className={styles.wrapper}>
-      <select {...props} className={clsx(styles.select, className)} />
+      <MotionSelect
+        {...props}
+        className={clsx(styles.select, className)}
+        whileTap={pressed}
+      />
       <Icon className={styles.icon} name="chevron-up" size={10} />
     </span>
   )

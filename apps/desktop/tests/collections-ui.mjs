@@ -89,6 +89,10 @@ async function run() {
       `document.querySelector('button[aria-label="Show details for Example.txt"]') !== null`,
     )
 
+    await waitFor(
+      `document.querySelector('aside[aria-label^="Folder details:"]') !== null`,
+    )
+
     const spacing = await js(
       `(() => { const table = document.querySelector('table'); const box = table.parentElement; return { padding: parseFloat(getComputedStyle(box).paddingLeft), rowPadding: parseFloat(getComputedStyle(document.querySelector('td')).paddingTop) } })()`,
     )
@@ -142,7 +146,7 @@ async function run() {
     )
 
     await js(
-      `document.querySelector('button[aria-label="Close file details"]').click(); document.querySelector('a[href="#/collections/favorites"]').click()`,
+      `document.querySelector('button[aria-label="Hide file details"]').click(); document.querySelector('a[href="#/collections/favorites"]').click()`,
     )
 
     await waitFor(

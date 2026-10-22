@@ -28,6 +28,7 @@ export function createEntriesApi(db: Database) {
       libraryId: number
       relativePath: string
       recursive?: boolean
+      search?: string
     }) {
       if (
         !folder ||
@@ -35,10 +36,15 @@ export function createEntriesApi(db: Database) {
         folder.libraryId <= 0 ||
         typeof folder.relativePath !== 'string' ||
         (folder.recursive !== undefined &&
-          typeof folder.recursive !== 'boolean')
+          typeof folder.recursive !== 'boolean') ||
+        (folder.search !== undefined && typeof folder.search !== 'string')
       ) {
         throw new Error('Invalid folder reference')
       }
+
+      const search = folder.search?.trim() ?? ''
+      const normalizedSearch = search.toLowerCase()
+      const includeDescendants = folder.recursive || search.length > 0
 
       const [directory] = await db
         .select()
@@ -52,19 +58,19 @@ export function createEntriesApi(db: Database) {
         )
 
       if (!directory) {
-        return { entries: [], scanned: false }
+        return { folder: null, entries: [], scanned: false }
       }
 
       const children = await db
         .select({
           ...getTableColumns(entries),
-          size: folder.recursive ? entries.size : entrySize,
+          size: search || !folder.recursive ? entrySize : entries.size,
         })
         .from(entries)
         .where(
           and(
             eq(entries.libraryId, folder.libraryId),
-            folder.recursive
+            includeDescendants
               ? inArray(
                   entries.id,
                   sql`(
@@ -89,13 +95,22 @@ export function createEntriesApi(db: Database) {
         )
 
       return {
-        entries: children.filter(
-          (entry) => !folder.recursive || entry.kind !== 'directory',
-        ),
+        folder: directory,
+        entries: children.filter((entry) => {
+          if (search) {
+            return (
+              entry.id !== directory.id &&
+              (!folder.recursive || entry.kind !== 'directory') &&
+              entry.name.toLowerCase().includes(normalizedSearch)
+            )
+          }
+
+          return !folder.recursive || entry.kind !== 'directory'
+        }),
         scanned:
           directory.childrenScannedAt !== null &&
           !directory.childrenDirty &&
-          (!folder.recursive ||
+          (!includeDescendants ||
             children.every(
               (entry) =>
                 entry.kind !== 'directory' ||

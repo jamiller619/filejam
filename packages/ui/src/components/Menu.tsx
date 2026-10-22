@@ -1,14 +1,16 @@
 import { Menu as BaseMenu } from '@base-ui/react/menu'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
+import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
+import { pressed } from '../interactions.js'
 import Icon from './Icon.js'
 
 const styles = css`
   .trigger {
     display: grid;
     width: 32px;
-    height: 32px;
+    /* height: 32px; */
     padding: 0;
     place-items: center;
     border: 0;
@@ -39,12 +41,14 @@ const styles = css`
     min-width: 180px;
     max-height: min(32rem, var(--available-height));
     overflow: auto;
-    padding: 2px;
-    border: 1px solid var(--suzy-gray-5);
+    padding: var(--suzy-space-1);
     border-radius: var(--suzy-radius-3);
     color: var(--text);
     background: var(--suzy-gray-5);
     box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--suzy-space-1);
   }
   .item, .checkboxItem, .submenuTrigger {
     display: flex;
@@ -100,6 +104,11 @@ const styles = css`
   }
 `
 
+const MotionMenuTrigger = motion.create(BaseMenu.Trigger)
+const MotionMenuSubmenuTrigger = motion.create(BaseMenu.SubmenuTrigger)
+const MotionMenuCheckboxItem = motion.create(BaseMenu.CheckboxItem)
+const MotionMenuItem = motion.create(BaseMenu.Item)
+
 export function Menu({
   label,
   trigger,
@@ -113,7 +122,8 @@ export function Menu({
 }) {
   return (
     <BaseMenu.Root>
-      <BaseMenu.Trigger
+      <MotionMenuTrigger
+        whileTap={pressed}
         className={clsx(
           styles.trigger,
           triggerVariant === 'text' && styles.textTrigger,
@@ -122,7 +132,7 @@ export function Menu({
         title={label}
       >
         {trigger}
-      </BaseMenu.Trigger>
+      </MotionMenuTrigger>
       <BaseMenu.Portal>
         <BaseMenu.Positioner
           className={styles.positioner}
@@ -146,10 +156,13 @@ export function MenuSubmenu({
 }) {
   return (
     <BaseMenu.SubmenuRoot>
-      <BaseMenu.SubmenuTrigger className={styles.submenuTrigger}>
+      <MotionMenuSubmenuTrigger
+        className={styles.submenuTrigger}
+        whileTap={pressed}
+      >
         {label}
         <span aria-hidden="true">›</span>
-      </BaseMenu.SubmenuTrigger>
+      </MotionMenuSubmenuTrigger>
       <BaseMenu.Portal>
         <BaseMenu.Positioner>
           <BaseMenu.Popup className={styles.submenuPopup}>
@@ -173,8 +186,9 @@ export function MenuCheckboxItem({
   children: ReactNode
 }) {
   return (
-    <BaseMenu.CheckboxItem
+    <MotionMenuCheckboxItem
       className={styles.checkboxItem}
+      whileTap={pressed}
       checked={checked}
       disabled={disabled}
       closeOnClick={false}
@@ -184,7 +198,7 @@ export function MenuCheckboxItem({
         <Icon name="checkmark" size={14} />
       </BaseMenu.CheckboxItemIndicator>
       {children}
-    </BaseMenu.CheckboxItem>
+    </MotionMenuCheckboxItem>
   )
 }
 
@@ -198,8 +212,9 @@ export function MenuItem({
   selected?: boolean
 }) {
   return (
-    <BaseMenu.Item
+    <MotionMenuItem
       className={styles.item}
+      whileTap={pressed}
       aria-current={selected ? 'true' : undefined}
       onClick={onClick}
     >
@@ -207,6 +222,6 @@ export function MenuItem({
         {selected ? <Icon name="checkmark" size={14} /> : null}
       </span>
       {children}
-    </BaseMenu.Item>
+    </MotionMenuItem>
   )
 }

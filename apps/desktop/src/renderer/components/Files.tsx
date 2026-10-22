@@ -5,9 +5,16 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
 import { useConfig } from '../hooks/useConfig.js'
@@ -51,7 +58,13 @@ const defaultColumns: readonly FileColumn[] = [
 
 export type Folder = Parameters<Window['files']['entries']['listChildren']>[0]
 
-type Listing = Awaited<ReturnType<Window['files']['entries']['listChildren']>>
+type FolderListing = Awaited<
+  ReturnType<Window['files']['entries']['listChildren']>
+>
+
+type Listing =
+  | FolderListing
+  | Awaited<ReturnType<Window['files']['collections']['listEntries']>>
 
 type DateRangeGroup = {
   key: string
@@ -324,6 +337,7 @@ function FolderContents({
 }: FilesProps & { preferencesKey: string }) {
   const api = useApi()
   const detailsPane = useDetailsPane()
+  const [searchParams] = useSearchParams()
   const { libraries, loadFailed: librariesFailed } = useLibraries()
   const { values: configValues } = useConfig(['user.dateformat'])
   const dateFormat = configValues?.['user.dateformat'] ?? 'relative'
@@ -335,6 +349,9 @@ function FolderContents({
 
   const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
+  const search = folder
+    ? searchParams.get('search')?.trim() || undefined
+    : undefined
 
   const {
     columnVisibility,
@@ -387,14 +404,14 @@ function FolderContents({
               libraryId,
               relativePath,
               recursive: flatten,
+              ...(search ? { search } : {}),
             })
           : Promise.reject(new Error('Missing file source')),
-    [api, libraryId, relativePath, collectionId, flatten],
+    [api, libraryId, relativePath, collectionId, flatten, search],
   )
 
   const {
     data: listing,
-    setData: setListing,
     loadFailed,
     refresh,
   } = useApiQuery<Listing | null>(request, null)
@@ -412,6 +429,7 @@ function FolderContents({
   }, [folder, listing, refresh])
 
   const [detailsClosing, setDetailsClosing] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(true)
 
   const table = useReactTable({
     data: listing?.entries ?? emptyEntries,
@@ -463,6 +481,10 @@ function FolderContents({
       onNavigate: viewFile,
     })
   const selectedFile = listing?.entries.find((entry) => entry.id === selectedId)
+  const currentFolder = listing && 'folder' in listing ? listing.folder : null
+  const detailsEntry = selectedFile ?? currentFolder
+  const detailsExpected =
+    detailsEntry !== null || (folder !== undefined && listing === null)
 
   const folderStats = useMemo(() => {
     if (!folder || !listing) {
@@ -541,19 +563,12 @@ function FolderContents({
       ).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     : [{ key: 'all', label: null, order: undefined, rows: visibleRows }]
 
-  useEffect(() => {
-    detailsPane.setVisible(selectedFile !== undefined)
-
-    return () => detailsPane.setVisible(false)
-  }, [detailsPane, selectedFile])
+  useLayoutEffect(() => {
+    detailsPane.setVisible(detailsOpen && detailsExpected)
+  }, [detailsExpected, detailsOpen, detailsPane])
 
   function activateFile(id: number) {
-    if (selectedId === id && selectedIds.size === 1) {
-      setDetailsClosing(true)
-
-      return
-    }
-
+    setDetailsOpen(true)
     selectFile(id)
     viewFile(id)
   }
@@ -595,7 +610,6 @@ function FolderContents({
         groupBy={groupBy}
         flatten={flatten}
         onFlattenChange={(flatten) => {
-          setListing(null)
           selectFile(null)
           setPreferences((current) => ({ ...current, flatten }))
         }}
@@ -611,7 +625,9 @@ function FolderContents({
         listing.scanned && listing.entries.length === 0 ? (
           <Surface className={styles.scroll}>
             <p role="status" className={styles.gridEmpty}>
-              No files to display.
+              {search
+                ? 'No matching files or folders.'
+                : 'No files to display.'}
             </p>
           </Surface>
         ) : (
@@ -643,6 +659,7 @@ function FolderContents({
                       key={entry.id}
                       name={entry.name}
                       isDirectory={entry.kind === 'directory'}
+                      highlight={search}
                       selected={selectedIds.has(entry.id)}
                       fileId={entry.id}
                       {...(entry.kind === 'directory'
@@ -729,7 +746,9 @@ function FolderContents({
                     role="status"
                     colSpan={table.getVisibleLeafColumns().length}
                   >
-                    No files to display.
+                    {search
+                      ? 'No matching files or folders.'
+                      : 'No files to display.'}
                   </td>
                 </tr>
               )}
@@ -817,6 +836,7 @@ function FolderContents({
                                         <FileName
                                           name={entry.name}
                                           isDirectory={true}
+                                          highlight={search}
                                         />
                                       </Link>
                                     ) : (
@@ -830,7 +850,10 @@ function FolderContents({
                                         aria-label={`Show details for ${entry.name}`}
                                         aria-expanded={selectedId === entry.id}
                                       >
-                                        <FileName name={entry.name} />
+                                        <FileName
+                                          name={entry.name}
+                                          highlight={search}
+                                        />
                                       </button>
                                     )}
                                   </span>
@@ -867,17 +890,18 @@ function FolderContents({
           </table>
         </Surface>
       )}
-      {selectedFile &&
+      {detailsOpen &&
+        detailsEntry &&
         detailsPane.host &&
         createPortal(
           <FileDetails
-            entry={selectedFile}
-            rootPath={libraryRoots.get(selectedFile.libraryId)}
+            entry={detailsEntry}
+            rootPath={libraryRoots.get(detailsEntry.libraryId)}
             dateFormat={dateFormat}
             closing={detailsClosing}
             onClose={() => setDetailsClosing(true)}
             onClosed={() => {
-              selectFile(null)
+              setDetailsOpen(false)
               setDetailsClosing(false)
             }}
             onCollectionsChange={() => {

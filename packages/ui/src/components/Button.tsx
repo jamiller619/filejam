@@ -1,7 +1,10 @@
 import { Button as BaseUIButton } from '@base-ui/react/button'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
-import type { ComponentProps } from 'react'
+import { motion } from 'motion/react'
+import { type ComponentProps, useContext } from 'react'
+import { pressed } from '../interactions.js'
+import { ButtonGroupContext } from './ButtonGroupContext.js'
 
 const styles = css`
   .button {
@@ -47,7 +50,9 @@ const styles = css`
   }
 `
 
-type ButtonProps = ComponentProps<typeof BaseUIButton> & {
+const MotionButton = motion.create(BaseUIButton)
+
+type ButtonProps = ComponentProps<typeof MotionButton> & {
   color?: 'gray' | 'primary'
   variant?: 'default' | 'ghost'
 }
@@ -58,9 +63,12 @@ export default function Button({
   className,
   ...props
 }: ButtonProps) {
+  const isGrouped = useContext(ButtonGroupContext)
+
   return (
-    <BaseUIButton
+    <MotionButton
       {...props}
+      {...(!isGrouped && { whileTap: pressed })}
       className={clsx(
         styles.button,
         color === 'primary' && styles.primary,
@@ -69,6 +77,6 @@ export default function Button({
       )}
     >
       {props.children}
-    </BaseUIButton>
+    </MotionButton>
   )
 }

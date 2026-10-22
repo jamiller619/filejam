@@ -1,6 +1,7 @@
 import { css } from 'inline-css-modules'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import { useLocation } from 'react-router-dom'
 import { useConfig } from '../hooks/useConfig.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import Navbar from './Navbar.js'
@@ -121,6 +122,7 @@ const styles = css`
 `
 
 export default function Layout() {
+  const { pathname } = useLocation()
   const { values, updateConfig } = useConfig(['window.navbarWidth'])
   const saveNavbarTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [detailsHost, setDetailsHost] = useState<HTMLDivElement | null>(null)
@@ -140,6 +142,20 @@ export default function Layout() {
     },
     [],
   )
+
+  useLayoutEffect(() => {
+    if (pathname !== '/' && !pathname.startsWith('/libraries/')) {
+      setDetailsVisible(false)
+    }
+  }, [pathname])
+
+  useLayoutEffect(() => {
+    if (!detailsHost || detailsHost.childElementCount > 0) {
+      return
+    }
+
+    detailsHost.style.width = detailsVisible ? 'var(--details-width)' : '0px'
+  }, [detailsHost, detailsVisible])
 
   if (!values) {
     return null
