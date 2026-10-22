@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { queryKeys } from '../queryClient.js'
 import { useApi } from './useApi.js'
 import { useApiQuery } from './useApiQuery.js'
 
@@ -11,17 +12,14 @@ export function useLibraries() {
     loading,
     loadFailed,
     refresh,
-  } = useApiQuery(request, [])
-
-  useEffect(() => {
-    window.addEventListener('files:libraries-updated', refresh)
-
-    return () => window.removeEventListener('files:libraries-updated', refresh)
-  }, [refresh])
+  } = useApiQuery(queryKeys.libraries, request, [], {
+    staleTime: Number.POSITIVE_INFINITY,
+  })
 
   return {
     libraries,
     loading,
     loadFailed,
+    refresh,
   }
 }

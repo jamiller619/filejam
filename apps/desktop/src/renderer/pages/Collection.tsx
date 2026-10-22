@@ -1,17 +1,12 @@
-import { useParams } from 'react-router-dom'
+import { useParams } from 'react-router'
 import Files from '../components/Files.js'
 import { useCollections } from '../hooks/useCollections.js'
 import Page from './Page.js'
 
 export default function Collection() {
   const { collectionId = '' } = useParams()
-
-  return <CollectionContent key={collectionId} id={collectionId} />
-}
-
-function CollectionContent({ id }: { id: string }) {
   const { collections, loading, loadFailed } = useCollections()
-  const collection = collections.find((item) => item.id === id)
+  const collection = collections.find((item) => item.id === collectionId)
 
   if (loadFailed) {
     return <p role="status">Unable to load collection.</p>
@@ -31,17 +26,17 @@ function CollectionContent({ id }: { id: string }) {
     <Page
       title={name}
       split={{
-        storageKey: JSON.stringify(['collection', id]),
+        storageKey: JSON.stringify(['collection', collectionId]),
         content: (
           <Files
-            collectionId={id}
+            collectionId={collectionId}
             preferencesScope="secondary"
             reportFolderStats={false}
           />
         ),
       }}
     >
-      <Files collectionId={id} />
+      <Files collectionId={collectionId} />
     </Page>
   )
 }

@@ -170,33 +170,49 @@ function writeSplitViewState(storageKey: string, state: SplitViewState) {
 }
 
 export default function Page({ children, split }: PageProps) {
-  return (
-    <PageContents key={split?.storageKey ?? 'single'} split={split}>
-      {children}
-    </PageContents>
-  )
+  return <PageContents split={split}>{children}</PageContents>
 }
 
 function PageContents({ children, split }: PageContentsProps) {
   const [folderStats, setFolderStats] = useState<FolderStats | null>(null)
   const footerHost = useContext(PageFooterHostContext)
-  const [splitView, setSplitView] = useState<SplitViewState>(() =>
-    split
-      ? readSplitViewState(split.storageKey)
+  const storageKey = split?.storageKey
+  const [splitViewState, setSplitViewState] = useState(() => ({
+    storageKey,
+    value: storageKey
+      ? readSplitViewState(storageKey)
       : { open: false, layout: defaultSplitLayout },
-  )
+  }))
+
+  if (splitViewState.storageKey !== storageKey) {
+    setSplitViewState({
+      storageKey,
+      value: storageKey
+        ? readSplitViewState(storageKey)
+        : { open: false, layout: defaultSplitLayout },
+    })
+  }
+
+  const splitView =
+    splitViewState.storageKey === storageKey
+      ? splitViewState.value
+      : storageKey
+        ? readSplitViewState(storageKey)
+        : { open: false, layout: defaultSplitLayout }
 
   function updateSplitView(
     update: (current: SplitViewState) => SplitViewState,
   ) {
-    setSplitView((current) => {
-      const next = update(current)
+    setSplitViewState((current) => {
+      const currentValue =
+        current.storageKey === storageKey ? current.value : splitView
+      const next = update(currentValue)
 
-      if (split) {
-        writeSplitViewState(split.storageKey, next)
+      if (storageKey) {
+        writeSplitViewState(storageKey, next)
       }
 
-      return next
+      return { storageKey, value: next }
     })
   }
 

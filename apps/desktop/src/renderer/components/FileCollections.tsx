@@ -1,8 +1,9 @@
 import { css } from 'inline-css-modules'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
 import { notifyCollectionsChanged } from '../hooks/useCollections.js'
+import { queryKeys } from '../queryClient.js'
 
 const styles = css`
   .collections {
@@ -54,9 +55,11 @@ export default function FileCollections({
     [api, entryId],
   )
 
-  const { data, loadFailed } = useApiQuery<Awaited<
+  const queryKey = useMemo(() => queryKeys.entryCollections(entryId), [entryId])
+
+  const { data, loadFailed, refresh } = useApiQuery<Awaited<
     ReturnType<typeof request>
-  > | null>(request, null)
+  > | null>(queryKey, request, null)
 
   useEffect(() => {
     if (!data) {
@@ -81,6 +84,7 @@ export default function FileCollections({
         included ? [...current, id] : current.filter((value) => value !== id),
       )
 
+      refresh()
       onChange()
     } catch {
       setError('Unable to update collection.')

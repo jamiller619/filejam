@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, extname, isAbsolute, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { PreviewManifest } from '@files/preview-api'
+import type { PreviewManifest } from '@files/plugin-api'
 import mime from 'mime'
 
 export interface RegisteredProvider {

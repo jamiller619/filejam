@@ -3,7 +3,7 @@ import { Eyebrow, Icon } from '@files/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { HTMLAttributes } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router'
 import { useConfig } from '~/hooks/useConfig.js'
 import { useCollections } from '../hooks/useCollections.js'
 import { useFavoriteFolderDrop } from '../hooks/useFavoriteFolderDrop.js'
@@ -109,7 +109,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
     <nav {...props} className={clsx(styles.navbar, props.className)}>
       <ol>
         <li>
-          <NavLink to="/" end title="Home">
+          <NavLink to="/" end title="Home" viewTransition>
             <Icon name="home" size="20" />
             <span>Home</span>
           </NavLink>
@@ -125,6 +125,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
                 <Link
                   to={folderUrl({ libraryId: library.id, relativePath })}
                   title={path}
+                  viewTransition
                   aria-current={
                     currentFolder(library.id, relativePath) ? 'page' : undefined
                   }
@@ -154,6 +155,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             <Link
               to={`/libraries/${library.id}`}
               title={library.rootPath}
+              viewTransition
               aria-current={currentFolder(library.id) ? 'page' : undefined}
               {...folderDragProps(library.rootPath)}
             >
@@ -176,6 +178,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
               <Link
                 to={`/libraries/${library.id}`}
                 title={library.rootPath}
+                viewTransition
                 aria-current={currentFolder(library.id) ? 'page' : undefined}
               >
                 <Icon name="trash" size="20" />
@@ -188,20 +191,20 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>
         <li>
-          <NavLink to="/collections/recents" title="Recents">
+          <NavLink to="/collections/recents" title="Recents" viewTransition>
             <Icon name="clock" size="20" />
             <span>Recents</span>
           </NavLink>
         </li>
         <li>
-          <NavLink to="/collections/favorites" title="Favorites">
+          <NavLink to="/collections/favorites" title="Favorites" viewTransition>
             <Icon name="star" size="20" />
             <span>Favorites</span>
           </NavLink>
         </li>
         {collections.map((collection) => (
           <li key={collection.id}>
-            <NavLink to={`/collections/${collection.id}`}>
+            <NavLink to={`/collections/${collection.id}`} viewTransition>
               <Icon name="folder" size="20" />
               <span>{collection.name}</span>
             </NavLink>
@@ -211,7 +214,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           <li role="status">Unable to load collections.</li>
         )}
         <li className={styles.settings}>
-          <NavLink to="/settings" title="Settings">
+          <NavLink to="/settings" title="Settings" viewTransition>
             <Icon name="settings" size="20" />
             <span>Settings</span>
           </NavLink>

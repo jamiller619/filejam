@@ -157,6 +157,10 @@ export default function FileDetails({
 
     host.style.width = `${to}px`
 
+    if (!closing && Math.abs(from - to) < 1) {
+      return
+    }
+
     const animation = host.animate(
       [{ width: `${from}px` }, { width: `${to}px` }],
       {

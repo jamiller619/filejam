@@ -6,7 +6,7 @@ import {
   useMatch,
   useNavigate,
   useSearchParams,
-} from 'react-router-dom'
+} from 'react-router'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { folderUrl } from '../utils/folderUrl.js'
 
@@ -196,7 +196,7 @@ function Breadcrumbs() {
     <div className={style.location}>
       <nav className={style.breadcrumbs} aria-label="Folder breadcrumbs">
         <Button
-          render={<Link to="/" />}
+          render={<Link to="/" viewTransition />}
           nativeButton={false}
           aria-label="Home"
           aria-current={isHome ? 'page' : undefined}
@@ -211,6 +211,7 @@ function Breadcrumbs() {
             <Link
               className={style.link}
               to={folderUrl({ libraryId: library.id, relativePath: '' })}
+              viewTransition
               aria-current={segments.length ? undefined : 'page'}
             >
               {library.name}
@@ -227,6 +228,7 @@ function Breadcrumbs() {
                       libraryId: library.id,
                       relativePath: segmentPath,
                     })}
+                    viewTransition
                     aria-current={
                       index === segments.length - 1 ? 'page' : undefined
                     }

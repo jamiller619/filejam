@@ -1,4 +1,4 @@
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router'
 import Files, { type Folder } from '../components/Files.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import Page from './Page.js'

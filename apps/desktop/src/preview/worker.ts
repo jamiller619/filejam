@@ -3,7 +3,7 @@ import type {
   PreviewExecutables,
   PreviewProvider,
   PreviewRequest,
-} from '@files/preview-api'
+} from '@files/plugin-api'
 
 const controller = new AbortController()
 

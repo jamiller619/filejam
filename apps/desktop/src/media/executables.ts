@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import type { PreviewExecutables } from '@files/preview-api'
+import type { PreviewExecutables } from '@files/plugin-api'
 
 function bundledExecutable(name: keyof PreviewExecutables) {
   const filename = `${name}${process.platform === 'win32' ? '.exe' : ''}`

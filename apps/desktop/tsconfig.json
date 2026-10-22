@@ -20,7 +20,7 @@
       "path": "../../packages/ui"
     },
     {
-      "path": "../../packages/preview-api"
+      "path": "../../packages/plugin-api"
     },
     {
       "path": "../../packages/preview-images"

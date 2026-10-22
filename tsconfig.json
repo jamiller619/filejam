@@ -11,7 +11,7 @@
       "path": "./apps/desktop"
     },
     {
-      "path": "./packages/preview-api"
+      "path": "./packages/plugin-api"
     },
     {
       "path": "./packages/preview-images"

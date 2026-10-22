@@ -14,13 +14,14 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { useApi } from '../hooks/useApi.js'
 import { useApiQuery } from '../hooks/useApiQuery.js'
 import { useConfig } from '../hooks/useConfig.js'
 import { useFileSelection } from '../hooks/useFileSelection.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { usePageFolderStats } from '../pages/Page.js'
+import { getLatestFilesData, queryKeys } from '../queryClient.js'
 import { colorForFileValue } from '../utils/fileColors.js'
 import {
   type FileColumn,
@@ -315,10 +316,8 @@ export default function Files({
 
   const preferencesKey = JSON.stringify(preferencesKeyParts)
 
-  // Remount the request state when the folder changes, hiding stale results.
   return (
     <FolderContents
-      key={preferencesKey}
       preferencesKey={preferencesKey}
       folder={folder}
       collectionId={collectionId}
@@ -410,13 +409,26 @@ function FolderContents({
     [api, libraryId, relativePath, collectionId, flatten, search],
   )
 
+  const queryKey = useMemo(
+    () =>
+      queryKeys.files({
+        collectionId,
+        libraryId,
+        relativePath,
+        flatten,
+        search,
+      }),
+    [collectionId, libraryId, relativePath, flatten, search],
+  )
+
   const {
     data: listing,
     loadFailed,
     refresh,
-  } = useApiQuery<Listing | null>(request, null)
-
-  useEffect(() => window.scanner.onUpdated(refresh), [refresh])
+  } = useApiQuery<Listing | null>(queryKey, request, null, {
+    keepPreviousData: true,
+    placeholderData: getLatestFilesData<Listing>,
+  })
 
   useEffect(() => {
     if (!folder || !listing || listing.scanned) {
@@ -565,6 +577,8 @@ function FolderContents({
 
   useLayoutEffect(() => {
     detailsPane.setVisible(detailsOpen && detailsExpected)
+
+    return () => detailsPane.setVisible(false)
   }, [detailsExpected, detailsOpen, detailsPane])
 
   function activateFile(id: number) {
@@ -828,6 +842,7 @@ function FolderContents({
                                         )}
                                         className={styles.name}
                                         title={entry.name}
+                                        viewTransition
                                         to={folderUrl({
                                           libraryId: entry.libraryId,
                                           relativePath: entry.relativePath,
@@ -917,15 +932,40 @@ function FolderContents({
 }
 
 function useTablePrefs(preferencesKey: string) {
-  const [preferences, setPreferences] = useState(() =>
-    readTablePreferences(preferencesKey),
-  )
+  const [preferenceState, setPreferenceState] = useState(() => ({
+    key: preferencesKey,
+    value: readTablePreferences(preferencesKey),
+  }))
+
+  if (preferenceState.key !== preferencesKey) {
+    setPreferenceState({
+      key: preferencesKey,
+      value: readTablePreferences(preferencesKey),
+    })
+  }
+
+  const preferences =
+    preferenceState.key === preferencesKey
+      ? preferenceState.value
+      : readTablePreferences(preferencesKey)
 
   const { sorting, columnVisibility, viewMode, groupBy, flatten } = preferences
 
   useEffect(() => {
     writeTablePreferences(preferencesKey, preferences)
   }, [preferencesKey, preferences])
+
+  const setPreferences: React.Dispatch<
+    React.SetStateAction<typeof preferences>
+  > = (update) => {
+    setPreferenceState((current) => {
+      const currentValue =
+        current.key === preferencesKey ? current.value : preferences
+      const value = typeof update === 'function' ? update(currentValue) : update
+
+      return { key: preferencesKey, value }
+    })
+  }
 
   return {
     setPreferences,

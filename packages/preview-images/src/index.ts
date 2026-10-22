@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import type { PreviewProvider } from '@files/preview-api'
+import type { PreviewProvider } from '@files/plugin-api'
 import { imageMimeType } from './formats.js'
 
 const provider: PreviewProvider = {

@@ -1,6 +1,6 @@
 import { css } from 'inline-css-modules'
 import type { DragEventHandler, ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import FileName from './FileName.js'
 
 const styles = css`
@@ -78,6 +78,7 @@ export default function GridCard(props: GridCardProps) {
           className={styles.cardAction}
           title={props.title ?? props.name}
           to={props.to}
+          viewTransition
           draggable={props.draggable}
           onDragStart={props.onDragStart}
         >

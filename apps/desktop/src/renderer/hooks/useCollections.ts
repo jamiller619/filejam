@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { queryKeys } from '../queryClient.js'
 import { useApi } from './useApi.js'
 import { useApiQuery } from './useApiQuery.js'
 
@@ -9,13 +10,13 @@ export function notifyCollectionsChanged() {
 export function useCollections() {
   const api = useApi()
   const request = useCallback(() => api.collections.list(), [api])
-  const { data: collections, refresh, ...state } = useApiQuery(request, [])
-
-  useEffect(() => {
-    window.addEventListener('collections-changed', refresh)
-
-    return () => window.removeEventListener('collections-changed', refresh)
-  }, [refresh])
+  const {
+    data: collections,
+    refresh,
+    ...state
+  } = useApiQuery(queryKeys.collections, request, [], {
+    staleTime: Number.POSITIVE_INFINITY,
+  })
 
   return { collections, refresh, ...state }
 }

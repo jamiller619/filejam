@@ -49,7 +49,7 @@
     }
   },
   "dependencies": {
-    "@files/preview-api": "workspace:*"
+    "@files/plugin-api": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.4"

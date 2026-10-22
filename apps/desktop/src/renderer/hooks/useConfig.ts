@@ -1,5 +1,6 @@
 import type { Config, ConfigKey } from '@files/server'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import { queryKeys } from '../queryClient.js'
 import { useApi } from './useApi.js'
 import { useApiQuery } from './useApiQuery.js'
 
@@ -16,6 +17,7 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: keySignature represents the key array by value.
   const selectedKeys = useMemo(() => [...keys], [keySignature])
   const allowedKeys = useMemo(() => new Set(selectedKeys), [selectedKeys])
+  const queryKey = useMemo(() => queryKeys.config(selectedKeys), [selectedKeys])
 
   const request = useCallback(async () => {
     const entries = await Promise.all(
@@ -32,29 +34,12 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
     setData: setValues,
     loading,
     loadFailed,
-  } = useApiQuery<SelectedConfig<Keys> | undefined>(request, undefined)
-
-  useEffect(() => {
-    const handleConfigUpdate = (event: Event) => {
-      const { key, value } = (
-        event as CustomEvent<{ key: ConfigKey; value: Config[ConfigKey] }>
-      ).detail
-
-      if (!allowedKeys.has(key)) {
-        return
-      }
-
-      setValues(
-        (current) => ({ ...current, [key]: value }) as SelectedConfig<Keys>,
-      )
-    }
-
-    window.addEventListener('files:config-updated', handleConfigUpdate)
-
-    return () => {
-      window.removeEventListener('files:config-updated', handleConfigUpdate)
-    }
-  }, [allowedKeys, setValues])
+  } = useApiQuery<SelectedConfig<Keys> | undefined>(
+    queryKey,
+    request,
+    undefined,
+    { staleTime: Number.POSITIVE_INFINITY },
+  )
 
   const updateConfig = useCallback(
     async <Key extends Keys[number]>(key: Key, value: Config[Key]) => {

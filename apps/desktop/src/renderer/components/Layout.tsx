@@ -1,12 +1,11 @@
 import { css } from 'inline-css-modules'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
-import { useLocation } from 'react-router-dom'
+import { Outlet } from 'react-router'
 import { useConfig } from '../hooks/useConfig.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import Navbar from './Navbar.js'
 import { PageFooterHostContext } from './PageFooterContext.js'
-import SuspenseOutlet from './SuspenseOutlet.js'
 import Titlebar from './Titlebar.js'
 
 const styles = css`
@@ -101,6 +100,7 @@ const styles = css`
           flex: 1;
           grid-row: auto;
           grid-template-rows: minmax(0, 1fr) auto;
+          view-transition-name: page-content;
         }
 
         .pageFooter:empty {
@@ -111,10 +111,12 @@ const styles = css`
           --details-width: 380px;
           flex: 0 0 auto;
           width: 0;
-          height: calc(100% - 36px);
+          height: calc(100% - 46px);
           min-height: 0;
-          margin-block-start: 36px;
+          margin-block-start: 46px;
           overflow: hidden;
+          border-top-left-radius: var(--suzy-radius-3);
+          view-transition-name: file-details;
         }
       }
     }
@@ -122,7 +124,6 @@ const styles = css`
 `
 
 export default function Layout() {
-  const { pathname } = useLocation()
   const { values, updateConfig } = useConfig(['window.navbarWidth'])
   const saveNavbarTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [detailsHost, setDetailsHost] = useState<HTMLDivElement | null>(null)
@@ -142,12 +143,6 @@ export default function Layout() {
     },
     [],
   )
-
-  useLayoutEffect(() => {
-    if (pathname !== '/' && !pathname.startsWith('/libraries/')) {
-      setDetailsVisible(false)
-    }
-  }, [pathname])
 
   useLayoutEffect(() => {
     if (!detailsHost || detailsHost.childElementCount > 0) {
@@ -188,7 +183,7 @@ export default function Layout() {
               <Titlebar className={styles.titlebar} />
               <div className={styles.workspace}>
                 <main className={styles.page}>
-                  <SuspenseOutlet />
+                  <Outlet />
                   <div ref={setPageFooterHost} className={styles.pageFooter} />
                 </main>
                 <div ref={setDetailsHost} className={styles.details} />
