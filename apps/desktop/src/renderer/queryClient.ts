@@ -22,25 +22,6 @@ export const queryKeys = {
     ['entry-collections', entryId] as const,
 }
 
-export function getLatestFilesData<T>() {
-  let latestData: T | undefined
-  let latestUpdate = -1
-
-  for (const query of queryClient
-    .getQueryCache()
-    .findAll({ queryKey: ['files'] })) {
-    if (
-      query.state.data !== undefined &&
-      query.state.dataUpdatedAt > latestUpdate
-    ) {
-      latestData = query.state.data as T
-      latestUpdate = query.state.dataUpdatedAt
-    }
-  }
-
-  return latestData
-}
-
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

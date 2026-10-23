@@ -2,9 +2,8 @@ import { Button as BaseUIButton } from '@base-ui/react/button'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { motion } from 'motion/react'
-import { type ComponentProps, useContext } from 'react'
+import type { ComponentProps } from 'react'
 import { pressed } from '../interactions.js'
-import { ButtonGroupContext } from './ButtonGroupContext.js'
 
 const styles = css`
   .button {
@@ -16,12 +15,13 @@ const styles = css`
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: background var(--suzy-duration-normal) var(--suzy-ease-standard);
 
     &:hover {
-      background: var(--suzy-gray-5);
+      background: lch(from var(--suzy-gray-8) l c h / 20%);
     }
     &:active:not([data-disabled]) {
-      background-color: var(--suzy-gray-6);
+      background: var(--suzy-gray-6);
     }
 
     /* Also applies to non-native buttons, such as links. */
@@ -42,7 +42,8 @@ const styles = css`
     background: var(--suzy-action);
 
     &:hover {
-      background: var(--suzy-action-hover);
+      /* background: lch(from var(--suzy-action) l c h / 50%); */
+      /* background: var(--suzy-action-hover); */
     }
     &:active:not([data-disabled]) {
       background: var(--suzy-action-active);
@@ -63,12 +64,10 @@ export default function Button({
   className,
   ...props
 }: ButtonProps) {
-  const isGrouped = useContext(ButtonGroupContext)
-
   return (
     <MotionButton
       {...props}
-      {...(!isGrouped && { whileTap: pressed })}
+      whileTap={pressed}
       className={clsx(
         styles.button,
         color === 'primary' && styles.primary,

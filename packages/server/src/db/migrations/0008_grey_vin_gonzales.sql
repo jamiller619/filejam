@@ -1,0 +1,1 @@
+ALTER TABLE `move_items` ADD `sequence` integer NOT NULL;

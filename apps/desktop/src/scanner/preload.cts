@@ -22,7 +22,10 @@ type FilesApi = {
       Awaited<ReturnType<ServerApi['libraries']['list']>>[number] | null
     >
   }
-  entries: Pick<ServerApi['entries'], 'listChildren'>
+  entries: Pick<ServerApi['entries'], 'listChildren'> & {
+    moveFolders: (paths: string[], destination: string) => Promise<string[]>
+  }
+  moveHistory: Pick<ServerApi['moveHistory'], 'list'>
 }
 
 const files: FilesApi = {
@@ -51,6 +54,11 @@ const files: FilesApi = {
   entries: {
     listChildren: (folder) =>
       ipcRenderer.invoke('entries:listChildren', folder),
+    moveFolders: (paths, destination) =>
+      ipcRenderer.invoke('entries:moveFolders', paths, destination),
+  },
+  moveHistory: {
+    list: () => ipcRenderer.invoke('moveHistory:list'),
   },
   libraries: {
     list: () => ipcRenderer.invoke('libraries:list'),
@@ -60,26 +68,23 @@ const files: FilesApi = {
 
 contextBridge.exposeInMainWorld('files', files)
 
-function exposeScannerApi() {
-  const scanner: ScannerApi & { onUpdated(listener: () => void): () => void } =
-    {
-      onUpdated: (listener) => {
-        const handler = () => listener()
+const scanner: ScannerApi & { onUpdated(listener: () => void): () => void } = {
+  onUpdated: (listener) => {
+    const handler = () => listener()
 
-        ipcRenderer.on('scanner:updated', handler)
+    ipcRenderer.on('scanner:updated', handler)
 
-        return () => {
-          ipcRenderer.removeListener('scanner:updated', handler)
-        }
-      },
-      start: (root) => ipcRenderer.invoke('scanner:start', root),
-      status: () => ipcRenderer.invoke('scanner:status'),
-      results: (root) => ipcRenderer.invoke('scanner:results', root),
-      cancel: () => ipcRenderer.invoke('scanner:cancel'),
+    return () => {
+      ipcRenderer.removeListener('scanner:updated', handler)
     }
-
-  contextBridge.exposeInMainWorld('scanner', scanner)
+  },
+  start: (root) => ipcRenderer.invoke('scanner:start', root),
+  status: () => ipcRenderer.invoke('scanner:status'),
+  results: (root) => ipcRenderer.invoke('scanner:results', root),
+  cancel: () => ipcRenderer.invoke('scanner:cancel'),
 }
+
+contextBridge.exposeInMainWorld('scanner', scanner)
 
 declare global {
   interface Window {
@@ -87,5 +92,3 @@ declare global {
     scanner: ScannerApi & { onUpdated(listener: () => void): () => void }
   }
 }
-
-exposeScannerApi()

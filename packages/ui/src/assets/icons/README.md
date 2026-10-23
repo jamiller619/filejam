@@ -6,6 +6,7 @@ component in `../../components/Icon.tsx` preserves their paths, transforms,
 
 | Icon name | Source SVG |
 | --- | --- |
+| `masonry` | `masonry.svg` (adapted from `grid.svg`) |
 | `settings` | `gearshape.svg` |
 | `desktop` | `desktopcomputer.svg` |
 | `music` | `music.note.svg` |

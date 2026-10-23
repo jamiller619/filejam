@@ -8,12 +8,14 @@ import * as collectionSchema from './schemas/collection.js'
 import * as entrySchema from './schemas/entry.js'
 import * as initializationSchema from './schemas/initialization.js'
 import * as librarySchema from './schemas/library.js'
+import * as moveHistorySchema from './schemas/moveHistory.js'
 
 const schema = {
   ...collectionSchema,
   ...librarySchema,
   ...entrySchema,
   ...initializationSchema,
+  ...moveHistorySchema,
 }
 
 // Resolve beside the compiled module; the build copies SQL migrations there.

@@ -4,12 +4,14 @@ import { createCollectionsApi } from './collections.js'
 import { createConfigApi } from './config.js'
 import { createEntriesApi } from './entries.js'
 import { createLibrariesApi } from './libraries.js'
+import { createMoveHistoryApi } from './moveHistory.js'
 
 export function createApi(db: Database, config?: ConfigStore) {
   return {
     collections: createCollectionsApi(db),
     config: createConfigApi(config),
     libraries: createLibrariesApi(db),
+    moveHistory: createMoveHistoryApi(db),
     entries: createEntriesApi(db),
   }
 }

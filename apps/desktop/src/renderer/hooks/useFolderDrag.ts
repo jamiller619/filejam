@@ -14,5 +14,6 @@ export function useFolderDrag() {
     type: folderDragType,
     canDrag: canDragFolder,
     serialize: serializeFolderPath,
+    effectAllowed: 'copyMove',
   })
 }

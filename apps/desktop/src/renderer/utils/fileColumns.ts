@@ -48,6 +48,10 @@ export function formatFileSize(size: number): string {
 }
 
 export function formatFullPath(rootPath: string, relativePath: string): string {
+  if (!relativePath) {
+    return rootPath
+  }
+
   const separator = rootPath.includes('\\') ? '\\' : '/'
   const root = rootPath.replace(/[\\/]+$/, '')
 

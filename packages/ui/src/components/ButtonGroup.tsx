@@ -2,8 +2,6 @@ import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { motion } from 'motion/react'
 import type { ComponentProps } from 'react'
-import { pressed } from '../interactions.js'
-import { ButtonGroupContext } from './ButtonGroupContext.js'
 
 const styles = css`
   .buttonGroup {
@@ -11,12 +9,10 @@ const styles = css`
     border-radius: var(--suzy-radius-4);
     overflow: hidden;
     outline: 2px solid var(--suzy-gray-4);
-    background: var(--suzy-gray-2);
+    background: var(--suzy-gray-3);
 
     button {
-      width: 28px;
-      height: 28px;
-      min-height: 28px;
+      width: 32px;
       padding: 0;
       border-radius: 100px;
       corner-shape: round;
@@ -44,14 +40,8 @@ export default function ButtonGroup({
   ...props
 }: ButtonGroupProps) {
   return (
-    <ButtonGroupContext value={true}>
-      <motion.div
-        className={clsx(styles.buttonGroup, className)}
-        whileTap={pressed}
-        {...props}
-      >
-        {children}
-      </motion.div>
-    </ButtonGroupContext>
+    <motion.div className={clsx(styles.buttonGroup, className)} {...props}>
+      {children}
+    </motion.div>
   )
 }

@@ -1,10 +1,15 @@
 import { ScrollArea } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Group, type Layout, Panel, Separator } from 'react-resizable-panels'
-import { PageFooterHostContext } from '../components/PageFooterContext.js'
+import {
+  type CardSizeControl,
+  PageCardSizeContext,
+  PageFooterHostContext,
+} from '../components/PageFooterContext.js'
 import { formatFileSize } from '../utils/fileColumns.js'
+import { maximumCardSize, minimumCardSize } from '../utils/tablePreferences.js'
 
 const styles = css`
   .page {
@@ -15,8 +20,7 @@ const styles = css`
   .pageContent {
     box-sizing: border-box;
     min-height: 100%;
-    padding: calc(36px + var(--suzy-space-2)) var(--suzy-space-2)
-      var(--suzy-space-2);
+    padding: var(--suzy-space-2);
   }
   .secondaryContent {
     padding-block-start: var(--suzy-space-2);
@@ -31,7 +35,8 @@ const styles = css`
     overflow: hidden;
   }
   .splitSeparator {
-    height: 2px;
+    height: 4px;
+    border-radius: var(--suzy-radius-full);
     background: var(--suzy-gray-6);
     transition: background-color 120ms ease;
 
@@ -58,7 +63,17 @@ const styles = css`
     color: var(--suzy-gray-8);
   }
   .scanStatus {
+    margin-inline-end: auto;
+  }
+  .cardSizeControl {
+    display: flex;
+    align-items: center;
+    gap: var(--suzy-space-2);
     margin-inline-start: auto;
+    white-space: nowrap;
+  }
+  .cardSizeSlider {
+    width: 72px;
   }
   .splitButton {
     position: absolute;
@@ -175,6 +190,8 @@ export default function Page({ children, split }: PageProps) {
 
 function PageContents({ children, split }: PageContentsProps) {
   const [folderStats, setFolderStats] = useState<FolderStats | null>(null)
+  const [cardSizeControl, setCardSizeControl] =
+    useState<CardSizeControl | null>(null)
   const footerHost = useContext(PageFooterHostContext)
   const storageKey = split?.storageKey
   const [splitViewState, setSplitViewState] = useState(() => ({
@@ -224,54 +241,57 @@ function PageContents({ children, split }: PageContentsProps) {
 
   return (
     <FolderStatsContext value={setFolderStats}>
-      <div className={styles.page}>
-        {split && splitView.open ? (
-          <Group
-            className={styles.splitGroup}
-            orientation="vertical"
-            defaultLayout={splitView.layout}
-            onLayoutChanged={(layout, { isUserInteraction }) => {
-              if (isUserInteraction) {
-                updateSplitView((current) => ({ ...current, layout }))
+      <PageCardSizeContext value={setCardSizeControl}>
+        <div className={styles.page}>
+          {split && splitView.open ? (
+            <Group
+              className={styles.splitGroup}
+              orientation="vertical"
+              defaultLayout={splitView.layout}
+              onLayoutChanged={(layout, { isUserInteraction }) => {
+                if (isUserInteraction) {
+                  updateSplitView((current) => ({ ...current, layout }))
+                }
+              }}
+            >
+              <Panel id="primary" className={styles.splitPane} minSize={160}>
+                {primaryContent}
+              </Panel>
+              <Separator className={styles.splitSeparator} />
+              <Panel id="secondary" className={styles.splitPane} minSize={160}>
+                <ScrollArea>
+                  <div
+                    className={`${styles.pageContent} ${styles.secondaryContent}`}
+                  >
+                    {split.content}
+                  </div>
+                </ScrollArea>
+              </Panel>
+            </Group>
+          ) : (
+            primaryContent
+          )}
+        </div>
+        {(folderStats || split || cardSizeControl) &&
+          footerHost &&
+          createPortal(
+            <FolderStatsFooter
+              stats={folderStats}
+              cardSizeControl={cardSizeControl}
+              splitOpen={splitView.open}
+              onSplitToggle={
+                split
+                  ? () =>
+                      updateSplitView((current) => ({
+                        ...current,
+                        open: !current.open,
+                      }))
+                  : undefined
               }
-            }}
-          >
-            <Panel id="primary" className={styles.splitPane} minSize={160}>
-              {primaryContent}
-            </Panel>
-            <Separator className={styles.splitSeparator} />
-            <Panel id="secondary" className={styles.splitPane} minSize={160}>
-              <ScrollArea>
-                <div
-                  className={`${styles.pageContent} ${styles.secondaryContent}`}
-                >
-                  {split.content}
-                </div>
-              </ScrollArea>
-            </Panel>
-          </Group>
-        ) : (
-          primaryContent
-        )}
-      </div>
-      {(folderStats || split) &&
-        footerHost &&
-        createPortal(
-          <FolderStatsFooter
-            stats={folderStats}
-            splitOpen={splitView.open}
-            onSplitToggle={
-              split
-                ? () =>
-                    updateSplitView((current) => ({
-                      ...current,
-                      open: !current.open,
-                    }))
-                : undefined
-            }
-          />,
-          footerHost,
-        )}
+            />,
+            footerHost,
+          )}
+      </PageCardSizeContext>
     </FolderStatsContext>
   )
 }
@@ -301,15 +321,36 @@ export function usePageFolderStats(stats: FolderStats | null, enabled = true) {
   }, [setFolderStats, enabled, fileCount, folderCount, totalSize, scanning])
 }
 
+export function usePageCardSizeControl(
+  control: CardSizeControl | null,
+  enabled = true,
+) {
+  const setCardSizeControl = useContext(PageCardSizeContext)
+
+  useEffect(() => {
+    if (!setCardSizeControl || !enabled) {
+      return
+    }
+
+    setCardSizeControl(control)
+
+    return () => setCardSizeControl(null)
+  }, [control, enabled, setCardSizeControl])
+}
+
 function FolderStatsFooter({
   stats,
+  cardSizeControl,
   splitOpen,
   onSplitToggle,
 }: {
   stats: FolderStats | null
+  cardSizeControl: CardSizeControl | null
   splitOpen: boolean
   onSplitToggle?: (() => void) | undefined
 }) {
+  const cardSizeId = useId()
+
   return (
     <footer className={styles.footer}>
       {onSplitToggle && (
@@ -345,6 +386,24 @@ function FolderStatsFooter({
             </span>
           )}
         </>
+      )}
+      {cardSizeControl && (
+        <label className={styles.cardSizeControl} htmlFor={cardSizeId}>
+          <span>Card size</span>
+          <input
+            id={cardSizeId}
+            className={styles.cardSizeSlider}
+            type="range"
+            min={minimumCardSize}
+            max={maximumCardSize}
+            step="4"
+            value={cardSizeControl.size}
+            aria-valuetext={`${cardSizeControl.size} pixels`}
+            onChange={(event) =>
+              cardSizeControl.onChange(Number(event.currentTarget.value))
+            }
+          />
+        </label>
       )}
     </footer>
   )

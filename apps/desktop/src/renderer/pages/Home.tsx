@@ -49,6 +49,7 @@ export default function Home() {
               to={folderUrl({ libraryId: library.id, relativePath })}
               title={path}
               name={name}
+              folderPath={path}
               {...folderDragProps(path)}
             >
               <FilePreview

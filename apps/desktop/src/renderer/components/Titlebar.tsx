@@ -112,7 +112,9 @@ function useSyncColorTheme(ref: RefObject<HTMLElement | null>) {
     }
 
     // Canvas resolves CSS colors (including modern color spaces) to sRGB hex.
-    const context = document.createElement('canvas').getContext('2d')
+    const context = document
+      .createElement('canvas')
+      .getContext('2d', { willReadFrequently: true })
 
     if (!context) {
       return

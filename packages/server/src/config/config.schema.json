@@ -45,6 +45,7 @@
     "appdata.cacheQuota",
     "appdata.logsPath",
     "window.navbarWidth",
+    "window.detailsWidth",
     "window.main",
     "window.imageViewer",
     "user.favoriteFolders",
@@ -108,6 +109,14 @@
       "default": 160,
       "description": "The width of the navigation pane in pixels."
     },
+    "window.detailsWidth": {
+      "title": "Details Width",
+      "type": "integer",
+      "minimum": 280,
+      "maximum": 600,
+      "default": 380,
+      "description": "The width of the details pane in pixels."
+    },
     "window.main": {
       "$ref": "#/$defs/windowState",
       "title": "Main Window State",
@@ -136,6 +145,12 @@
       "enum": ["relative", "absolute"],
       "default": "relative",
       "description": "Whether dates are displayed relative to the current time or as absolute dates and times."
+    },
+    "user.files.colorCoding": {
+      "title": "File Color Coding",
+      "type": "boolean",
+      "default": true,
+      "description": "Color coding for files based on some common data type."
     }
   },
   "$defs": {

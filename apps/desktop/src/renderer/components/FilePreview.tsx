@@ -1,4 +1,5 @@
 ﻿import { Button, Icon } from '@files/ui'
+import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { useEffect, useRef, useState } from 'react'
 import type { FileColor } from './FileName.js'
@@ -17,6 +18,16 @@ const styles = css`
     position: relative;
     aspect-ratio: auto;
     width: fit-content;
+  }
+
+  .natural {
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+
+    .preview {
+      width: 100%;
+    }
   }
 
   .open {
@@ -54,13 +65,13 @@ const previewObserver =
   typeof IntersectionObserver === 'undefined'
     ? null
     : new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            visibilityListeners.get(entry.target)?.(entry.isIntersecting)
-          }
-        },
-        { rootMargin: '200px 0px' },
-      )
+      (entries) => {
+        for (const entry of entries) {
+          visibilityListeners.get(entry.target)?.(entry.isIntersecting)
+        }
+      },
+      { rootMargin: '200px 0px' },
+    )
 
 function observeVisibility(
   element: Element,
@@ -87,12 +98,14 @@ export default function FilePreview({
   variant = 'list',
   color,
   onOpen,
+  naturalSize = false,
 }: {
   entry: Entry
   size?: number | '100%'
   variant?: 'list' | 'grid'
   color?: FileColor | undefined
   onOpen?: () => void
+  naturalSize?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [nearViewport, setNearViewport] = useState(Boolean(onOpen))
@@ -160,10 +173,14 @@ export default function FilePreview({
   return (
     <div
       ref={containerRef}
-      className={`${styles.container} ${imageCandidate ? styles.expandable : ''}`}
+      className={clsx(
+        styles.container,
+        imageCandidate && styles.expandable,
+        naturalSize && styles.natural,
+      )}
       style={{
-        width: imageCandidate ? undefined : size,
-        height: typeof size === 'number' ? size : 'auto',
+        width: imageCandidate || naturalSize ? undefined : size,
+        height: naturalSize || typeof size !== 'number' ? 'auto' : size,
       }}
     >
       {shouldLoad && (

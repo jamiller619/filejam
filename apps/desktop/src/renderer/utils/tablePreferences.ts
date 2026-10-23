@@ -1,14 +1,24 @@
-import type { SortingState, VisibilityState } from '@tanstack/react-table'
+import type {
+  ColumnSizingState,
+  SortingState,
+  VisibilityState,
+} from '@tanstack/react-table'
 import { type FileColumn, fileColumnLabels } from './fileColumns.js'
 
-export type FileViewMode = 'list' | 'grid'
+export type FileViewMode = 'list' | 'grid' | 'masonry'
+
+export const defaultCardSize = 150
+export const minimumCardSize = 96
+export const maximumCardSize = 260
 
 type TablePreferences = {
   flatten: boolean
   viewMode: FileViewMode
+  cardSize: number
   groupBy: FileColumn | null
   sorting: SortingState
   columnVisibility: VisibilityState
+  columnSizing: ColumnSizingState
 }
 
 const storagePrefix = 'files:table:v1:'
@@ -17,9 +27,11 @@ export function readTablePreferences(page: string): TablePreferences {
   const defaults: TablePreferences = {
     flatten: false,
     viewMode: 'list',
+    cardSize: defaultCardSize,
     groupBy: null,
     sorting: [],
     columnVisibility: {},
+    columnSizing: {},
   }
 
   try {
@@ -37,7 +49,17 @@ export function readTablePreferences(page: string): TablePreferences {
 
     return {
       flatten: value.flatten === true,
-      viewMode: value.viewMode === 'grid' ? 'grid' : 'list',
+      viewMode:
+        value.viewMode === 'grid' || value.viewMode === 'masonry'
+          ? value.viewMode
+          : 'list',
+      cardSize:
+        typeof value.cardSize === 'number' &&
+        Number.isFinite(value.cardSize) &&
+        value.cardSize >= minimumCardSize &&
+        value.cardSize <= maximumCardSize
+          ? value.cardSize
+          : defaults.cardSize,
       groupBy:
         typeof value.groupBy === 'string' &&
         Object.hasOwn(fileColumnLabels, value.groupBy)
@@ -66,6 +88,20 @@ export function readTablePreferences(page: string): TablePreferences {
         ),
         name: true,
       },
+      columnSizing: Object.fromEntries(
+        Object.entries(value.columnSizing ?? {}).filter(
+          (entry): entry is [string, number] => {
+            const [id, size] = entry
+
+            return (
+              Object.hasOwn(fileColumnLabels, id) &&
+              typeof size === 'number' &&
+              Number.isFinite(size) &&
+              size > 0
+            )
+          },
+        ),
+      ),
     }
   } catch {
     return defaults

@@ -2,6 +2,7 @@ import type { ServerApi } from '@files/server'
 import { BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'
+import { createMoveFoldersHandler } from './moveFolders.js'
 
 /** Only the owning window's main frame may call the server API. */
 export function registerApiIpc(
@@ -10,6 +11,7 @@ export function registerApiIpc(
   scanRoot?: (root: string) => Promise<unknown>,
 ) {
   const addFavoriteFolders = createFavoriteFoldersHandler(api, scanRoot)
+  const moveFolders = createMoveFoldersHandler(api, scanRoot)
 
   ipcMain.handle(
     'libraries:add',
@@ -83,6 +85,23 @@ export function registerApiIpc(
   )
 
   ipcMain.handle(
+    'entries:moveFolders',
+    withIpcMiddleware(
+      (_event, paths: unknown, destination: unknown) =>
+        moveFolders(paths, destination),
+      authorizeRenderer(renderer),
+    ),
+  )
+
+  ipcMain.handle(
+    'moveHistory:list',
+    withIpcMiddleware(
+      () => api.moveHistory.list(),
+      authorizeRenderer(renderer),
+    ),
+  )
+
+  ipcMain.handle(
     'collections:list',
     withIpcMiddleware(
       (_event) => api.collections.list(),
@@ -146,5 +165,7 @@ export function registerApiIpc(
 
     ipcMain.removeHandler('libraries:list')
     ipcMain.removeHandler('entries:listChildren')
+    ipcMain.removeHandler('entries:moveFolders')
+    ipcMain.removeHandler('moveHistory:list')
   }
 }

@@ -1,4 +1,5 @@
 import { Switch as BaseSwitch } from '@base-ui/react/switch'
+import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { motion } from 'motion/react'
 import type { ComponentProps } from 'react'
@@ -57,8 +58,9 @@ export default function Switch({ className, ...props }: SwitchProps) {
   return (
     <BaseSwitch.Root
       {...props}
+      nativeButton
       render={<motion.button whileTap={pressed} />}
-      className={[styles.root, className].filter(Boolean).join(' ')}
+      className={clsx(styles.root, className)}
     >
       <BaseSwitch.Thumb className={styles.thumb} />
     </BaseSwitch.Root>

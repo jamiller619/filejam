@@ -8,7 +8,7 @@ const styles = css`
     height: 100%;
     overflow: hidden;
     border-radius: inherit;
-    --scrollbar-size: 10px;
+    --scrollbar-size: 6px;
   }
 
   .viewport {
@@ -24,11 +24,11 @@ const styles = css`
   .scrollBar {
     display: flex;
     width: var(--scrollbar-size);
-    padding: 2px;
+    padding-block: 2px;
     touch-action: none;
     user-select: none;
     border-radius: var(--suzy-radius-full);
-    background-color: var(--suzy-gray-1);
+    background-color: var(--suzy-gray-2);
     opacity: 0;
     transition: opacity var(--suzy-duration-normal)
       var(--suzy-ease-standard);

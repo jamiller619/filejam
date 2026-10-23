@@ -1,6 +1,6 @@
-import { Button, Icon, ScrollArea } from '@files/ui'
+import { Button, ButtonGroup, Icon } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { DateFormat, FileColumn } from '../utils/fileColumns.js'
 import {
   fileColumnLabels,
@@ -8,6 +8,7 @@ import {
   formatFileValueTitle,
   formatFullPath,
 } from '../utils/fileColumns.js'
+import DetailsPane from './DetailsPane.js'
 import FileCollections from './FileCollections.js'
 import FilePreview from './FilePreview.js'
 
@@ -27,49 +28,53 @@ const metadata: readonly FileColumn[] = [
 ]
 
 const styles = css`
-  .panel {
-    box-sizing: border-box;
-    width: var(--details-width);
+  .sectionNav {
     flex-shrink: 0;
-    pointer-events: auto;
-    height: 100%;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    padding: var(--suzy-space-2) var(--suzy-space-3) var(--suzy-space-3);
     background: var(--suzy-gray-4);
-    color: var(--suzy-gray-12);
-    /* border-radius: var(--suzy-radius-3); */
+  }
 
-    &[data-closing='true'] {
-      pointer-events: none;
-    }
+  .sectionButtons {
+    width: 100%;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    border-radius: calc(var(--suzy-radius-4) + 3px);
+    background: lch(from var(--suzy-gray-3) l c h / 70%);
 
-    .header {
-      flex-shrink: 0;
-      padding: var(--suzy-space-3);
-      display: flex;
-      justify-content: space-between;
-      align-items: start;
-      gap: var(--suzy-space-3);
-    }
-
-    .content {
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .contentBody {
+    > button {
       box-sizing: border-box;
-      min-width: 0;
-      padding: 0 var(--suzy-space-3) var(--suzy-space-3);
-    }
+      width: auto;
+      height: 58px;
+      min-height: 58px;
+      padding: var(--suzy-space-2);
+      margin: 3px;
+      border-radius: var(--suzy-radius-4);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      color: var(--suzy-text-muted);
+      font-size: var(--suzy-font-size-1);
+      line-height: 1;
 
-    .title {
-      margin: 0;
-      overflow-wrap: anywhere;
+      &:hover {
+        color: var(--suzy-text);
+        background: var(--suzy-gray-5);
+      }
+
+      &:focus-visible {
+        color: var(--suzy-text);
+        outline: 2px solid var(--suzy-action);
+        outline-offset: -2px;
+      }
+
+      &[aria-pressed='true'] {
+        color: var(--suzy-action);
+      }
     }
+  }
+
+  .details {
     .preview {
       display: flex;
       justify-content: center;
@@ -134,58 +139,14 @@ export default function FileDetails({
     id: number
     message: string
   } | null>(null)
+  const [sectionSelection, setSectionSelection] = useState<{
+    entryId: number
+    name: 'preview' | 'info' | 'collections'
+  }>({ entryId: entry.id, name: 'preview' })
 
-  const panel = useRef<HTMLElement>(null)
-  const closedCallback = useRef(onClosed)
-
-  useLayoutEffect(() => {
-    closedCallback.current = onClosed
-  }, [onClosed])
-
-  useLayoutEffect(() => {
-    const element = panel.current
-    const host = element?.parentElement
-
-    if (!element || !host) {
-      return
-    }
-
-    // One moving boundary controls both the content width and the pane position.
-    // The pane stays full-size and left-aligned inside the clipped host.
-    const from = host.getBoundingClientRect().width
-    const to = closing ? 0 : element.getBoundingClientRect().width
-
-    host.style.width = `${to}px`
-
-    if (!closing && Math.abs(from - to) < 1) {
-      return
-    }
-
-    const animation = host.animate(
-      [{ width: `${from}px` }, { width: `${to}px` }],
-      {
-        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? 0
-          : 180,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
-      },
-    )
-
-    animation.onfinish = () => {
-      if (closing) {
-        closedCallback.current()
-      }
-    }
-
-    return () => {
-      host.style.width = `${host.getBoundingClientRect().width}px`
-
-      animation.onfinish = null
-      animation.cancel()
-    }
-  }, [closing])
-
-  const closeButton = useRef<HTMLButtonElement>(null)
+  const previewSection = useRef<HTMLDivElement>(null)
+  const infoSection = useRef<HTMLDListElement>(null)
+  const collectionsSection = useRef<HTMLDivElement>(null)
   const isFolder = entry.kind === 'directory'
   const isVideo = entry.mimeType?.startsWith('video/') ?? false
   const videoSource = `files-preview://video?${new URLSearchParams({
@@ -194,116 +155,117 @@ export default function FileDetails({
     v: String(entry.modifiedAt),
   })}`
 
-  useEffect(() => {
-    const opener = document.activeElement
+  function scrollToSection(
+    name: 'preview' | 'info' | 'collections',
+    section: HTMLElement | null,
+  ) {
+    setSectionSelection({ entryId: entry.id, name })
 
-    closeButton.current?.focus()
+    section?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'start',
+    })
+  }
 
-    return () => {
-      if (opener instanceof HTMLElement && opener.isConnected) {
-        opener.focus()
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (closing) {
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [closing, onClose])
+  const activeSection =
+    sectionSelection.entryId === entry.id ? sectionSelection.name : 'preview'
 
   return (
-    <aside
-      ref={panel}
-      className={styles.panel}
-      data-closing={closing}
-      inert={closing}
-      aria-label={`${isFolder ? 'Folder' : 'File'} details: ${entry.name}`}
-    >
-      <header className={styles.header}>
-        <h4 className={styles.title}>{entry.name}</h4>
-        <Button
-          ref={closeButton}
-          // className={styles.close}
-          onClick={onClose}
-          aria-label="Hide file details"
-        >
-          <Icon name="hide-details" size={16} />
-        </Button>
-      </header>
-      <div className={styles.content}>
-        <ScrollArea>
-          <div className={styles.contentBody}>
-            <div className={styles.preview}>
-              {isVideo ? (
-                // biome-ignore lint/a11y/useMediaCaption: Local videos do not include a separate captions source.
-                <video key={videoSource} controls preload="metadata">
-                  <source
-                    src={videoSource}
-                    type={entry.mimeType ?? undefined}
-                  />
-                  Your browser does not support playing this video.
-                </video>
-              ) : (
-                <FilePreview
-                  entry={entry}
-                  size="100%"
-                  onOpen={() => {
-                    setImageError(null)
-
-                    void window.files
-                      .openImage(entry.libraryId, entry.relativePath)
-                      .catch(() => {
-                        setImageError({
-                          id: entry.id,
-                          message:
-                            'This image could not be opened. It may have been moved, deleted, or be unsupported.',
-                        })
-                      })
-                  }}
-                />
-              )}
-            </div>
-            {imageError?.id === entry.id && (
-              <p role="alert">{imageError.message}</p>
-            )}
-            <dl className={styles.metadata}>
-              {metadata.map((column) => (
-                <div key={column}>
-                  <dt>{fileColumnLabels[column]}</dt>
-                  <dd title={formatFileValueTitle(entry, column, dateFormat)}>
-                    {column === 'relativePath'
-                      ? rootPath === undefined
-                        ? '—'
-                        : formatFullPath(rootPath, entry.relativePath)
-                      : formatFileValue(entry, column, dateFormat)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+    <DetailsPane
+      bodyClassName={styles.details}
+      ariaLabel={`${isFolder ? 'Folder' : 'File'} details: ${entry.name}`}
+      title={entry.name}
+      closing={closing}
+      onClose={onClose}
+      onClosed={onClosed}
+      footer={
+        <nav className={styles.sectionNav} aria-label="Detail sections">
+          <ButtonGroup className={styles.sectionButtons} role="group">
+            <Button
+              variant="ghost"
+              aria-pressed={activeSection === 'preview'}
+              onClick={() => scrollToSection('preview', previewSection.current)}
+            >
+              <Icon name="image" size={21} />
+              <span>Preview</span>
+            </Button>
+            <Button
+              variant="ghost"
+              aria-pressed={activeSection === 'info'}
+              onClick={() => scrollToSection('info', infoSection.current)}
+            >
+              <Icon name="list" size={21} />
+              <span>Info</span>
+            </Button>
             {!isFolder && (
-              <FileCollections
-                key={entry.id}
-                entryId={entry.id}
-                onChange={onCollectionsChange}
-              />
+              <Button
+                variant="ghost"
+                aria-pressed={activeSection === 'collections'}
+                onClick={() =>
+                  scrollToSection('collections', collectionsSection.current)
+                }
+              >
+                <Icon name="heart" size={21} />
+                <span>Collections</span>
+              </Button>
             )}
-          </div>
-        </ScrollArea>
+          </ButtonGroup>
+        </nav>
+      }
+    >
+      <div ref={previewSection} className={styles.preview}>
+        {isVideo ? (
+          // biome-ignore lint/a11y/useMediaCaption: Local videos do not include a separate captions source.
+          <video key={videoSource} controls preload="metadata">
+            <source src={videoSource} type={entry.mimeType ?? undefined} />
+            Your browser does not support playing this video.
+          </video>
+        ) : (
+          <FilePreview
+            entry={entry}
+            size="100%"
+            onOpen={() => {
+              setImageError(null)
+
+              void window.files
+                .openImage(entry.libraryId, entry.relativePath)
+                .catch(() => {
+                  setImageError({
+                    id: entry.id,
+                    message:
+                      'This image could not be opened. It may have been moved, deleted, or be unsupported.',
+                  })
+                })
+            }}
+          />
+        )}
       </div>
-    </aside>
+      {imageError?.id === entry.id && <p role="alert">{imageError.message}</p>}
+      <dl ref={infoSection} className={styles.metadata}>
+        {metadata.map((column) => (
+          <div key={column}>
+            <dt>{fileColumnLabels[column]}</dt>
+            <dd title={formatFileValueTitle(entry, column, dateFormat)}>
+              {column === 'relativePath'
+                ? rootPath === undefined
+                  ? '—'
+                  : formatFullPath(rootPath, entry.relativePath)
+                : formatFileValue(entry, column, dateFormat)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {!isFolder && (
+        <div ref={collectionsSection}>
+          <FileCollections
+            key={entry.id}
+            entryId={entry.id}
+            onChange={onCollectionsChange}
+          />
+        </div>
+      )}
+    </DetailsPane>
   )
 }

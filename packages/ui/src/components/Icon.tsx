@@ -1,7 +1,20 @@
 import type { ComponentPropsWithRef } from 'react'
 
-// Geometry copied from the original SF Symbol SVGs in ../assets/icons/.
+// Geometry copied or adapted from the SF Symbol SVGs in ../assets/icons/.
 const icons = {
+  masonry: (
+    <g
+      fill="none"
+      stroke="currentColor"
+      strokeLinejoin="round"
+      strokeWidth="1.65"
+    >
+      <rect x="2.8" y="2.8" width="7.4" height="6.2" rx="1.25" />
+      <rect x="2.8" y="12.4" width="7.4" height="8.8" rx="1.25" />
+      <rect x="13.8" y="2.8" width="7.4" height="9.6" rx="1.25" />
+      <rect x="13.8" y="15.8" width="7.4" height="5.4" rx="1.25" />
+    </g>
+  ),
   grid: (
     <path
       transform="matrix(0.9270324099221438, 0, 0, 0.9270324099221438, -0.7702335687126562, 19.827267789244974)"

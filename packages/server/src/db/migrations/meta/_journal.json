@@ -50,6 +50,20 @@
       "when": 1792514572405,
       "tag": "0006_petite_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792649089923,
+      "tag": "0007_young_electro",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792649262106,
+      "tag": "0008_grey_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }

@@ -25,6 +25,13 @@ const styles = css`
 
   .input {
     padding-inline-start: calc(var(--suzy-control-padding-x) + 20px);
+    background: var(--suzy-gray-4);
+    transition: background-color var(--suzy-duration-normal) var(--suzy-ease-standard);
+
+    &:hover,
+    &:focus {
+      background: var(--suzy-gray-5);
+    }
   }
 
   .small {

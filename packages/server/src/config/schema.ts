@@ -8,82 +8,92 @@
 /**
  * A [BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag#List_of_major_primary_language_subtags) used throughout the application.
  */
-export type ApplicationLocale = string
+export type ApplicationLocale = string;
 /**
  * The level of detail recorded by the logger.
  */
-export type LoggingLevel = 'debug' | 'info' | 'warn' | 'error'
+export type LoggingLevel = "debug" | "info" | "warn" | "error";
 /**
  * The number of days to retain log files.
  */
-export type LoggingRetentionDays = number
+export type LoggingRetentionDays = number;
 /**
  * The file system path where application data is stored. This makes Xon highly portable across systems.
  */
-export type ApplicationDataPath = string
+export type ApplicationDataPath = string;
 /**
  * The file system path where application databases are stored.
  */
-export type ApplicationDatabasePath = string
+export type ApplicationDatabasePath = string;
 /**
  * The file system path where application cache is stored.
  */
-export type ApplicationCachePath = string
+export type ApplicationCachePath = string;
 /**
  * The amount of local disk space to use for storing cache files.
  */
-export type ApplicationCacheQuota = number
+export type ApplicationCacheQuota = number;
 /**
  * The file system path where application logs are stored.
  */
-export type ApplicationLogsPath = string
+export type ApplicationLogsPath = string;
 /**
  * The width of the navigation pane in pixels.
  */
-export type NavigationWidth = number
+export type NavigationWidth = number;
+/**
+ * The width of the details pane in pixels.
+ */
+export type DetailsWidth = number;
 /**
  * The absolute paths of the user's favorite folders.
  */
-export type FavoriteFolders = string[]
+export type FavoriteFolders = string[];
 /**
  * Whether dates are displayed relative to the current time or as absolute dates and times.
  */
-export type DateFormat = 'relative' | 'absolute'
+export type DateFormat = "relative" | "absolute";
+/**
+ * Color coding for files based on some common data type.
+ */
+export type FileColorCoding = boolean;
 
 export interface FilesAppConfigSchema {
-  'app.locale': ApplicationLocale
-  'log.level': LoggingLevel
-  'log.retentionDays': LoggingRetentionDays
-  'appdata.path': ApplicationDataPath
-  'appdata.dbPath': ApplicationDatabasePath
-  'appdata.cachePath': ApplicationCachePath
-  'appdata.cacheQuota': ApplicationCacheQuota
-  'appdata.logsPath': ApplicationLogsPath
-  'window.navbarWidth': NavigationWidth
-  'window.main': MainWindowState
-  'window.imageViewer': ImageViewerWindowState
-  'user.favoriteFolders': FavoriteFolders
-  'user.dateformat': DateFormat
+  "app.locale": ApplicationLocale;
+  "log.level": LoggingLevel;
+  "log.retentionDays": LoggingRetentionDays;
+  "appdata.path": ApplicationDataPath;
+  "appdata.dbPath": ApplicationDatabasePath;
+  "appdata.cachePath": ApplicationCachePath;
+  "appdata.cacheQuota": ApplicationCacheQuota;
+  "appdata.logsPath": ApplicationLogsPath;
+  "window.navbarWidth": NavigationWidth;
+  "window.detailsWidth": DetailsWidth;
+  "window.main": MainWindowState;
+  "window.imageViewer": ImageViewerWindowState;
+  "user.favoriteFolders": FavoriteFolders;
+  "user.dateformat": DateFormat;
+  "user.files.colorCoding"?: FileColorCoding;
 }
 /**
  * The last position, size, and display mode of the main window.
  */
 export interface MainWindowState {
-  x?: number
-  y?: number
-  width?: number
-  height?: number
-  maximized?: boolean
-  fullscreen?: boolean
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  maximized?: boolean;
+  fullscreen?: boolean;
 }
 /**
  * The last position, size, and display mode of an image viewer window.
  */
 export interface ImageViewerWindowState {
-  x?: number
-  y?: number
-  width?: number
-  height?: number
-  maximized?: boolean
-  fullscreen?: boolean
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  maximized?: boolean;
+  fullscreen?: boolean;
 }

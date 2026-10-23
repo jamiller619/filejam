@@ -1,8 +1,13 @@
+import type { Config } from '@files/server'
 import { schema as configSchema } from '@files/server/config-schema'
-import { Button, Icon, type IconName, Select } from '@files/ui'
+import { Button, Icon, type IconName, Select, Switch } from '@files/ui'
 import { css } from 'inline-css-modules'
-import { type HTMLAttributes, type ReactNode, useState } from 'react'
-import AddLibrary from '../components/AddLibrary.js'
+import { type HTMLAttributes, type ReactNode, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import AddLibrary from '../components/buttons/AddLibrary.js'
+import DetailsPane from '../components/DetailsPane.js'
+import { useDetailsPane } from '../components/DetailsPaneContext.js'
+import { useCollections } from '../hooks/useCollections.js'
 import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import Page from './Page.js'
@@ -30,7 +35,7 @@ const styles = css`
     align-items: center;
     justify-content: space-between;
     gap: var(--suzy-space-4);
-    margin-block-end: var(--suzy-space-4);
+    margin-block-end: var(--suzy-space-2);
 
     h3 {
       margin: 0;
@@ -53,7 +58,7 @@ const styles = css`
 
     list-style: none;
   }
-  .settingRow {
+  .row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -62,23 +67,39 @@ const styles = css`
     padding: var(--suzy-space-3);
     background: var(--suzy-gray-3);
     margin-block-end: 2px;
+
+    &[data-selected='true'] {
+      background: var(--suzy-accent-9);
+      color: var(--suzy-accent-1);
+    }
   }
-  .rowContent {
+  .rowSelect {
     display: flex;
     align-items: center;
     gap: var(--suzy-space-3);
+    width: 100%;
     min-width: 0;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+
+    &:focus-visible {
+      border-radius: var(--suzy-radius-2);
+      outline: 2px solid var(--suzy-accent-8);
+      outline-offset: 2px;
+    }
   }
-  .rowAction {
+  .rowActions {
     display: flex;
     align-items: center;
     justify-self: end;
   }
   .dateFormatSelect {
     width: 160px;
-  }
-  .icon {
-    color: var(--suzy-text-muted);
   }
   .details {
     min-width: 0;
@@ -94,7 +115,7 @@ const styles = css`
     display: block;
     margin-block-start: var(--suzy-space-1);
     overflow: hidden;
-    color: var(--suzy-text-muted);
+    opacity: 0.5;
     font-size: var(--suzy-font-size-1);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -135,28 +156,101 @@ const styles = css`
   .deleteIcon {
     color: var(--suzy-danger-10);
   }
+  .detailsBody {
+    padding: var(--suzy-space-4);
+  }
+  .detailsEmpty {
+    margin: 0;
+    color: var(--suzy-text-muted);
+  }
+  .detailsType {
+    margin: 0 0 var(--suzy-space-1);
+    color: var(--suzy-text-muted);
+    font-size: var(--suzy-font-size-1);
+  }
+  .detailsTitle {
+    margin: 0 0 var(--suzy-space-4);
+    overflow-wrap: anywhere;
+    font-size: var(--suzy-font-size-4);
+    font-weight: 600;
+  }
+  .metadata {
+    display: grid;
+    gap: var(--suzy-space-3);
+    margin: 0;
+    padding: var(--suzy-space-3);
+    border-radius: var(--suzy-radius-3);
+    background: var(--suzy-gray-5);
+
+    > div {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--suzy-space-3);
+      align-items: baseline;
+    }
+
+    dt {
+      color: var(--suzy-text-muted);
+      font-size: var(--suzy-font-size-1);
+      font-weight: 600;
+    }
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+      text-align: end;
+    }
+  }
 `
 
+type SettingsSelection =
+  | { type: 'date-format' }
+  | { type: 'color-coding' }
+  | { type: 'library'; id: number }
+  | { type: 'collection'; id: string }
+
+const settingsConfigKeys = [
+  'user.dateformat',
+  'user.files.colorCoding',
+] as const
+
+type SettingsConfigKey = (typeof settingsConfigKeys)[number]
+
 export default function Settings() {
-  const { values, updateConfig, loading, loadFailed } = useConfig([
-    'user.dateformat',
-  ])
+  const detailsPane = useDetailsPane()
+  const { values, updateConfig, loading, loadFailed } =
+    useConfig(settingsConfigKeys)
   const [saving, setSaving] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
+  const [selection, setSelection] = useState<SettingsSelection | null>(null)
   const {
     libraries,
     loading: librariesLoading,
     loadFailed: librariesLoadFailed,
   } = useLibraries()
+  const {
+    collections,
+    loading: collectionsLoading,
+    loadFailed: collectionsLoadFailed,
+  } = useCollections()
   const dateFormat = values?.['user.dateformat'] ?? 'relative'
   const userLibraries = libraries.filter((library) => !library.isTrash)
 
-  async function changeDateFormat(value: 'relative' | 'absolute') {
+  useEffect(() => {
+    detailsPane.setVisible(true)
+
+    return () => detailsPane.setVisible(false)
+  }, [detailsPane])
+
+  async function saveConfig<Key extends SettingsConfigKey>(
+    key: Key,
+    value: Config[Key],
+  ) {
     setSaving(true)
     setSaveFailed(false)
 
     try {
-      await updateConfig('user.dateformat', value)
+      await updateConfig(key, value)
     } catch {
       setSaveFailed(true)
     } finally {
@@ -180,15 +274,24 @@ export default function Settings() {
               title={`${category.title} settings`}
               headingId={headingId}
             >
-              <SettingRow title="Date format" subtitle={dateFormat}>
+              <SettingRow
+                title="Date format"
+                subtitle={
+                  configSchema.properties['user.dateformat'].description
+                }
+                selected={selection?.type === 'date-format'}
+                onSelect={() => setSelection({ type: 'date-format' })}
+              >
                 <Select
                   className={styles.dateFormatSelect}
                   id="date-format"
                   aria-describedby="date-format-description"
                   value={dateFormat}
                   disabled={loading || loadFailed || saving}
+                  onFocus={() => setSelection({ type: 'date-format' })}
                   onChange={(event) => {
-                    void changeDateFormat(
+                    void saveConfig(
+                      'user.dateformat',
                       event.currentTarget.value as 'relative' | 'absolute',
                     )
                   }}
@@ -196,6 +299,27 @@ export default function Settings() {
                   <option value="relative">Relative</option>
                   <option value="absolute">Absolute</option>
                 </Select>
+              </SettingRow>
+              <SettingRow
+                title={configSchema.properties['user.files.colorCoding'].title}
+                subtitle={
+                  configSchema.properties['user.files.colorCoding'].description
+                }
+                selected={selection?.type === 'color-coding'}
+                onSelect={() => setSelection({ type: 'color-coding' })}
+              >
+                <Switch
+                  id="color-coding"
+                  aria-describedby="color-coding-description"
+                  checked={
+                    values?.['user.files.colorCoding'] ??
+                    configSchema.properties['user.files.colorCoding'].default
+                  }
+                  disabled={loading || loadFailed || saving}
+                  onCheckedChange={(checked) => {
+                    void saveConfig('user.files.colorCoding', checked)
+                  }}
+                />
               </SettingRow>
             </Section>
           )
@@ -225,11 +349,87 @@ export default function Settings() {
                 icon="folder"
                 title={library.name}
                 subtitle={library.rootPath}
+                selected={
+                  selection?.type === 'library' && selection.id === library.id
+                }
+                onSelect={() =>
+                  setSelection({ type: 'library', id: library.id })
+                }
               >
-                <Button variant="ghost" className={styles.editIcon}>
+                <Button
+                  variant="ghost"
+                  className={styles.editIcon}
+                  aria-label={`Edit ${library.name}`}
+                  onClick={() =>
+                    setSelection({ type: 'library', id: library.id })
+                  }
+                >
                   <Icon name="edit" size={20} />
                 </Button>
-                <Button variant="ghost" className={styles.deleteIcon}>
+                <Button
+                  variant="ghost"
+                  className={styles.deleteIcon}
+                  aria-label={`Delete ${library.name}`}
+                  onClick={() =>
+                    setSelection({ type: 'library', id: library.id })
+                  }
+                >
+                  <Icon name="trash" size={20} />
+                </Button>
+              </SettingRow>
+            ))
+          )}
+        </Section>
+        <Section
+          title="Collections"
+          headingId="collections-heading"
+          headerActions={<AddLibrary />}
+        >
+          {collectionsLoadFailed ? (
+            <p className={`${styles.emptyState} ${styles.error}`} role="alert">
+              Unable to load collections.
+            </p>
+          ) : collectionsLoading ? (
+            <p className={styles.emptyState} role="status">
+              Loading collections...
+            </p>
+          ) : collections.length === 0 ? (
+            <div className={styles.emptyState}>
+              <Icon className={styles.emptyIcon} name="folder" size={24} />
+              No collections added yet.
+            </div>
+          ) : (
+            collections.map((collection) => (
+              <SettingRow
+                key={collection.id}
+                icon="folder"
+                title={collection.name}
+                selected={
+                  selection?.type === 'collection' &&
+                  selection.id === collection.id
+                }
+                onSelect={() =>
+                  setSelection({ type: 'collection', id: collection.id })
+                }
+              >
+                <Button
+                  variant="ghost"
+                  className={styles.editIcon}
+                  aria-label={`Edit ${collection.name}`}
+                  onClick={() =>
+                    setSelection({ type: 'collection', id: collection.id })
+                  }
+                >
+                  <Icon name="edit" size={20} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className={styles.deleteIcon}
+                  aria-label={`Delete ${collection.name}`}
+                  onClick={() =>
+                    setSelection({ type: 'collection', id: collection.id })
+                  }
+                >
                   <Icon name="trash" size={20} />
                 </Button>
               </SettingRow>
@@ -243,15 +443,25 @@ export default function Settings() {
         )}
         {saveFailed && (
           <p className={`${styles.status} ${styles.error}`} role="alert">
-            Unable to save the date format.
+            Unable to save the setting.
           </p>
         )}
         {saving && (
           <p className={styles.status} role="status">
-            Saving…
+            Saving...
           </p>
         )}
       </div>
+      {detailsPane.host &&
+        createPortal(
+          <SettingsDetails
+            selection={selection}
+            dateFormat={dateFormat}
+            libraries={userLibraries}
+            collections={collections}
+          />,
+          detailsPane.host,
+        )}
     </Page>
   )
 }
@@ -261,22 +471,132 @@ type SettingRowProps = {
   icon?: IconName
   title?: string
   subtitle?: string
+  selected?: boolean
+  onSelect?: () => void
 }
 
-function SettingRow({ children, icon, title, subtitle }: SettingRowProps) {
+function SettingRow({
+  children,
+  icon,
+  title,
+  subtitle,
+  selected = false,
+  onSelect,
+}: SettingRowProps) {
   return (
-    <div className={styles.settingRow}>
-      <div className={styles.rowContent}>
+    <div className={styles.row} data-selected={selected}>
+      <button
+        type="button"
+        className={styles.rowSelect}
+        aria-pressed={selected}
+        onClick={onSelect}
+      >
         {icon && <Icon className={styles.icon} name={icon} size={20} />}
         <div className={styles.details}>
           <span className={styles.title}>{title}</span>
-          <span className={styles.subtitle} title={subtitle}>
-            {subtitle}
-          </span>
+          {subtitle && (
+            <span className={styles.subtitle} title={subtitle}>
+              {subtitle}
+            </span>
+          )}
         </div>
-      </div>
-      {children && <div className={styles.rowAction}>{children}</div>}
+      </button>
+      {children && <div className={styles.rowActions}>{children}</div>}
     </div>
+  )
+}
+
+type SettingsDetailsProps = {
+  selection: SettingsSelection | null
+  dateFormat: string
+  libraries: ReturnType<typeof useLibraries>['libraries']
+  collections: ReturnType<typeof useCollections>['collections']
+}
+
+function SettingsDetails({
+  selection,
+  dateFormat,
+  libraries,
+  collections,
+}: SettingsDetailsProps) {
+  const library =
+    selection?.type === 'library'
+      ? libraries.find((item) => item.id === selection.id)
+      : undefined
+  const collection =
+    selection?.type === 'collection'
+      ? collections.find((item) => item.id === selection.id)
+      : undefined
+
+  return (
+    <DetailsPane
+      ariaLabel="Settings details"
+      title="Details"
+      bodyClassName={styles.detailsBody}
+    >
+      {!selection && (
+        <p className={styles.detailsEmpty}>
+          Select a setting, library, or collection to view its details.
+        </p>
+      )}
+      {selection?.type === 'date-format' && (
+        <SettingsDetailsContent
+          type="Setting"
+          title="Date format"
+          metadata={[['Current value', dateFormat]]}
+        />
+      )}
+      {library && (
+        <SettingsDetailsContent
+          type="Library"
+          title={library.name}
+          metadata={[
+            ['Folder', library.rootPath],
+            ['Library ID', String(library.id)],
+          ]}
+        />
+      )}
+      {collection && (
+        <SettingsDetailsContent
+          type="Collection"
+          title={collection.name}
+          metadata={[['Collection ID', collection.id]]}
+        />
+      )}
+      {selection &&
+        !library &&
+        !collection &&
+        selection.type !== 'date-format' && (
+          <p className={styles.detailsEmpty}>
+            This item is no longer available.
+          </p>
+        )}
+    </DetailsPane>
+  )
+}
+
+function SettingsDetailsContent({
+  type,
+  title,
+  metadata,
+}: {
+  type: string
+  title: string
+  metadata: [string, string][]
+}) {
+  return (
+    <>
+      <p className={styles.detailsType}>{type}</p>
+      <h4 className={styles.detailsTitle}>{title}</h4>
+      <dl className={styles.metadata}>
+        {metadata.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
   )
 }
 

@@ -9,15 +9,19 @@ import {
 } from '@files/ui'
 import type { Table } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useConfig } from '../hooks/useConfig.js'
-import { type FileColumn, fileColumnLabels } from '../utils/fileColumns.js'
+import {
+  type FileColumn,
+  fileColumnLabels,
+  formatFullPath,
+} from '../utils/fileColumns.js'
 import type { FileViewMode } from '../utils/tablePreferences.js'
 
 const styles = css`
   .toolbar {
     position: sticky;
-    top: var(--files-sticky-offset, 36px);
+    top: var(--files-sticky-offset, 0px);
     z-index: 2;
     display: flex;
     align-items: center;
@@ -65,8 +69,83 @@ const styles = css`
   .favoriteButton[aria-pressed='true'] {
     color: var(--suzy-accent-9);
   }
+  .favoriteIcon {
+    position: relative;
+    display: inline-flex;
+    transform: scale(1);
+    transition: transform 360ms cubic-bezier(0.2, 1.65, 0.4, 1);
+  }
+  .favoriteButton:active .favoriteIcon {
+    transform: scale(0.72);
+    transition-duration: 80ms;
+    transition-timing-function: ease-in;
+  }
+  .confetti {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--suzy-accent-9);
+    pointer-events: none;
+    animation: favorite-confetti 480ms cubic-bezier(0.2, 0.75, 0.35, 1) both;
+  }
+  .confetti:nth-child(1) {
+    --confetti-x: -13px;
+    --confetti-y: -10px;
+  }
+  .confetti:nth-child(2) {
+    --confetti-x: -3px;
+    --confetti-y: -16px;
+  }
+  .confetti:nth-child(3) {
+    --confetti-x: 9px;
+    --confetti-y: -13px;
+  }
+  .confetti:nth-child(4) {
+    --confetti-x: 15px;
+    --confetti-y: -2px;
+  }
+  .confetti:nth-child(5) {
+    --confetti-x: 11px;
+    --confetti-y: 10px;
+  }
+  .confetti:nth-child(6) {
+    --confetti-x: -1px;
+    --confetti-y: 14px;
+  }
+  .confetti:nth-child(7) {
+    --confetti-x: -12px;
+    --confetti-y: 8px;
+  }
   .favoriteLabel {
     color: #fff;
+  }
+  @keyframes favorite-confetti {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.4);
+    }
+    18% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(
+          calc(-50% + var(--confetti-x)),
+          calc(-50% + var(--confetti-y))
+        )
+        scale(0.8);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .favoriteIcon {
+      transition: none;
+    }
+    .confetti {
+      display: none;
+    }
   }
 `
 
@@ -120,8 +199,27 @@ type FavoriteSettingProps = {
   onChange: (isFavorite: boolean) => void
 }
 
+const confettiPieces = [
+  'upper-left',
+  'top',
+  'upper-right',
+  'right',
+  'lower-right',
+  'bottom',
+  'lower-left',
+] as const
+
 function FavoriteSetting({ busy, isFavorite, onChange }: FavoriteSettingProps) {
+  const [burstId, setBurstId] = useState(0)
   const actionLabel = isFavorite ? 'Remove from favorites' : 'Add to favorites'
+
+  function handleClick() {
+    if (!isFavorite) {
+      setBurstId((currentId) => currentId + 1)
+    }
+
+    onChange(!isFavorite)
+  }
 
   return (
     <div className={styles.menuSetting}>
@@ -132,9 +230,18 @@ function FavoriteSetting({ busy, isFavorite, onChange }: FavoriteSettingProps) {
         title={actionLabel}
         aria-pressed={isFavorite}
         disabled={busy}
-        onClick={() => onChange(!isFavorite)}
+        onClick={handleClick}
       >
-        <Icon name={isFavorite ? 'heart-filled' : 'heart'} size={20} />
+        <span className={styles.favoriteIcon}>
+          <Icon name={isFavorite ? 'heart-filled' : 'heart'} size={20} />
+          {burstId > 0 && (
+            <span key={burstId} aria-hidden="true">
+              {confettiPieces.map((piece) => (
+                <span key={piece} className={styles.confetti} />
+              ))}
+            </span>
+          )}
+        </span>
         <span className={styles.favoriteLabel}>Favorite</span>
       </Button>
     </div>
@@ -146,22 +253,29 @@ type ColumnSettingsProps<TData> = {
 }
 
 function ColumnSettings<TData>({ table }: ColumnSettingsProps<TData>) {
-  return table.getAllLeafColumns().map((column) => (
-    // biome-ignore lint/a11y/noLabelWithoutControl: the switch is the input
-    <label key={column.id} className={styles.menuSetting}>
-      <span>{fileColumnLabels[column.id as FileColumn]}</span>
-      <Switch
-        disabled={column.id === 'name'}
-        checked={column.getIsVisible()}
-        onCheckedChange={column.toggleVisibility}
-      />
-    </label>
-  ))
+  const idPrefix = useId()
+
+  return table.getAllLeafColumns().map((column) => {
+    const switchId = `${idPrefix}-column-visibility-${column.id}`
+
+    return (
+      <label key={column.id} className={styles.menuSetting} htmlFor={switchId}>
+        <span>{fileColumnLabels[column.id as FileColumn]}</span>
+        <Switch
+          id={switchId}
+          disabled={column.id === 'name'}
+          checked={column.getIsVisible()}
+          onCheckedChange={column.toggleVisibility}
+        />
+      </label>
+    )
+  })
 }
 
 const viewLabels = {
   list: 'List',
   grid: 'Grid',
+  masonry: 'Masonry',
 } satisfies Record<FileViewMode, string>
 
 export default function FilesToolbar<TData>({
@@ -186,10 +300,8 @@ export default function FilesToolbar<TData>({
   const rootPath =
     libraryId === undefined ? undefined : libraryRoots.get(libraryId)
 
-  const separator = rootPath?.includes('\\') ? '\\' : '/'
-
   const currentFolderPath = rootPath
-    ? `${rootPath.replace(/[\\/]+$/, '')}${relativePath ? `${separator}${relativePath.replaceAll('/', separator)}` : ''}`
+    ? formatFullPath(rootPath, relativePath ?? '')
     : undefined
 
   const favoritePaths = Array.isArray(configValues?.['user.favoriteFolders'])
@@ -201,6 +313,7 @@ export default function FilesToolbar<TData>({
   const [favoriteError, setFavoriteError] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const flattenSwitchId = useId()
   const toolbarRef = useRef<HTMLDivElement>(null)
   const viewControlsRef = useRef<HTMLDivElement>(null)
   const sortControlsRef = useRef<HTMLDivElement>(null)
@@ -292,7 +405,7 @@ export default function FilesToolbar<TData>({
       <div ref={toolbarRef} className={styles.toolbar} role="toolbar">
         <div ref={viewControlsRef} className={styles.controlGroup}>
           <ButtonGroup role="group" aria-label="File view">
-            {(['list', 'grid'] as const).map((mode) => (
+            {(['list', 'grid', 'masonry'] as const).map((mode) => (
               <Button
                 key={mode}
                 className={styles.viewButton}
@@ -361,15 +474,15 @@ export default function FilesToolbar<TData>({
           className={`${styles.controlGroup} ${styles.trailingControls}`}
         >
           {currentFolderPath && !collectionId && (
-            <div className={styles.menuSetting}>
+            <label className={styles.menuSetting} htmlFor={flattenSwitchId}>
               <span>Flatten view</span>
               <Switch
-                aria-label="Flatten view"
+                id={flattenSwitchId}
                 title="Show files from all subfolders and hide folders"
                 checked={flatten}
                 onCheckedChange={onFlattenChange}
               />
-            </div>
+            </label>
           )}
         </div>
         <div

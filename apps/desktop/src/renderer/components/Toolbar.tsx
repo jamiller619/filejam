@@ -1,5 +1,6 @@
 import { Button, ButtonGroup, Icon, Input } from '@files/ui'
 import { css } from 'inline-css-modules'
+import { useEffect } from 'react'
 import {
   Link,
   useLocation,
@@ -8,7 +9,9 @@ import {
   useSearchParams,
 } from 'react-router'
 import { useLibraries } from '../hooks/useLibraries.js'
+import { formatFullPath } from '../utils/fileColumns.js'
 import { folderUrl } from '../utils/folderUrl.js'
+import { useSearch } from './SearchContext.js'
 
 const style = css`
   .toolbar {
@@ -118,11 +121,45 @@ export default function Toolbar() {
 }
 
 function Search() {
+  return (
+    <Icon name="magnifying-glass" size={18} aria-hidden="true" />
+  )
+}
+
+export function Search2() {
   const libraryMatch = useMatch('/libraries/:libraryId')
   const homeMatch = useMatch('/')
-  const [searchParams, setSearchParams] = useSearchParams()
-  const search = searchParams.get('search') ?? ''
+  const location = useLocation()
+  const { search, setSearch } = useSearch()
   const canSearch = libraryMatch !== null || homeMatch !== null
+
+  useEffect(() => {
+    const currentSearch =
+      new URLSearchParams(location.search).get('search') ?? ''
+
+    if (search === currentSearch) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      const searchParams = new URLSearchParams(location.search)
+
+      if (search) {
+        searchParams.set('search', search)
+      } else {
+        searchParams.delete('search')
+      }
+
+      const query = searchParams.size ? `?${searchParams}` : ''
+      const route = `${location.pathname}${query}${location.hash}`
+      const url = new URL(window.location.href)
+
+      url.hash = route
+      window.history.replaceState(window.history.state, '', url)
+    }, 250)
+
+    return () => window.clearTimeout(timeout)
+  }, [location.hash, location.pathname, location.search, search])
 
   return (
     <div className={style.search}>
@@ -132,17 +169,7 @@ function Search() {
         icon="magnifying-glass"
         type="search"
         value={canSearch ? search : ''}
-        onChange={(event) => {
-          const next = new URLSearchParams(searchParams)
-
-          if (event.currentTarget.value) {
-            next.set('search', event.currentTarget.value)
-          } else {
-            next.delete('search')
-          }
-
-          void setSearchParams(next, { replace: true })
-        }}
+        onChange={(event) => setSearch(event.currentTarget.value)}
       />
     </div>
   )
@@ -188,9 +215,7 @@ function Breadcrumbs() {
   const segments = (searchParams.get('folder') ?? '').split('/').filter(Boolean)
   const isHome = useMatch('/') !== null
   const relativePath = segments.join('/')
-  const fullPath = library
-    ? formatFolderPath(library.rootPath, relativePath)
-    : ''
+  const fullPath = library ? formatFullPath(library.rootPath, relativePath) : ''
 
   return (
     <div className={style.location}>
@@ -208,33 +233,37 @@ function Breadcrumbs() {
         {library && (
           <>
             <span aria-hidden="true">/</span>
-            <Link
-              className={style.link}
-              to={folderUrl({ libraryId: library.id, relativePath: '' })}
-              viewTransition
-              aria-current={segments.length ? undefined : 'page'}
-            >
-              {library.name}
-            </Link>
+            {segments.length ? (
+              <Link
+                className={style.link}
+                to={folderUrl({ libraryId: library.id, relativePath: '' })}
+                viewTransition
+              >
+                {library.name}
+              </Link>
+            ) : (
+              <span aria-current="page">{library.name}</span>
+            )}
             {segments.map((segment, index) => {
               const segmentPath = segments.slice(0, index + 1).join('/')
 
               return (
                 <span key={segmentPath} className={style.crumb}>
                   <span aria-hidden="true">/</span>
-                  <Link
-                    className={style.link}
-                    to={folderUrl({
-                      libraryId: library.id,
-                      relativePath: segmentPath,
-                    })}
-                    viewTransition
-                    aria-current={
-                      index === segments.length - 1 ? 'page' : undefined
-                    }
-                  >
-                    {segment}
-                  </Link>
+                  {index === segments.length - 1 ? (
+                    <span aria-current="page">{segment}</span>
+                  ) : (
+                    <Link
+                      className={style.link}
+                      to={folderUrl({
+                        libraryId: library.id,
+                        relativePath: segmentPath,
+                      })}
+                      viewTransition
+                    >
+                      {segment}
+                    </Link>
+                  )}
                 </span>
               )
             })}
@@ -248,13 +277,4 @@ function Breadcrumbs() {
       )}
     </div>
   )
-}
-
-function formatFolderPath(rootPath: string, relativePath: string) {
-  const separator = rootPath.includes('\\') ? '\\' : '/'
-  const root = rootPath.replace(/[\\/]+$/, '')
-
-  return relativePath
-    ? `${root}${separator}${relativePath.replaceAll('/', separator)}`
-    : root
 }

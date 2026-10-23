@@ -19,6 +19,7 @@ test('config API validates and persists window state', async () => {
     'appdata.cacheQuota': 0,
     'appdata.logsPath': join(directory, 'logs'),
     'window.navbarWidth': 160,
+    'window.detailsWidth': 380,
     'window.main': {},
     'window.imageViewer': {},
     'user.favoriteFolders': [],
@@ -47,6 +48,10 @@ test('config API validates and persists window state', async () => {
     )
     await assert.rejects(
       config.set('window.navbarWidth', 300),
+      /Invalid config value/,
+    )
+    await assert.rejects(
+      config.set('window.detailsWidth', 700),
       /Invalid config value/,
     )
   } finally {
