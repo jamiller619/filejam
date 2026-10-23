@@ -121,9 +121,7 @@ export default function Toolbar() {
 }
 
 function Search() {
-  return (
-    <Icon name="magnifying-glass" size={18} aria-hidden="true" />
-  )
+  return <Icon name="magnifying-glass" size={18} aria-hidden="true" />
 }
 
 export function Search2() {

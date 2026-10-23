@@ -1,5 +1,4 @@
 import { Theme, ToastProvider, ToastViewport } from '@files/ui'
-import { HashRouter } from 'react-router'
 import QueryProvider from './QueryProvider.js'
 import Router from './Router.js'
 
@@ -8,9 +7,7 @@ export default function App() {
     <Theme>
       <QueryProvider>
         <ToastProvider>
-          <HashRouter>
-            <Router />
-          </HashRouter>
+          <Router />
           <ToastViewport />
         </ToastProvider>
       </QueryProvider>

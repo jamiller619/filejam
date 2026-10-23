@@ -65,13 +65,13 @@ const previewObserver =
   typeof IntersectionObserver === 'undefined'
     ? null
     : new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          visibilityListeners.get(entry.target)?.(entry.isIntersecting)
-        }
-      },
-      { rootMargin: '200px 0px' },
-    )
+        (entries) => {
+          for (const entry of entries) {
+            visibilityListeners.get(entry.target)?.(entry.isIntersecting)
+          }
+        },
+        { rootMargin: '200px 0px' },
+      )
 
 function observeVisibility(
   element: Element,

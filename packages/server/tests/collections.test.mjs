@@ -6,7 +6,16 @@ import { drizzle } from 'drizzle-orm/libsql'
 import { migrate } from 'drizzle-orm/libsql/migrator'
 import { createApi } from '../dist/api/index.js'
 
-test('collections span libraries, preserve membership on rescan, and cascade deleted files', async () => {
+const definition = (overrides = {}) => ({
+  version: 1,
+  match: 'all',
+  rules: [],
+  sort: [{ field: 'name', direction: 'asc' }],
+  limit: null,
+  ...overrides,
+})
+
+test('collections evaluate saved rules from entry metadata and user state', async () => {
   const client = createClient({ url: ':memory:' })
 
   try {
@@ -29,46 +38,78 @@ test('collections span libraries, preserve membership on rescan, and cascade del
 
     const first = await api.libraries.ensureRoot('/first')
     const second = await api.libraries.ensureRoot('/second')
-
-    const values = {
-      libraryId: first.id,
+    const now = new Date()
+    const base = {
       relativePath: 'one.txt',
       name: 'one.txt',
       kind: 'file',
-      indexedAt: new Date(),
+      size: 100,
+      createdAt: now,
+      modifiedAt: now,
+      indexedAt: now,
     }
 
-    const one = await api.entries.upsert(values)
-    const two = await api.entries.upsert({ ...values, libraryId: second.id })
-    const collection = await api.collections.create('  Project  ')
+    const one = await api.entries.upsert({ ...base, libraryId: first.id })
+    const two = await api.entries.upsert({
+      ...base,
+      libraryId: second.id,
+      relativePath: 'two.jpg',
+      name: 'two.jpg',
+      size: 200,
+    })
 
-    assert.equal(collection.name, 'Project')
-    await api.collections.setMembership(collection.id, one.id, true)
-    await api.collections.setMembership(collection.id, two.id, true)
-    await api.collections.setMembership(collection.id, one.id, true)
+    const project = await api.collections.create({
+      name: ' Project ',
+      definition: definition({
+        match: 'any',
+        rules: [
+          { field: 'name', operator: 'contains', value: 'ONE' },
+          { field: 'size', operator: 'greaterThan', value: 150 },
+        ],
+        sort: [{ field: 'size', direction: 'desc' }],
+      }),
+    })
 
-    let listing = await api.collections.listEntries(collection.id)
-
-    assert.equal(listing.entries.length, 2)
-
+    assert.equal(project.name, 'Project')
     assert.deepEqual(
-      new Set(listing.entries.map((entry) => entry.libraryId)),
-      new Set([first.id, second.id]),
+      (await api.collections.listEntries(project.id)).entries.map(
+        (entry) => entry.id,
+      ),
+      [two.id, one.id],
     )
 
-    await api.entries.upsert({ ...values, size: 100 })
-    listing = await api.collections.listEntries(collection.id)
-    assert.equal(listing.entries.find((entry) => entry.id === one.id).size, 100)
-    await api.collections.setMembership('favorites', one.id, true)
+    await api.collections.update(project.id, {
+      name: 'Images',
+      definition: definition({
+        rules: [
+          { field: 'relativePath', operator: 'startsWith', value: 'two' },
+          { field: 'kind', operator: 'equals', value: 'file' },
+        ],
+      }),
+    })
 
+    assert.deepEqual(
+      (await api.collections.listEntries(project.id)).entries.map(
+        (entry) => entry.id,
+      ),
+      [two.id],
+    )
+
+    await api.collections.setFavorite(one.id, true)
+    assert.ok((await api.collections.getEntryState(one.id)).favoritedAt)
+    assert.deepEqual(
+      (await api.collections.listEntries('favorites')).entries.map(
+        (entry) => entry.id,
+      ),
+      [one.id],
+    )
     assert.ok(
       (await api.collections.forEntry(one.id)).some(
         (item) => item.id === 'favorites',
       ),
     )
 
-    await api.collections.setMembership('favorites', one.id, false)
-
+    await api.collections.setFavorite(one.id, false)
     assert.equal(
       (await api.collections.listEntries('favorites')).entries.length,
       0,
@@ -76,62 +117,61 @@ test('collections span libraries, preserve membership on rescan, and cascade del
 
     await api.collections.recordView(one.id)
     await api.collections.recordView(two.id)
-
     await client.execute({
-      sql: "UPDATE collection_entries SET added_at = 1 WHERE collection_id = 'recents' AND entry_id = ?",
+      sql: 'UPDATE entry_states SET last_opened_at = 1 WHERE entry_id = ?',
       args: [one.id],
     })
-
     await api.collections.recordView(one.id)
 
-    assert.equal(
-      (await api.collections.listEntries('recents')).entries[0].id,
-      one.id,
+    assert.deepEqual(
+      (await api.collections.listEntries('recents')).entries.map(
+        (entry) => entry.id,
+      ),
+      [one.id, two.id],
     )
 
-    assert.equal(
-      (await api.collections.listEntries('recents')).entries.length,
-      2,
-    )
+    await api.collections.delete('recents')
 
-    await assert.rejects(
-      () => api.collections.setMembership('recents', one.id, false),
-      /automatically/,
-    )
-
-    await assert.rejects(() => api.collections.create(' '), /Invalid/)
-
-    await assert.rejects(
-      () => api.collections.listEntries('missing'),
-      /not found/,
-    )
-
-    await assert.rejects(
-      () => api.collections.setMembership(collection.id, -1, true),
-      /Invalid/,
-    )
-
-    const folder = await api.entries.upsert({
-      ...values,
-      relativePath: '',
-      kind: 'directory',
+    const recreated = await api.collections.create({
+      name: 'Opened lately',
+      definition: definition({
+        rules: [{ field: 'lastOpenedAt', operator: 'isSet' }],
+        sort: [{ field: 'lastOpenedAt', direction: 'desc' }],
+        limit: 1,
+      }),
     })
 
+    assert.notEqual(recreated.id, 'recents')
+    assert.deepEqual(
+      (await api.collections.listEntries(recreated.id)).entries.map(
+        (entry) => entry.id,
+      ),
+      [one.id],
+    )
+
     await assert.rejects(
-      () => api.collections.setMembership(collection.id, folder.id, true),
-      /not found/,
+      () =>
+        api.collections.create({
+          name: 'Broken',
+          definition: definition({
+            rules: [{ field: 'name', operator: 'greaterThan', value: 'x' }],
+          }),
+        }),
+      /Invalid collection rule/,
     )
 
     await api.entries.completeScan(first.id, [one.id])
+    await api.entries.completeScan(second.id, [two.id])
 
     assert.equal(
-      (await api.collections.listEntries(collection.id)).entries.length,
-      1,
+      (await api.collections.listEntries(recreated.id)).entries.length,
+      0,
     )
 
-    assert.equal(
-      (await api.collections.listEntries('recents')).entries.length,
-      1,
+    await api.collections.delete(project.id)
+    await assert.rejects(
+      () => api.collections.listEntries(project.id),
+      /not found/,
     )
   } finally {
     client.close()

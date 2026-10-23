@@ -79,12 +79,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   const location = useLocation()
   const { libraries, loadFailed } = useLibraries()
 
-  const { collections: allCollections, loadFailed: collectionsFailed } =
-    useCollections()
-
-  const collections = allCollections.filter(
-    (item) => !['recents', 'favorites'].includes(item.id),
-  )
+  const { collections, loadFailed: collectionsFailed } = useCollections()
 
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
   const folderDragProps = useFolderDrag()
@@ -189,18 +184,6 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
         })}
         <li>
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
-        </li>
-        <li>
-          <NavLink to="/collections/recents" title="Recents" viewTransition>
-            <Icon name="clock" size="20" />
-            <span>Recents</span>
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/collections/favorites" title="Favorites" viewTransition>
-            <Icon name="star" size="20" />
-            <span>Favorites</span>
-          </NavLink>
         </li>
         {collections.map((collection) => (
           <li key={collection.id}>

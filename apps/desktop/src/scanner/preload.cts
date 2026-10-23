@@ -40,11 +40,14 @@ const files: FilesApi = {
     ipcRenderer.invoke('window:setControlsColor', color),
   collections: {
     list: () => ipcRenderer.invoke('collections:list'),
-    create: (name) => ipcRenderer.invoke('collections:create', name),
+    create: (input) => ipcRenderer.invoke('collections:create', input),
+    update: (id, input) => ipcRenderer.invoke('collections:update', id, input),
+    delete: (id) => ipcRenderer.invoke('collections:delete', id),
     listEntries: (id) => ipcRenderer.invoke('collections:listEntries', id),
     forEntry: (id) => ipcRenderer.invoke('collections:forEntry', id),
-    setMembership: (id, entryId, included) =>
-      ipcRenderer.invoke('collections:setMembership', id, entryId, included),
+    getEntryState: (id) => ipcRenderer.invoke('collections:getEntryState', id),
+    setFavorite: (id, included) =>
+      ipcRenderer.invoke('collections:setFavorite', id, included),
     recordView: (id) => ipcRenderer.invoke('collections:recordView', id),
   },
   config: {

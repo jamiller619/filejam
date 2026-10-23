@@ -5,9 +5,14 @@ import { css } from 'inline-css-modules'
 import { type HTMLAttributes, type ReactNode, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import AddLibrary from '../components/buttons/AddLibrary.js'
+import CollectionEditor from '../components/CollectionEditor.js'
 import DetailsPane from '../components/DetailsPane.js'
 import { useDetailsPane } from '../components/DetailsPaneContext.js'
-import { useCollections } from '../hooks/useCollections.js'
+import { useApi } from '../hooks/useApi.js'
+import {
+  notifyCollectionsChanged,
+  useCollections,
+} from '../hooks/useCollections.js'
 import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import Page from './Page.js'
@@ -207,6 +212,7 @@ type SettingsSelection =
   | { type: 'date-format' }
   | { type: 'color-coding' }
   | { type: 'library'; id: number }
+  | { type: 'collection-new' }
   | { type: 'collection'; id: string }
 
 const settingsConfigKeys = [
@@ -217,11 +223,13 @@ const settingsConfigKeys = [
 type SettingsConfigKey = (typeof settingsConfigKeys)[number]
 
 export default function Settings() {
+  const api = useApi()
   const detailsPane = useDetailsPane()
   const { values, updateConfig, loading, loadFailed } =
     useConfig(settingsConfigKeys)
   const [saving, setSaving] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
+  const [collectionError, setCollectionError] = useState(false)
   const [selection, setSelection] = useState<SettingsSelection | null>(null)
   const {
     libraries,
@@ -232,14 +240,13 @@ export default function Settings() {
     collections,
     loading: collectionsLoading,
     loadFailed: collectionsLoadFailed,
+    refresh: refreshCollections,
   } = useCollections()
   const dateFormat = values?.['user.dateformat'] ?? 'relative'
   const userLibraries = libraries.filter((library) => !library.isTrash)
 
   useEffect(() => {
     detailsPane.setVisible(true)
-
-    return () => detailsPane.setVisible(false)
   }, [detailsPane])
 
   async function saveConfig<Key extends SettingsConfigKey>(
@@ -383,7 +390,16 @@ export default function Settings() {
         <Section
           title="Collections"
           headingId="collections-heading"
-          headerActions={<AddLibrary />}
+          headerActions={
+            <Button
+              onClick={() => {
+                setCollectionError(false)
+                setSelection({ type: 'collection-new' })
+              }}
+            >
+              New collection
+            </Button>
+          }
         >
           {collectionsLoadFailed ? (
             <p className={`${styles.emptyState} ${styles.error}`} role="alert">
@@ -426,9 +442,23 @@ export default function Settings() {
                   variant="ghost"
                   className={styles.deleteIcon}
                   aria-label={`Delete ${collection.name}`}
-                  onClick={() =>
-                    setSelection({ type: 'collection', id: collection.id })
-                  }
+                  onClick={async () => {
+                    setCollectionError(false)
+
+                    try {
+                      await api.collections.delete(collection.id)
+                      setSelection((current) =>
+                        current?.type === 'collection' &&
+                        current.id === collection.id
+                          ? null
+                          : current,
+                      )
+                      notifyCollectionsChanged()
+                      refreshCollections()
+                    } catch {
+                      setCollectionError(true)
+                    }
+                  }}
                 >
                   <Icon name="trash" size={20} />
                 </Button>
@@ -436,6 +466,11 @@ export default function Settings() {
             ))
           )}
         </Section>
+        {collectionError && (
+          <p className={`${styles.status} ${styles.error}`} role="alert">
+            Unable to delete the collection.
+          </p>
+        )}
         {loadFailed && (
           <p className={`${styles.status} ${styles.error}`} role="alert">
             Unable to load settings.
@@ -459,6 +494,11 @@ export default function Settings() {
             dateFormat={dateFormat}
             libraries={userLibraries}
             collections={collections}
+            onCollectionSaved={(collection) => {
+              notifyCollectionsChanged()
+              refreshCollections()
+              setSelection({ type: 'collection', id: collection.id })
+            }}
           />,
           detailsPane.host,
         )}
@@ -511,6 +551,9 @@ type SettingsDetailsProps = {
   dateFormat: string
   libraries: ReturnType<typeof useLibraries>['libraries']
   collections: ReturnType<typeof useCollections>['collections']
+  onCollectionSaved: (
+    collection: ReturnType<typeof useCollections>['collections'][number],
+  ) => void
 }
 
 function SettingsDetails({
@@ -518,6 +561,7 @@ function SettingsDetails({
   dateFormat,
   libraries,
   collections,
+  onCollectionSaved,
 }: SettingsDetailsProps) {
   const library =
     selection?.type === 'library'
@@ -557,15 +601,15 @@ function SettingsDetails({
         />
       )}
       {collection && (
-        <SettingsDetailsContent
-          type="Collection"
-          title={collection.name}
-          metadata={[['Collection ID', collection.id]]}
-        />
+        <CollectionEditor collection={collection} onSaved={onCollectionSaved} />
+      )}
+      {selection?.type === 'collection-new' && (
+        <CollectionEditor onSaved={onCollectionSaved} />
       )}
       {selection &&
         !library &&
         !collection &&
+        selection.type !== 'collection-new' &&
         selection.type !== 'date-format' && (
           <p className={styles.detailsEmpty}>
             This item is no longer available.

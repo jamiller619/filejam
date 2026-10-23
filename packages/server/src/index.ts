@@ -16,6 +16,13 @@ type BootOptions = {
 }
 
 export type { Library, ServerApi } from './api/index.js'
+export type {
+  CollectionDefinition,
+  CollectionField,
+  CollectionOperator,
+  CollectionRule,
+  CollectionSort,
+} from './collections/definition.js'
 export type { Config, ConfigKey } from './config/config.js'
 
 /** Initialize the server once; concurrent callers share the same instance. */

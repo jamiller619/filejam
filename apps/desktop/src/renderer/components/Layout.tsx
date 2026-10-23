@@ -3,6 +3,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -10,7 +11,7 @@ import {
   useState,
 } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
-import { Outlet } from 'react-router'
+import { Outlet, useLocation } from 'react-router'
 import { useConfig } from '../hooks/useConfig.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import Navbar from './Navbar.js'
@@ -168,6 +169,42 @@ const styles = css`
           overflow: hidden;
           border-top-left-radius: var(--suzy-radius-3);
           view-transition-name: file-details;
+
+          &:has(> [data-details-pane]) {
+            .detailsPlaceholder {
+              display: none;
+            }
+          }
+
+          .detailsPlaceholder {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            width: var(--details-width);
+            height: 100%;
+            color: var(--suzy-gray-12);
+            background: var(--suzy-gray-4);
+          }
+
+          .detailsPlaceholderHeader {
+            display: flex;
+            flex: 0 0 auto;
+            align-items: center;
+            min-height: 28px;
+            padding: var(--suzy-space-3);
+          }
+
+          .detailsPlaceholderTitle {
+            margin: 0;
+            font-size: var(--suzy-font-size-3);
+            font-weight: 500;
+          }
+
+          .detailsPlaceholderBody {
+            margin: 0;
+            padding: 0 var(--suzy-space-3) var(--suzy-space-3);
+            color: var(--suzy-gray-11);
+          }
         }
       }
     }
@@ -183,19 +220,27 @@ type DetailsWidthStyle = CSSProperties & {
 }
 
 export default function Layout() {
+  const location = useLocation()
   const { values, updateConfig } = useConfig([
     'window.navbarWidth',
     'window.detailsWidth',
   ])
   const saveNavbarTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const saveDetailsTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const detailsTransitionTimer =
+    useRef<ReturnType<typeof setTimeout>>(undefined)
+  const detailsVisibilityBatch = useRef<{
+    from: boolean
+    to: boolean
+  } | null>(null)
+  const detailsVisibleRef = useRef(true)
   const detailsDrag = useRef<{
     pointerId: number
     startX: number
     startWidth: number
   } | null>(null)
   const [detailsHost, setDetailsHost] = useState<HTMLDivElement | null>(null)
-  const [detailsVisible, setDetailsVisible] = useState(false)
+  const [detailsVisible, setDetailsVisible] = useState(true)
   const [resizedDetailsWidth, setResizedDetailsWidth] = useState<number | null>(
     null,
   )
@@ -206,9 +251,47 @@ export default function Layout() {
   const detailsWidth =
     resizedDetailsWidth ?? values?.['window.detailsWidth'] ?? 380
   const detailsWidthRef = useRef(detailsWidth)
+  const setDetailsVisibility = useCallback((visible: boolean) => {
+    const batch = detailsVisibilityBatch.current
+
+    if (batch) {
+      batch.to = visible
+    } else {
+      detailsVisibilityBatch.current = {
+        from: detailsVisibleRef.current,
+        to: visible,
+      }
+
+      queueMicrotask(() => {
+        const completedBatch = detailsVisibilityBatch.current
+
+        if (!completedBatch) {
+          return
+        }
+
+        detailsVisibilityBatch.current = null
+        detailsVisibleRef.current = completedBatch.to
+        clearTimeout(detailsTransitionTimer.current)
+
+        if (completedBatch.from === completedBatch.to) {
+          delete document.documentElement.dataset.detailsTransition
+          return
+        }
+
+        document.documentElement.dataset.detailsTransition = completedBatch.to
+          ? 'enter'
+          : 'exit'
+        detailsTransitionTimer.current = setTimeout(() => {
+          delete document.documentElement.dataset.detailsTransition
+        }, 250)
+      })
+    }
+
+    setDetailsVisible(visible)
+  }, [])
   const detailsPane = useMemo(
-    () => ({ host: detailsHost, setVisible: setDetailsVisible }),
-    [detailsHost],
+    () => ({ host: detailsHost, setVisible: setDetailsVisibility }),
+    [detailsHost, setDetailsVisibility],
   )
 
   detailsWidthRef.current = detailsWidth
@@ -217,12 +300,22 @@ export default function Layout() {
     () => () => {
       clearTimeout(saveNavbarTimer.current)
       clearTimeout(saveDetailsTimer.current)
+      clearTimeout(detailsTransitionTimer.current)
+      delete document.documentElement.dataset.detailsTransition
     },
     [],
   )
 
   useLayoutEffect(() => {
-    if (!detailsHost || detailsHost.childElementCount > 0) {
+    void location.key
+    setDetailsVisibility(true)
+  }, [location.key, setDetailsVisibility])
+
+  useLayoutEffect(() => {
+    if (
+      !detailsHost ||
+      detailsHost.querySelector(':scope > [data-details-pane]')
+    ) {
       return
     }
 
@@ -376,7 +469,21 @@ export default function Layout() {
                     onPointerCancel={finishDetailsResize}
                     onKeyDown={handleDetailsKeyDown}
                   />
-                  <div ref={setDetailsHost} className={styles.details} />
+                  <div ref={setDetailsHost} className={styles.details}>
+                    <aside
+                      className={styles.detailsPlaceholder}
+                      aria-label="Details"
+                    >
+                      <header className={styles.detailsPlaceholderHeader}>
+                        <h3 className={styles.detailsPlaceholderTitle}>
+                          Details
+                        </h3>
+                      </header>
+                      <p className={styles.detailsPlaceholderBody}>
+                        Select a file to view its details.
+                      </p>
+                    </aside>
+                  </div>
                 </div>
               </Panel>
             </Group>

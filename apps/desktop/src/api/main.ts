@@ -112,7 +112,28 @@ export function registerApiIpc(
   ipcMain.handle(
     'collections:create',
     withIpcMiddleware(
-      (_event, name: string) => api.collections.create(name),
+      (_event, input: Parameters<typeof api.collections.create>[0]) =>
+        api.collections.create(input),
+      authorizeRenderer(renderer),
+    ),
+  )
+
+  ipcMain.handle(
+    'collections:update',
+    withIpcMiddleware(
+      (
+        _event,
+        id: string,
+        input: Parameters<typeof api.collections.update>[1],
+      ) => api.collections.update(id, input),
+      authorizeRenderer(renderer),
+    ),
+  )
+
+  ipcMain.handle(
+    'collections:delete',
+    withIpcMiddleware(
+      (_event, id: string) => api.collections.delete(id),
       authorizeRenderer(renderer),
     ),
   )
@@ -134,10 +155,18 @@ export function registerApiIpc(
   )
 
   ipcMain.handle(
-    'collections:setMembership',
+    'collections:getEntryState',
     withIpcMiddleware(
-      (_event, id: string, entryId: number, included: boolean) =>
-        api.collections.setMembership(id, entryId, included),
+      (_event, entryId: number) => api.collections.getEntryState(entryId),
+      authorizeRenderer(renderer),
+    ),
+  )
+
+  ipcMain.handle(
+    'collections:setFavorite',
+    withIpcMiddleware(
+      (_event, entryId: number, included: boolean) =>
+        api.collections.setFavorite(entryId, included),
       authorizeRenderer(renderer),
     ),
   )
@@ -158,9 +187,12 @@ export function registerApiIpc(
 
     ipcMain.removeHandler('collections:list')
     ipcMain.removeHandler('collections:create')
+    ipcMain.removeHandler('collections:update')
+    ipcMain.removeHandler('collections:delete')
     ipcMain.removeHandler('collections:listEntries')
     ipcMain.removeHandler('collections:forEntry')
-    ipcMain.removeHandler('collections:setMembership')
+    ipcMain.removeHandler('collections:getEntryState')
+    ipcMain.removeHandler('collections:setFavorite')
     ipcMain.removeHandler('collections:recordView')
 
     ipcMain.removeHandler('libraries:list')

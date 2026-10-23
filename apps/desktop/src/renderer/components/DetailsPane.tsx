@@ -101,17 +101,26 @@ export default function DetailsPane({
       return
     }
 
-    const animation = host.animate(
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)')
+      .matches
+      ? 0
+      : 180
+    const timing: KeyframeAnimationOptions = {
+      duration,
+      easing: 'cubic-bezier(0.2, 0, 0, 1)',
+    }
+    const hostAnimation = host.animate(
       [{ width: `${from}px` }, { width: `${to}px` }],
-      {
-        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? 0
-          : 180,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
-      },
+      timing,
+    )
+    const panelAnimation = element.animate(
+      closing
+        ? [{ transform: 'translateX(0)' }, { transform: 'translateX(100%)' }]
+        : [{ transform: 'translateX(100%)' }, { transform: 'translateX(0)' }],
+      timing,
     )
 
-    animation.onfinish = () => {
+    hostAnimation.onfinish = () => {
       if (closing) {
         closedCallback.current?.()
       }
@@ -120,8 +129,9 @@ export default function DetailsPane({
     return () => {
       host.style.width = `${host.getBoundingClientRect().width}px`
 
-      animation.onfinish = null
-      animation.cancel()
+      hostAnimation.onfinish = null
+      hostAnimation.cancel()
+      panelAnimation.cancel()
     }
   }, [closing])
 
@@ -148,6 +158,7 @@ export default function DetailsPane({
     <aside
       ref={panel}
       className={styles.panel}
+      data-details-pane
       data-closing={closing}
       inert={closing}
       aria-label={ariaLabel}

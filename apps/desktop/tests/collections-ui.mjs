@@ -133,11 +133,11 @@ async function run() {
     assert.equal(await js(`document.querySelector('aside') !== null`), true)
 
     await js(
-      `Array.from(document.querySelectorAll('aside label')).find(el => el.textContent.trim() === 'Favorites').querySelector('input').click()`,
+      `Array.from(document.querySelectorAll('aside label')).find(el => el.textContent.trim() === 'Favorite').querySelector('input').click()`,
     )
 
     await waitFor(
-      `Array.from(document.querySelectorAll('aside label')).find(el => el.textContent.trim() === 'Favorites').querySelector('input').checked`,
+      `Array.from(document.querySelectorAll('aside label')).find(el => el.textContent.trim() === 'Favorite').querySelector('input').checked`,
     )
 
     assert.equal(
@@ -162,7 +162,7 @@ async function run() {
     )
 
     await js(
-      `Array.from(document.querySelectorAll('aside label')).find(el => el.textContent.trim() === 'Favorites').querySelector('input').click()`,
+      `Array.from(document.querySelectorAll('aside label')).find(el => el.textContent.trim() === 'Favorite').querySelector('input').click()`,
     )
 
     await waitFor(
@@ -192,15 +192,26 @@ async function run() {
 
     await delay(200)
 
-    await js(
-      `(() => { const input = document.querySelector('input[aria-label="New collection name"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Project'); input.dispatchEvent(new Event('input', { bubbles: true })); })()`,
-    )
-
+    await js(`document.querySelector('a[href="#/settings"]').click()`)
     await waitFor(
-      `!document.querySelector('aside button[type="submit"]').disabled`,
+      `Array.from(document.querySelectorAll('button')).some(el => el.textContent.trim() === 'New collection')`,
     )
-
-    await js(`document.querySelector('aside button[type="submit"]').click()`)
+    await js(
+      `Array.from(document.querySelectorAll('button')).find(el => el.textContent.trim() === 'New collection').click()`,
+    )
+    await waitFor(
+      `document.querySelector('input[aria-label="Collection name"]')`,
+    )
+    await js(
+      `(() => { const input = document.querySelector('input[aria-label="Collection name"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Project'); input.dispatchEvent(new Event('input', { bubbles: true })); Array.from(document.querySelectorAll('aside button')).find(el => el.textContent.trim() === 'Add rule').click() })()`,
+    )
+    await waitFor(`document.querySelector('input[aria-label="Rule value"]')`)
+    await js(
+      `(() => { const input = document.querySelector('input[aria-label="Rule value"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Example'); input.dispatchEvent(new Event('input', { bubbles: true })); })()`,
+    )
+    await js(
+      `Array.from(document.querySelectorAll('aside button')).find(el => el.textContent.trim() === 'Create').click()`,
+    )
 
     await waitFor(
       `Array.from(document.querySelectorAll('nav a')).some(el => el.textContent.trim() === 'Project')`,
@@ -211,10 +222,6 @@ async function run() {
     )
 
     assert.ok(project)
-
-    await waitFor(
-      `Array.from(document.querySelectorAll('aside label')).some(el => el.textContent.trim() === 'Project' && el.querySelector('input').checked)`,
-    )
 
     assert.equal(
       (await api.collections.listEntries(project.id)).entries.length,

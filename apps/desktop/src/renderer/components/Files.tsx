@@ -23,7 +23,7 @@ import { useFileSelection } from '../hooks/useFileSelection.js'
 import { useFolderDrop } from '../hooks/useFolderDrop.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { usePageCardSizeControl, usePageFolderStats } from '../pages/Page.js'
-import { queryKeys } from '../queryClient.js'
+import { queryClient, queryKeys } from '../queryClient.js'
 import { colorForFileValue } from '../utils/fileColors.js'
 import {
   type FileColumn,
@@ -659,7 +659,13 @@ function FolderContents({
 
     void api.collections
       .recordView(id)
-      .catch(() => setViewError('Unable to update Recents.'))
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ['files'] })
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.entryCollections(id),
+        })
+      })
+      .catch(() => setViewError('Unable to update recently opened files.'))
   }
 
   const { containerRef, selectedId, selectedIds, selectFile } =
@@ -674,8 +680,6 @@ function FolderContents({
   const selectedFile = listing?.entries.find((entry) => entry.id === selectedId)
   const currentFolder = listing && 'folder' in listing ? listing.folder : null
   const detailsEntry = selectedFile ?? currentFolder
-  const detailsExpected =
-    detailsEntry !== null || (folder !== undefined && listing === null)
 
   const folderStats = useMemo(() => {
     if (!folder || !listing) {
@@ -769,10 +773,8 @@ function FolderContents({
     : [{ key: 'all', label: null, order: undefined, rows: visibleRows }]
 
   useLayoutEffect(() => {
-    detailsPane.setVisible(detailsOpen && detailsExpected)
-
-    return () => detailsPane.setVisible(false)
-  }, [detailsExpected, detailsOpen, detailsPane])
+    detailsPane.setVisible(detailsOpen)
+  }, [detailsOpen, detailsPane])
 
   function activateFile(id: number) {
     setDetailsOpen(true)
