@@ -7,7 +7,7 @@ import type {
 import { Button, Input, Select } from '@files/ui'
 import { css } from 'inline-css-modules'
 import { useEffect, useState } from 'react'
-import { useApi } from '../hooks/useApi.js'
+import { useApi } from '../../hooks/useApi.js'
 
 const styles = css`
   .form {

@@ -1,5 +1,5 @@
 import { css } from 'inline-css-modules'
-import AddLibrary from './buttons/AddLibrary.js'
+import AddLibrary from './AddLibrary.js'
 
 const styles = css`
   .toolbar {

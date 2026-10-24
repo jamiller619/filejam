@@ -1,5 +1,5 @@
 import { useParams } from 'react-router'
-import Files from '../components/Files.js'
+import Files from '../components/files/Files.js'
 import { useCollections } from '../hooks/useCollections.js'
 import Page from './Page.js'
 

@@ -3,7 +3,7 @@ import {
   colorForFileName,
   type FileColor,
   fileColorForName,
-} from '../utils/fileColors.js'
+} from '../../utils/fileColors.js'
 
 export { type FileColor, fileColorForName }
 

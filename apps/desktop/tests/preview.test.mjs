@@ -57,6 +57,10 @@ test('preview protocol routes images, folders, library artwork and fallback icon
 
     assert.equal(response.status, 200)
     assert.equal(response.headers.get('content-type'), 'image/png')
+    assert.equal(
+      response.headers.get('cache-control'),
+      'private, max-age=31536000, immutable',
+    )
     assert.equal(await response.text(), 'image')
 
     assert.deepEqual(fetched, [
@@ -68,6 +72,7 @@ test('preview protocol routes images, folders, library artwork and fallback icon
 
       assert.equal(icon.status, 200)
       assert.equal(icon.headers.get('content-type'), 'image/svg+xml')
+      assert.equal(icon.headers.get('cache-control'), 'no-store')
       assert.match(await icon.text(), /<svg/)
     }
 
@@ -75,10 +80,13 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       assert.equal((await request(path, { original: '1' })).status, 415)
     }
 
-    assert.equal(
-      (await request('photo #1 & caf\u00e9.PNG', { original: '1' })).status,
-      200,
-    )
+    const original = await request('photo #1 & caf\u00e9.PNG', {
+      original: '1',
+      v: 'changed',
+    })
+
+    assert.equal(original.status, 200)
+    assert.equal(original.headers.get('cache-control'), 'no-store')
 
     const folder = await request('folder', {
       variant: 'grid',

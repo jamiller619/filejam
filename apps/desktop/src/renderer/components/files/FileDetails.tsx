@@ -1,14 +1,14 @@
 import { Button, ButtonGroup, Icon } from '@files/ui'
 import { css } from 'inline-css-modules'
 import { useRef, useState } from 'react'
-import type { DateFormat, FileColumn } from '../utils/fileColumns.js'
+import type { DateFormat, FileColumn } from '../../utils/fileColumns.js'
 import {
   fileColumnLabels,
   formatFileValue,
   formatFileValueTitle,
   formatFullPath,
-} from '../utils/fileColumns.js'
-import DetailsPane from './DetailsPane.js'
+} from '../../utils/fileColumns.js'
+import DetailsPane from '../layout/DetailsPane.js'
 import FileCollections from './FileCollections.js'
 import FilePreview from './FilePreview.js'
 

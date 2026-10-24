@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Outlet, useLocation } from 'react-router'
-import { useConfig } from '../hooks/useConfig.js'
+import { useConfig } from '../../hooks/useConfig.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import Navbar from './Navbar.js'
 import { PageFooterHostContext } from './PageFooterContext.js'

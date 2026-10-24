@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { queryClient, queryKeys } from '../queryClient.js'
+import { queryClient, queryKeys } from '../../queryClient.js'
 
 export default function QueryProvider({
   children,

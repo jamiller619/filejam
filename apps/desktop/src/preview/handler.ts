@@ -6,11 +6,20 @@ import { previewMimeType } from './formats.js'
 import { previewIcon } from './icons.js'
 import type { PreviewService } from './service.js'
 
-const headers = {
+const baseHeaders = {
   'Content-Security-Policy':
     "default-src 'none'; style-src 'unsafe-inline'; sandbox",
   'X-Content-Type-Options': 'nosniff',
+}
+
+const noStoreHeaders = {
+  ...baseHeaders,
   'Cache-Control': 'no-store',
+}
+
+const immutableHeaders = {
+  ...baseHeaders,
+  'Cache-Control': 'private, max-age=31536000, immutable',
 }
 
 export function createPreviewHandler(
@@ -62,7 +71,7 @@ export function createPreviewHandler(
           status: response.status,
           statusText: response.statusText,
           headers: {
-            ...headers,
+            ...noStoreHeaders,
             'Accept-Ranges': response.headers.get('accept-ranges') ?? 'bytes',
             'Content-Type': mimeType,
             ...(contentLength ? { 'Content-Length': contentLength } : {}),
@@ -84,6 +93,9 @@ export function createPreviewHandler(
 
     const width = dimension('width')
     const height = dimension('height')
+    const original = url.searchParams.get('original') === '1'
+    const responseHeaders =
+      url.searchParams.has('v') && !original ? immutableHeaders : noStoreHeaders
 
     if (
       url.host !== 'preview-image' ||
@@ -103,8 +115,6 @@ export function createPreviewHandler(
         path,
       )
 
-      const original = url.searchParams.get('original') === '1'
-
       const icon = async () =>
         original
           ? new Response(null, { status: 415 })
@@ -117,7 +127,12 @@ export function createPreviewHandler(
                 color: color ?? '#7ce2fe',
                 darkColor: darkColor ?? undefined,
               }),
-              { headers: { ...headers, 'Content-Type': 'image/svg+xml' } },
+              {
+                headers: {
+                  ...responseHeaders,
+                  'Content-Type': 'image/svg+xml',
+                },
+              },
             )
 
       if (!info.isFile() || url.searchParams.get('fallback') === '1') {
@@ -151,7 +166,7 @@ export function createPreviewHandler(
           }
 
           return new Response(new Uint8Array(result.bytes), {
-            headers: { ...headers, 'Content-Type': result.mimeType },
+            headers: { ...responseHeaders, 'Content-Type': result.mimeType },
           })
         }
 
@@ -168,7 +183,7 @@ export function createPreviewHandler(
         }
 
         return new Response(response.body, {
-          headers: { ...headers, 'Content-Type': mimeType },
+          headers: { ...responseHeaders, 'Content-Type': mimeType },
         })
       } catch {
         return await icon()

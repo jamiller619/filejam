@@ -42,6 +42,7 @@ test('preview protocol streams authorized videos with range requests', async () 
     assert.equal(response.status, 206)
     assert.equal(response.headers.get('content-type'), 'video/mp4')
     assert.equal(response.headers.get('content-range'), 'bytes 0-2/5')
+    assert.equal(response.headers.get('cache-control'), 'no-store')
     assert.equal(await response.text(), 'video')
     assert.deepEqual(fetched, [
       {

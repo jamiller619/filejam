@@ -1,6 +1,6 @@
 import { Button, Icon } from '@files/ui'
 import { useState } from 'react'
-import styles from './styles.js'
+import styles from './AddLibrary.styles.js'
 
 function useAddLibrary() {
   const [addingLibrary, setAddingLibrary] = useState(false)

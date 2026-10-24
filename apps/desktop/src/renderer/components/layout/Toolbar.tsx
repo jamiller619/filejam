@@ -8,9 +8,9 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router'
-import { useLibraries } from '../hooks/useLibraries.js'
-import { formatFullPath } from '../utils/fileColumns.js'
-import { folderUrl } from '../utils/folderUrl.js'
+import { useLibraries } from '../../hooks/useLibraries.js'
+import { formatFullPath } from '../../utils/fileColumns.js'
+import { folderUrl } from '../../utils/folderUrl.js'
 import { useSearch } from './SearchContext.js'
 
 const style = css`

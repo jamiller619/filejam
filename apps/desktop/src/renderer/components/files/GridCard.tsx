@@ -1,7 +1,7 @@
 import { css } from 'inline-css-modules'
 import type { DragEventHandler, ReactNode } from 'react'
 import { Link } from 'react-router'
-import { useFolderDrop } from '../hooks/useFolderDrop.js'
+import { useFolderDrop } from '../../hooks/useFolderDrop.js'
 import FileName from './FileName.js'
 
 const styles = css`

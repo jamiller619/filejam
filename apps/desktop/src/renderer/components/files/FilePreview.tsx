@@ -191,7 +191,7 @@ export default function FilePreview({
           alt=""
           loading="eager"
           decoding="async"
-          fetchPriority="high"
+          fetchPriority={detail ? 'high' : 'low'}
           onLoad={(event) => {
             setSettledSource(source)
 

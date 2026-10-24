@@ -1,8 +1,8 @@
 import { css } from 'inline-css-modules'
 import { useCallback, useMemo, useState } from 'react'
-import { useApi } from '../hooks/useApi.js'
-import { useApiQuery } from '../hooks/useApiQuery.js'
-import { queryClient, queryKeys } from '../queryClient.js'
+import { useApi } from '../../hooks/useApi.js'
+import { useApiQuery } from '../../hooks/useApiQuery.js'
+import { queryClient, queryKeys } from '../../queryClient.js'
 
 const styles = css`
   .collections {

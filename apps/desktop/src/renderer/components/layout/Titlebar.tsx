@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { css } from 'inline-css-modules'
 import { type HTMLAttributes, type RefObject, useEffect, useRef } from 'react'
-import { useApi } from '../hooks/useApi.js'
+import { useApi } from '../../hooks/useApi.js'
 import Toolbar from './Toolbar.js'
 
 const styles = css`

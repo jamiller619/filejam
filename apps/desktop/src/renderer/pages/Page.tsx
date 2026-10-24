@@ -7,7 +7,8 @@ import {
   type CardSizeControl,
   PageCardSizeContext,
   PageFooterHostContext,
-} from '../components/PageFooterContext.js'
+} from '../components/layout/PageFooterContext.js'
+import ScanningMeter from '../components/layout/ScanningMeter.js'
 import { formatFileSize } from '../utils/fileColumns.js'
 import { maximumCardSize, minimumCardSize } from '../utils/tablePreferences.js'
 
@@ -58,12 +59,13 @@ const styles = css`
     color: var(--suzy-gray-11);
     background: var(--suzy-gray-2);
     font-size: 0.75rem;
+
+    &:empty {
+      display: none;
+    }
   }
   .separator {
     color: var(--suzy-gray-8);
-  }
-  .scanStatus {
-    margin-inline-end: auto;
   }
   .cardSizeControl {
     display: flex;
@@ -272,8 +274,7 @@ function PageContents({ children, split }: PageContentsProps) {
             primaryContent
           )}
         </div>
-        {(folderStats || split || cardSizeControl) &&
-          footerHost &&
+        {footerHost &&
           createPortal(
             <FolderStatsFooter
               stats={folderStats}
@@ -380,13 +381,9 @@ function FolderStatsFooter({
             ·
           </span>
           <span>{formatFileSize(stats.totalSize)}</span>
-          {stats.scanning && (
-            <span className={styles.scanStatus} role="status">
-              Scanning folder… Files may be missing.
-            </span>
-          )}
         </>
       )}
+      <ScanningMeter />
       {cardSizeControl && (
         <label className={styles.cardSizeControl} htmlFor={cardSizeId}>
           <span>Card size</span>

@@ -10,13 +10,13 @@ import {
 import type { Table } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
 import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react'
-import { useConfig } from '../hooks/useConfig.js'
+import { useConfig } from '../../hooks/useConfig.js'
 import {
   type FileColumn,
   fileColumnLabels,
   formatFullPath,
-} from '../utils/fileColumns.js'
-import type { FileViewMode } from '../utils/tablePreferences.js'
+} from '../../utils/fileColumns.js'
+import type { FileViewMode } from '../../utils/tablePreferences.js'
 
 const styles = css`
   .toolbar {

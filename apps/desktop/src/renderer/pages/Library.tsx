@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from 'react-router'
-import Files, { type Folder } from '../components/Files.js'
+import Files, { type Folder } from '../components/files/Files.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import Page from './Page.js'
 

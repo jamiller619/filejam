@@ -1,4 +1,4 @@
-import type { Folder } from '../components/Files.js'
+import type { Folder } from '../components/files/Files.js'
 
 export function folderUrl(folder: Folder) {
   const query = new URLSearchParams({ folder: folder.relativePath })
