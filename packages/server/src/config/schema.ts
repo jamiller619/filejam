@@ -37,28 +37,8 @@ export type ApplicationCacheQuota = number
  * The file system path where application logs are stored.
  */
 export type ApplicationLogsPath = string
-/**
- * The width of the navigation pane in pixels.
- */
-export type NavigationWidth = number
-/**
- * The width of the details pane in pixels.
- */
-export type DetailsWidth = number
-/**
- * The absolute paths of the user's favorite folders.
- */
-export type FavoriteFolders = string[]
-/**
- * Whether dates are displayed relative to the current time or as absolute dates and times.
- */
-export type DateFormat = 'relative' | 'absolute'
-/**
- * Color coding for files based on some common data type.
- */
-export type FileColorCoding = boolean
 
-export interface FilesAppConfigSchema {
+export interface FilejamAppConfigSchema {
   'app.locale': ApplicationLocale
   'log.level': LoggingLevel
   'log.retentionDays': LoggingRetentionDays
@@ -67,33 +47,4 @@ export interface FilesAppConfigSchema {
   'appdata.cachePath': ApplicationCachePath
   'appdata.cacheQuota': ApplicationCacheQuota
   'appdata.logsPath': ApplicationLogsPath
-  'window.navbarWidth': NavigationWidth
-  'window.detailsWidth': DetailsWidth
-  'window.main': MainWindowState
-  'window.imageViewer': ImageViewerWindowState
-  'user.favoriteFolders': FavoriteFolders
-  'user.dateformat': DateFormat
-  'user.files.colorCoding'?: FileColorCoding
-}
-/**
- * The last position, size, and display mode of the main window.
- */
-export interface MainWindowState {
-  x?: number
-  y?: number
-  width?: number
-  height?: number
-  maximized?: boolean
-  fullscreen?: boolean
-}
-/**
- * The last position, size, and display mode of an image viewer window.
- */
-export interface ImageViewerWindowState {
-  x?: number
-  y?: number
-  width?: number
-  height?: number
-  maximized?: boolean
-  fullscreen?: boolean
 }

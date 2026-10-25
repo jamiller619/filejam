@@ -14,9 +14,9 @@ import { createPortal } from 'react-dom'
 import { useLocation } from 'react-router'
 import { useApi } from '../../hooks/useApi.js'
 import { useApiQuery } from '../../hooks/useApiQuery.js'
-import { useConfig } from '../../hooks/useConfig.js'
 import { useFileSelection } from '../../hooks/useFileSelection.js'
 import { useLibraries } from '../../hooks/useLibraries.js'
+import { useSettings } from '../../hooks/useSettings.js'
 import { usePageCardSizeControl, usePageFolderStats } from '../../pages/Page.js'
 import { queryClient, queryKeys } from '../../queryClient.js'
 import {
@@ -130,8 +130,13 @@ function FolderContents({
   const detailsPane = useDetailsPane()
   const { search: searchText } = useSearch()
   const { libraries, loadFailed: librariesFailed } = useLibraries()
-  const { values: configValues } = useConfig(['user.dateformat'])
-  const dateFormat = configValues?.['user.dateformat'] ?? 'relative'
+  const { values: settingsValues } = useSettings([
+    'user.dateformat',
+    'user.files.showExtensions',
+  ])
+  const dateFormat = settingsValues?.['user.dateformat'] ?? 'relative'
+  const showFileExtensions =
+    settingsValues?.['user.files.showExtensions'] ?? false
   const libraryRoots = useMemo(
     () => new Map(libraries.map((library) => [library.id, library.rootPath])),
     [libraries],
@@ -427,6 +432,7 @@ function FolderContents({
           selectedIds={selectedIds}
           search={search}
           dateFormat={dateFormat}
+          showFileExtensions={showFileExtensions}
           groupReferenceDate={groupReferenceDate}
           ariaLabel={ariaLabel}
           onActivateFile={activateFile}
@@ -444,6 +450,7 @@ function FolderContents({
           selectedId={selectedId}
           selectedIds={selectedIds}
           search={search}
+          showFileExtensions={showFileExtensions}
           ariaLabel={ariaLabel}
           onActivateFile={activateFile}
           onToggleGroup={toggleGroup}

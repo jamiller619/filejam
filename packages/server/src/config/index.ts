@@ -42,8 +42,8 @@ export async function initConfig(): Promise<ConfigStore> {
     }
   }
 
-  // Precedence: schema/platform defaults < valid .env settings < saved settings.
-  // Saved JSON is merged directly; only the .env settings are schema-validated.
+  // Precedence: schema/platform defaults < valid .env values < saved values.
+  // Saved JSON is merged directly; only the .env values are schema-validated.
   const data = {
     ...createDefaultsFromSchema(schema as JsonSchema),
     ...startingConfig,
@@ -128,7 +128,7 @@ async function parseEnvFile(
     }, {})
 
     // No coercion is applied to the strings returned by parseEnv. An invalid
-    // .env contributes no config settings, though loadEnvFile already loaded it
+    // .env contributes no configuration, though loadEnvFile already loaded it
     // into process.env for values such as FILEJAM_CONFIG_FILE.
     const parsed = configSchema.safeParse(raw)
 

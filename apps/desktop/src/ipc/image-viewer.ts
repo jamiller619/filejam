@@ -1,10 +1,11 @@
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Config, ConfigKey, ServerApi } from '@filejam/server'
+import type { ServerApi } from '@filejam/server'
 import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { authorizePreview } from '../preview/authorize.js'
 import { previewMimeType } from '../preview/formats.js'
 import type { PreviewRegistry } from '../preview/registry.js'
+import type { SettingsApi } from '../settings/index.js'
 import { readWindowState, trackWindowState } from '../window-state.js'
 import { authorizeRenderer, withIpcMiddleware } from './middleware.js'
 
@@ -12,10 +13,7 @@ export function registerImageViewerIpc(
   owner: BrowserWindow,
   libraries: Pick<ServerApi['libraries'], 'list'>,
   registry?: PreviewRegistry,
-  config?: {
-    get<K extends ConfigKey>(key: K): Config[K]
-    set<K extends ConfigKey>(key: K, value: Config[K]): Promise<void>
-  },
+  settings?: SettingsApi,
 ) {
   const viewers = new Set<BrowserWindow>()
   const saveViewerStates = new Set<() => Promise<void>>()
@@ -73,7 +71,7 @@ export function registerImageViewerIpc(
       const width = Math.min(1000, area.width)
       const height = Math.min(800, area.height)
       const state = readWindowState(
-        config?.get('window.imageViewer') ?? {},
+        (await settings?.get('window.imageViewer')) ?? {},
         {
           width,
           height,
@@ -101,7 +99,7 @@ export function registerImageViewerIpc(
         viewer,
         state,
         (value) =>
-          config?.set('window.imageViewer', value) ?? Promise.resolve(),
+          settings?.set('window.imageViewer', value) ?? Promise.resolve(),
       )
       saveViewerStates.add(saveState)
       viewer.once('closed', () => {

@@ -16,7 +16,7 @@ export function useFavoriteFolderDrop() {
     const updatedFavorites = await window.filejam.addFavoriteFolders(paths)
 
     window.dispatchEvent(
-      new CustomEvent('filejam:config-updated', {
+      new CustomEvent('filejam:settings-updated', {
         detail: {
           key: 'user.favoriteFolders',
           value: updatedFavorites,

@@ -19,7 +19,8 @@
     "start": "pnpm build && node scripts/start.mjs",
     "copy:assets": "node scripts/copy-assets.mjs",
     "test": "pnpm build && node --test tests/*.test.mjs && node tests/run-smoke.mjs",
-    "dev": "tsc -b && pnpm --filter @filejam/server copy:migrations && node scripts/dev.mjs"
+    "dev": "tsc -b && pnpm --filter @filejam/server copy:migrations && node scripts/dev.mjs",
+    "build:settings": "npx json2ts src/settings/settings.schema.json src/settings/schema.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^44.7.0",
+    "json-schema-to-typescript": "^16.0.0",
     "vite": "^8.3.4"
   },
   "dependencies": {

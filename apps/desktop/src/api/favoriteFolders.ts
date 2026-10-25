@@ -1,9 +1,11 @@
 import { stat } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { ServerApi } from '@filejam/server'
+import type { SettingsApi } from '../settings/index.js'
 
 export function createFavoriteFoldersHandler(
   api: ServerApi,
+  settings: SettingsApi,
   scanRoot?: (root: string) => Promise<unknown>,
 ) {
   let pending = Promise.resolve<string[]>([])
@@ -62,7 +64,7 @@ export function createFavoriteFoldersHandler(
           }
         }
 
-        const favorites = await api.config.get('user.favoriteFolders')
+        const favorites = await settings.get('user.favoriteFolders')
 
         const key = (path: string) =>
           process.platform === 'win32'
@@ -80,7 +82,7 @@ export function createFavoriteFoldersHandler(
           known.add(key(path))
         }
 
-        await api.config.set('user.favoriteFolders', updated)
+        await settings.set('user.favoriteFolders', updated)
 
         return updated
       })

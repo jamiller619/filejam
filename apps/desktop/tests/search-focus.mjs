@@ -6,7 +6,6 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { createApi } from '../../../packages/server/dist/api/index.js'
-import { initConfig } from '../../../packages/server/dist/config/index.js'
 import { initDatabase } from '../../../packages/server/dist/db/index.js'
 import { registerApiIpc } from '../dist/api/main.js'
 import { registerWindowIpc } from '../dist/ipc/window.js'
@@ -17,7 +16,7 @@ async function run() {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-search-focus-'))
   process.env.FILEJAM_CONFIG_FILE = join(directory, 'config.json')
   const connection = await initDatabase(join(directory, 'test.sqlite'))
-  const api = createApi(connection.db, await initConfig())
+  const api = createApi(connection.db)
   const library = await api.libraries.ensureRoot(app.getPath('temp'))
 
   await api.entries.upsert({
@@ -43,7 +42,10 @@ async function run() {
       contextIsolation: true,
     },
   })
-  const removeApi = registerApiIpc(api, window.webContents)
+  const removeApi = registerApiIpc(api, window.webContents, {
+    get: async () => [],
+    set: async () => {},
+  })
   const removeWindow = registerWindowIpc(window)
   ipcMain.handle('preview:capabilities', () => [])
   const js = (code) => window.webContents.executeJavaScript(code)

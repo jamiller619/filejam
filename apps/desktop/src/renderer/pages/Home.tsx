@@ -3,8 +3,8 @@ import Files from '../components/files/Files.js'
 import GridCard from '../components/files/GridCard.js'
 import GridContainer from '../components/files/GridContainer.js'
 import LibrariesToolbar from '../components/libraries/LibrariesToolbar.js'
-import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
+import { useSettings } from '../hooks/useSettings.js'
 import { folderDragProps } from '../utils/folderDrag.js'
 import { folderUrl } from '../utils/folderUrl.js'
 import { normalizePath } from '../utils/normalizePath.js'
@@ -13,7 +13,7 @@ import Page from './Page.js'
 export default function Home() {
   const { libraries, loadFailed } = useLibraries()
   const userLibraries = libraries.filter((library) => !library.isTrash)
-  const { values } = useConfig(['user.favoriteFolders'])
+  const { values } = useSettings(['user.favoriteFolders'])
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
   const favorites = favoritePaths.flatMap((path) => {
     const target = normalizePath(path)

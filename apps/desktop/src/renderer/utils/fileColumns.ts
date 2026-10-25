@@ -1,12 +1,12 @@
-import type { Config } from '@filejam/server'
 import { formatDistanceToNow } from 'date-fns'
+import type { Settings } from '../../settings/settings.js'
 
 type FileEntry = Awaited<
   ReturnType<Window['filejam']['entries']['listChildren']>
 >['entries'][number]
 
 export type FileColumn = keyof FileEntry
-export type DateFormat = Config['user.dateformat']
+export type DateFormat = Settings['user.dateformat']
 
 export const fileColumnLabels: Record<FileColumn, string> = {
   id: 'ID',

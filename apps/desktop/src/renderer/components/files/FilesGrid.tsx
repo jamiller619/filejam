@@ -39,6 +39,7 @@ type FilesGridProps = {
   selectedId: number | null
   selectedIds: ReadonlySet<number>
   search: string | undefined
+  showFileExtensions: boolean
   ariaLabel: string
   onActivateFile: (id: number) => void
   onToggleGroup: (key: string) => void
@@ -54,6 +55,7 @@ export default function FilesGrid({
   selectedId,
   selectedIds,
   search,
+  showFileExtensions,
   ariaLabel,
   onActivateFile,
   onToggleGroup,
@@ -73,6 +75,7 @@ export default function FilesGrid({
         name={entry.name}
         isDirectory={entry.kind === 'directory'}
         highlight={search}
+        showExtension={showFileExtensions}
         selected={selectedIds.has(entry.id)}
         previewOnly={masonry}
         fileId={entry.id}

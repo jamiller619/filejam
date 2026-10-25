@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Outlet, useLocation } from 'react-router'
-import { useConfig } from '../../hooks/useConfig.js'
+import { useSettings } from '../../hooks/useSettings.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import Navbar from './Navbar.js'
 import { PageFooterHostContext } from './PageFooterContext.js'
@@ -221,7 +221,7 @@ type DetailsWidthStyle = CSSProperties & {
 
 export default function Layout() {
   const location = useLocation()
-  const { values, updateConfig } = useConfig([
+  const { values, updateSettings } = useSettings([
     'window.navbarWidth',
     'window.detailsWidth',
   ])
@@ -338,7 +338,7 @@ export default function Layout() {
   function saveDetailsWidth() {
     clearTimeout(saveDetailsTimer.current)
     saveDetailsTimer.current = setTimeout(() => {
-      void updateConfig('window.detailsWidth', detailsWidthRef.current)
+      void updateSettings('window.detailsWidth', detailsWidthRef.current)
     }, 250)
   }
 
@@ -426,7 +426,7 @@ export default function Layout() {
                 onResize={({ inPixels }) => {
                   clearTimeout(saveNavbarTimer.current)
                   saveNavbarTimer.current = setTimeout(() => {
-                    void updateConfig(
+                    void updateSettings(
                       'window.navbarWidth',
                       Math.round(inPixels),
                     )

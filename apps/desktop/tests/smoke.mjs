@@ -8,6 +8,11 @@ const timeout = setTimeout(() => {
   app.exit(1)
 }, 60000)
 
+const testUserData = process.env.FILEJAM_TEST_USER_DATA
+
+assert.ok(testUserData, 'Smoke test user data must be isolated')
+app.setPath('userData', testUserData)
+
 // Do not await readiness at module scope: Electron waits for its ESM entry to load.
 async function run() {
   try {

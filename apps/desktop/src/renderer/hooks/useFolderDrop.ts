@@ -66,7 +66,7 @@ export function useFolderDrop(destination: string | undefined) {
       )
 
       window.dispatchEvent(
-        new CustomEvent('filejam:config-updated', {
+        new CustomEvent('filejam:settings-updated', {
           detail: { key: 'user.favoriteFolders', value: favorites },
         }),
       )

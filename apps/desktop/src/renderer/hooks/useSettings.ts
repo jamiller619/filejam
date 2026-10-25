@@ -1,15 +1,17 @@
-import type { Config, ConfigKey } from '@filejam/server'
 import { useCallback, useMemo } from 'react'
+import type { Settings, SettingsKey } from '../../settings/settings.js'
 import { queryKeys } from '../queryClient.js'
 import { useApi } from './useApi.js'
 import { useApiQuery } from './useApiQuery.js'
 
-type SelectedConfig<Keys extends readonly ConfigKey[]> = Pick<
-  Config,
+type SelectedSettings<Keys extends readonly SettingsKey[]> = Pick<
+  Settings,
   Keys[number]
 >
 
-export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
+export function useSettings<const Keys extends readonly SettingsKey[]>(
+  keys: Keys,
+) {
   const api = useApi()
   const keySignature = keys.join('\0')
 
@@ -17,16 +19,19 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: keySignature represents the key array by value.
   const selectedKeys = useMemo(() => [...keys], [keySignature])
   const allowedKeys = useMemo(() => new Set(selectedKeys), [selectedKeys])
-  const queryKey = useMemo(() => queryKeys.config(selectedKeys), [selectedKeys])
+  const queryKey = useMemo(
+    () => queryKeys.settings(selectedKeys),
+    [selectedKeys],
+  )
 
   const request = useCallback(async () => {
     const entries = await Promise.all(
       selectedKeys.map(
-        async (key) => [key, await api.config.get(key)] as const,
+        async (key) => [key, await api.settings.get(key)] as const,
       ),
     )
 
-    return Object.fromEntries(entries) as SelectedConfig<Keys>
+    return Object.fromEntries(entries) as SelectedSettings<Keys>
   }, [api, selectedKeys])
 
   const {
@@ -34,31 +39,33 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
     setData: setValues,
     loading,
     loadFailed,
-  } = useApiQuery<SelectedConfig<Keys> | undefined>(
+  } = useApiQuery<SelectedSettings<Keys> | undefined>(
     queryKey,
     request,
     undefined,
     { staleTime: Number.POSITIVE_INFINITY },
   )
 
-  const updateConfig = useCallback(
-    async <Key extends Keys[number]>(key: Key, value: Config[Key]) => {
+  const updateSettings = useCallback(
+    async <Key extends Keys[number]>(key: Key, value: Settings[Key]) => {
       if (!allowedKeys.has(key)) {
-        throw new Error(`Config key "${key}" was not requested by this hook`)
+        throw new Error(`Setting key "${key}" was not requested by this hook`)
       }
 
-      await api.config.set(key, value)
+      await api.settings.set(key, value)
 
       setValues(
-        (current) => ({ ...current, [key]: value }) as SelectedConfig<Keys>,
+        (current) => ({ ...current, [key]: value }) as SelectedSettings<Keys>,
       )
 
       window.dispatchEvent(
-        new CustomEvent('filejam:config-updated', { detail: { key, value } }),
+        new CustomEvent('filejam:settings-updated', {
+          detail: { key, value },
+        }),
       )
     },
     [allowedKeys, api, setValues],
   )
 
-  return { values, updateConfig, loading, loadFailed }
+  return { values, updateSettings, loading, loadFailed }
 }

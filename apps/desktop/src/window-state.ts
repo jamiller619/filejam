@@ -1,5 +1,5 @@
-import type { Config } from '@filejam/server'
 import type { BrowserWindow, Rectangle } from 'electron'
+import type { Settings } from './settings/settings.js'
 
 export type WindowState = {
   bounds: Rectangle
@@ -8,7 +8,7 @@ export type WindowState = {
 }
 
 export function readWindowState(
-  stored: Config['window.main'],
+  stored: Settings['window.main'],
   fallback: Rectangle,
   workAreas: Rectangle[],
 ): WindowState {
@@ -60,7 +60,7 @@ export function readWindowState(
 export function trackWindowState(
   window: BrowserWindow,
   initial: WindowState,
-  saveState: (state: Config['window.main']) => Promise<void>,
+  saveState: (state: Settings['window.main']) => Promise<void>,
 ) {
   let state = initial
   let timer: ReturnType<typeof setTimeout> | undefined

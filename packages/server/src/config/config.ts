@@ -1,7 +1,7 @@
 export { default as schema } from './config.schema.json' with { type: 'json' }
 
-import type { FilesAppConfigSchema } from './schema.js'
+import type { FilejamAppConfigSchema } from './schema.js'
 
-export type ConfigKey = keyof FilesAppConfigSchema
+export type ConfigKey = keyof FilejamAppConfigSchema
 
-export type Config = FilesAppConfigSchema
+export type Config = FilejamAppConfigSchema

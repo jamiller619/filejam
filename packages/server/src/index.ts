@@ -54,24 +54,12 @@ async function start(options: BootOptions) {
 
     database = await initDatabase(databasePath)
 
-    const api = createApi(database.db, config)
-    let firstStart = false
-
+    const api = createApi(database.db)
     if (options.resolveDefaultFolder) {
-      firstStart = await api.libraries.initializeDefaults(
+      await api.libraries.initializeDefaults(
         options.resolveDefaultFolder,
         (message, error) => logger.warn(message, error),
       )
-    }
-
-    if (firstStart && config.get('user.favoriteFolders').length === 0) {
-      const favorites = (await api.libraries.list())
-        .filter((library) =>
-          ['desktop', 'downloads'].includes(library.name.toLowerCase()),
-        )
-        .map((library) => library.rootPath)
-
-      await config.set('user.favoriteFolders', favorites)
     }
 
     await api.libraries.ensureTrashRoots(options.trashRoots ?? [])

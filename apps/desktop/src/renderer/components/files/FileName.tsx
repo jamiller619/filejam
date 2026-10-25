@@ -4,6 +4,7 @@ import {
   type FileColor,
   fileColorForName,
 } from '../../utils/fileColors.js'
+import { fileNameForDisplay } from '../../utils/fileNames.js'
 
 export { type FileColor, fileColorForName }
 
@@ -48,17 +49,23 @@ const styles = css`
 export default function FileName({
   name,
   isDirectory = false,
+  showExtension = false,
   highlight,
 }: {
   name: string
   isDirectory?: boolean | undefined
+  showExtension?: boolean | undefined
   highlight?: string | undefined
 }) {
-  const characters = Array.from(name)
+  const displayName = fileNameForDisplay(
+    name,
+    isDirectory ? true : showExtension,
+  )
+  const characters = Array.from(displayName)
   const midpoint = Math.ceil(characters.length / 2)
   const start = characters.slice(0, midpoint).join('')
   const end = characters.slice(midpoint).join('')
-  const matches = findMatches(name, highlight)
+  const matches = findMatches(displayName, highlight)
 
   return (
     <span

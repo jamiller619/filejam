@@ -59,7 +59,16 @@ async function run() {
       },
     })
 
-    const removeApi = registerApiIpc(api, window.webContents)
+    const settings = new Map([
+      ['user.favoriteFolders', []],
+      ['user.dateformat', 'relative'],
+      ['user.files.showExtensions', false],
+      ['user.files.colorCoding', true],
+    ])
+    const removeApi = registerApiIpc(api, window.webContents, {
+      get: async (key) => settings.get(key),
+      set: async (key, value) => settings.set(key, value),
+    })
     const removeWindow = registerWindowIpc(window)
 
     unregister = () => {

@@ -39,7 +39,10 @@ quits, and activating the app reopens the window.
 The main entry is `apps/desktop/src/index.ts`. The preload is compiled from
 `src/scanner/preload.cts` to CommonJS so it works with Electron's renderer sandbox.
 The initial renderer is a small local HTML page; it has no Node.js access.
-Configuration follows the server's existing `FILEJAM_CONFIG_FILE` and app-data defaults.
+Server configuration follows `FILEJAM_CONFIG_FILE` and the server's app-data
+defaults. Client preferences and window state are stored separately in
+`settings.json` inside Electron's `userData` directory. Electron owns that file;
+it is not exposed to or managed by the server.
 
 Run `pnpm --filter @filejam/desktop test` on a graphical host to smoke-test the real
 Electron window, scanner IPC, and server shutdown using temporary server data.
@@ -64,6 +67,11 @@ await server.close()
 The database is `filejam.sqlite` inside the configured `appdata.dbPath` directory.
 Logging and scanner cache use `appdata.logsPath` and `appdata.cachePath`.
 Set `FILEJAM_CONFIG_FILE` to select a configuration file.
+
+On the first launch after upgrading from a version that stored desktop settings
+in `config.json`, Electron imports the legacy `window.*` and `user.*` values into
+`settings.json`. Existing values in `settings.json` take precedence. After the
+new file is safely written, the legacy keys are removed from `config.json`.
 
 After changing schemas in `packages/server/src/db/schemas`, run
 `pnpm --filter @filejam/server db:generate` and commit the generated migration files.

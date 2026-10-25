@@ -1,7 +1,7 @@
 import writeAtomic from 'write-file-atomic'
 import type { Config, ConfigKey } from './config.js'
 
-/** Persistent settings with literal dotted keys, such as "log.level". */
+/** Persistent configuration with literal dotted keys, such as "log.level". */
 export default class ConfigStore {
   #data: Config
   #filePath: string
@@ -24,6 +24,23 @@ export default class ConfigStore {
       const previous = { ...this.#data }
 
       Object.assign(this.#data, data)
+
+      try {
+        await this.#write()
+      } catch (error) {
+        this.#data = previous
+
+        throw error
+      }
+    })
+  }
+
+  /** Replace all persisted values; restore the previous data if writing fails. */
+  async replaceStore(data: Config): Promise<void> {
+    return this.#enqueue(async () => {
+      const previous = this.#data
+
+      this.#data = data
 
       try {
         await this.#write()

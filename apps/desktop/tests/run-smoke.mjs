@@ -20,7 +20,11 @@ try {
     }),
   )
 
-  const env = { ...process.env, FILEJAM_CONFIG_FILE: config }
+  const env = {
+    ...process.env,
+    FILEJAM_CONFIG_FILE: config,
+    FILEJAM_TEST_USER_DATA: directory,
+  }
 
   delete env.ELECTRON_RUN_AS_NODE
 

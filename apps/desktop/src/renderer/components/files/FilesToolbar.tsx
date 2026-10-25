@@ -10,7 +10,7 @@ import {
 import type { Table } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
 import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react'
-import { useConfig } from '../../hooks/useConfig.js'
+import { useSettings } from '../../hooks/useSettings.js'
 import {
   type FileColumn,
   fileColumnLabels,
@@ -299,10 +299,10 @@ export default function FilesToolbar<TData>({
   onFlattenChange,
 }: FilesToolbarProps<TData>) {
   const {
-    values: configValues,
-    loading: configLoading,
-    updateConfig,
-  } = useConfig(['user.favoriteFolders'])
+    values: settingsValues,
+    loading: settingsLoading,
+    updateSettings,
+  } = useSettings(['user.favoriteFolders'])
 
   const rootPath =
     libraryId === undefined ? undefined : libraryRoots.get(libraryId)
@@ -311,8 +311,8 @@ export default function FilesToolbar<TData>({
     ? formatFullPath(rootPath, relativePath ?? '')
     : undefined
 
-  const favoritePaths = Array.isArray(configValues?.['user.favoriteFolders'])
-    ? configValues['user.favoriteFolders'].filter(
+  const favoritePaths = Array.isArray(settingsValues?.['user.favoriteFolders'])
+    ? settingsValues['user.favoriteFolders'].filter(
         (path): path is string => typeof path === 'string',
       )
     : []
@@ -338,7 +338,7 @@ export default function FilesToolbar<TData>({
     : undefined
   const currentGroupLabel = groupBy ? fileColumnLabels[groupBy] : 'None'
   const canFavorite = Boolean(
-    currentFolderPath && !collectionId && !configLoading,
+    currentFolderPath && !collectionId && !settingsLoading,
   )
   const isFavorite = favoritePaths.includes(currentFolderPath ?? '')
   const hasOverflowControls = canFavorite || viewMode === 'list'
@@ -406,7 +406,7 @@ export default function FilesToolbar<TData>({
       ? [...favoritePaths, currentFolderPath]
       : favoritePaths.filter((path) => path !== currentFolderPath)
 
-    void updateConfig('user.favoriteFolders', updatedPaths)
+    void updateSettings('user.favoriteFolders', updatedPaths)
       .catch(() => setFavoriteError('Unable to update favorites.'))
       .finally(() => setFavoriteBusy(false))
   }

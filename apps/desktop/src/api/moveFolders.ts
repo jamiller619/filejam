@@ -2,6 +2,7 @@ import { constants } from 'node:fs'
 import { access, cp, realpath, rename, rm, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { ServerApi } from '@filejam/server'
+import type { SettingsApi } from '../settings/index.js'
 
 function pathKey(path: string) {
   const resolved = resolve(path)
@@ -57,6 +58,7 @@ async function moveFolder(source: string, target: string) {
 
 export function createMoveFoldersHandler(
   api: ServerApi,
+  settings: SettingsApi,
   scanRoot?: (root: string) => Promise<unknown>,
 ) {
   let pending = Promise.resolve<string[]>([])
@@ -184,7 +186,7 @@ export function createMoveFoldersHandler(
           throw error
         }
 
-        const favorites = await api.config.get('user.favoriteFolders')
+        const favorites = await settings.get('user.favoriteFolders')
         const updatedFavorites = favorites.map((favorite) => {
           const move = moves.find(({ source }) =>
             containsPath(source, favorite),
@@ -196,7 +198,7 @@ export function createMoveFoldersHandler(
         })
 
         if (updatedFavorites.some((path, index) => path !== favorites[index])) {
-          await api.config.set('user.favoriteFolders', updatedFavorites)
+          await settings.set('user.favoriteFolders', updatedFavorites)
         }
 
         const roots = new Set([

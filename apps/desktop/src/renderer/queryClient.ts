@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 export const queryKeys = {
   libraries: ['libraries'] as const,
   collections: ['collections'] as const,
-  config: (keys: readonly string[]) => ['config', ...keys] as const,
+  settings: (keys: readonly string[]) => ['settings', ...keys] as const,
   files: (source: {
     collectionId?: string | undefined
     libraryId?: number | undefined

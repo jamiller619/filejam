@@ -222,6 +222,7 @@ type FilesTableProps = {
   selectedIds: ReadonlySet<number>
   search: string | undefined
   dateFormat: DateFormat
+  showFileExtensions: boolean
   groupReferenceDate: Date
   ariaLabel: string
   onActivateFile: (id: number) => void
@@ -239,6 +240,7 @@ export default function FilesTable({
   selectedIds,
   search,
   dateFormat,
+  showFileExtensions,
   groupReferenceDate,
   ariaLabel,
   onActivateFile,
@@ -512,6 +514,7 @@ export default function FilesTable({
                                 <FileName
                                   name={entry.name}
                                   highlight={search}
+                                  showExtension={showFileExtensions}
                                 />
                               </button>
                             )}

@@ -4,7 +4,7 @@ import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { HTMLAttributes } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
-import { useConfig } from '~/hooks/useConfig.js'
+import { useSettings } from '~/hooks/useSettings.js'
 import { useCollections } from '../../hooks/useCollections.js'
 import { useFavoriteFolderDrop } from '../../hooks/useFavoriteFolderDrop.js'
 import { useFolderDrag } from '../../hooks/useFolderDrag.js'
@@ -208,7 +208,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
 }
 
 function useFavoriteFolders(libraries: Library[]) {
-  const { values } = useConfig(['user.favoriteFolders'])
+  const { values } = useSettings(['user.favoriteFolders'])
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
 
   const favoriteFolders = favoritePaths.flatMap((path) => {

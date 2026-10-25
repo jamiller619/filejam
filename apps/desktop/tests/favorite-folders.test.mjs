@@ -29,6 +29,12 @@ test('folder drops persist, deduplicate, validate and register external roots', 
     ]
 
     const scans = []
+    const settings = {
+      get: async () => favorites,
+      set: async (_key, value) => {
+        favorites = value
+      },
+    }
 
     const add = createFavoriteFoldersHandler(
       {
@@ -37,13 +43,8 @@ test('folder drops persist, deduplicate, validate and register external roots', 
           ensureRoot: async (rootPath) =>
             roots.push({ rootPath, isTrash: false }),
         },
-        config: {
-          get: async () => favorites,
-          set: async (_key, value) => {
-            favorites = value
-          },
-        },
       },
+      settings,
       async (root) => scans.push(root),
     )
 

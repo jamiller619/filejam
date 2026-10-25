@@ -10,6 +10,13 @@ import { createFileIconProvider } from './preview/file-icons.js'
 import { createPreviewHandler } from './preview/handler.js'
 import type { PreviewService } from './preview/service.js'
 import { registerScannerIpc } from './scanner/main.js'
+import {
+  createSettingsApi,
+  initSettings,
+  type SettingsApi,
+  type SettingsStore,
+} from './settings/index.js'
+import { settingsKeys } from './settings/settings.js'
 import { getOsTrashRoots } from './trash/roots.js'
 import { readWindowState, trackWindowState } from './window-state.js'
 
@@ -38,16 +45,23 @@ let quitting = false
 let shutdownComplete = false
 let previews: PreviewService | undefined
 let saveMainWindowState: (() => Promise<void>) | undefined
+let settings: SettingsStore | undefined
+let settingsApi: SettingsApi | undefined
 
 async function createWindow() {
   if (!server || quitting) {
     return
   }
 
-  const config = server.config
+  if (!settings || !settingsApi) {
+    return
+  }
+
+  const settingsStore = settings
+  const currentSettingsApi = settingsApi
   const area = screen.getPrimaryDisplay().workArea
   const state = readWindowState(
-    config.get('window.main'),
+    settingsStore.get('window.main'),
     {
       x: area.x + Math.floor((area.width - 1100) / 2),
       y: area.y + Math.floor((area.height - 760) / 2),
@@ -84,7 +98,7 @@ async function createWindow() {
 
   window = current
   saveMainWindowState = trackWindowState(current, state, (value) =>
-    config.set('window.main', value),
+    settingsStore.set('window.main', value),
   )
 
   const removeWindowIpc = registerWindowIpc(current)
@@ -93,15 +107,18 @@ async function createWindow() {
     current,
     server.api.libraries,
     previews?.registry,
-    config,
+    currentSettingsApi,
   )
 
   removeScannerIpc = registerScannerIpc(server.scanner, current.webContents)
 
   const scanner = server.scanner
 
-  removeApiIpc = registerApiIpc(server.api, current.webContents, (root) =>
-    scanner.start(root),
+  removeApiIpc = registerApiIpc(
+    server.api,
+    current.webContents,
+    currentSettingsApi,
+    (root) => scanner.start(root),
   )
 
   // The scanner bridge is privileged: this window only hosts local app content.
@@ -201,6 +218,7 @@ if (!app.requestSingleInstanceLock()) {
         await removeImageViewerIpc?.()
         removeImageViewerIpc = undefined
         await saveMainWindowState?.()
+        await settings?.write()
         await previews?.close()
         await server?.close()
       } catch (error) {
@@ -235,6 +253,44 @@ if (!app.requestSingleInstanceLock()) {
         resolveDefaultFolder(folder, (name) => app.getPath(name)),
       trashRoots: await getOsTrashRoots(),
     })
+
+    const legacyConfig = server.config.getStore() as unknown as Record<
+      string,
+      unknown
+    >
+    const initializedSettings = await initSettings(
+      app.getPath('userData'),
+      legacyConfig,
+    )
+
+    settings = initializedSettings.store
+    settingsApi = createSettingsApi(settings)
+
+    if (initializedSettings.legacyKeys.length) {
+      const runtimeConfig = { ...legacyConfig }
+
+      for (const key of settingsKeys) {
+        delete runtimeConfig[key]
+      }
+
+      await server.config.replaceStore(
+        runtimeConfig as unknown as ReturnType<typeof server.config.getStore>,
+      )
+    }
+
+    if (
+      initializedSettings.created &&
+      initializedSettings.migratedKeys.length === 0 &&
+      settings.get('user.favoriteFolders').length === 0
+    ) {
+      const favorites = (await server.api.libraries.list())
+        .filter((library) =>
+          ['desktop', 'downloads'].includes(library.name.toLowerCase()),
+        )
+        .map((library) => library.rootPath)
+
+      await settings.set('user.favoriteFolders', favorites)
+    }
 
     previews = await createPreviewService(app.getPath('userData'))
     const fileIcons = createFileIconProvider(async (file, size) => {

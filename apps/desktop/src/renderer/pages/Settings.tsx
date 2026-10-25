@@ -1,9 +1,11 @@
-import type { Config } from '@filejam/server'
-import { schema as configSchema } from '@filejam/server/config-schema'
 import { Button, Icon, type IconName, Select, Switch } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { type HTMLAttributes, type ReactNode, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  type Settings as DesktopSettings,
+  schema as settingsSchema,
+} from '../../settings/settings.js'
 import CollectionEditor from '../components/collections/CollectionEditor.js'
 import DetailsPane from '../components/layout/DetailsPane.js'
 import { useDetailsPane } from '../components/layout/DetailsPaneContext.js'
@@ -13,8 +15,8 @@ import {
   notifyCollectionsChanged,
   useCollections,
 } from '../hooks/useCollections.js'
-import { useConfig } from '../hooks/useConfig.js'
 import { useLibraries } from '../hooks/useLibraries.js'
+import { useSettings } from '../hooks/useSettings.js'
 import Page from './Page.js'
 
 const styles = css`
@@ -210,23 +212,25 @@ const styles = css`
 
 type SettingsSelection =
   | { type: 'date-format' }
+  | { type: 'show-file-extensions' }
   | { type: 'color-coding' }
   | { type: 'library'; id: number }
   | { type: 'collection-new' }
   | { type: 'collection'; id: string }
 
-const settingsConfigKeys = [
+const settingsKeys = [
   'user.dateformat',
+  'user.files.showExtensions',
   'user.files.colorCoding',
 ] as const
 
-type SettingsConfigKey = (typeof settingsConfigKeys)[number]
+type SettingsKey = (typeof settingsKeys)[number]
 
 export default function Settings() {
   const api = useApi()
   const detailsPane = useDetailsPane()
-  const { values, updateConfig, loading, loadFailed } =
-    useConfig(settingsConfigKeys)
+  const { values, updateSettings, loading, loadFailed } =
+    useSettings(settingsKeys)
   const [saving, setSaving] = useState(false)
   const [saveFailed, setSaveFailed] = useState(false)
   const [collectionError, setCollectionError] = useState(false)
@@ -249,15 +253,15 @@ export default function Settings() {
     detailsPane.setVisible(true)
   }, [detailsPane])
 
-  async function saveConfig<Key extends SettingsConfigKey>(
+  async function saveSettings<Key extends SettingsKey>(
     key: Key,
-    value: Config[Key],
+    value: DesktopSettings[Key],
   ) {
     setSaving(true)
     setSaveFailed(false)
 
     try {
-      await updateConfig(key, value)
+      await updateSettings(key, value)
     } catch {
       setSaveFailed(true)
     } finally {
@@ -268,7 +272,7 @@ export default function Settings() {
   return (
     <Page title="Settings">
       <div className={styles.content}>
-        {configSchema['x-ui'].categories.map((category) => {
+        {settingsSchema['x-ui'].categories.map((category) => {
           if (category.namespace !== 'user') {
             return null
           }
@@ -284,7 +288,7 @@ export default function Settings() {
               <SettingRow
                 title="Date format"
                 subtitle={
-                  configSchema.properties['user.dateformat'].description
+                  settingsSchema.properties['user.dateformat'].description
                 }
                 selected={selection?.type === 'date-format'}
                 onSelect={() => setSelection({ type: 'date-format' })}
@@ -297,7 +301,7 @@ export default function Settings() {
                   disabled={loading || loadFailed || saving}
                   onFocus={() => setSelection({ type: 'date-format' })}
                   onChange={(event) => {
-                    void saveConfig(
+                    void saveSettings(
                       'user.dateformat',
                       event.currentTarget.value as 'relative' | 'absolute',
                     )
@@ -308,9 +312,37 @@ export default function Settings() {
                 </Select>
               </SettingRow>
               <SettingRow
-                title={configSchema.properties['user.files.colorCoding'].title}
+                title={
+                  settingsSchema.properties['user.files.showExtensions'].title
+                }
                 subtitle={
-                  configSchema.properties['user.files.colorCoding'].description
+                  settingsSchema.properties['user.files.showExtensions']
+                    .description
+                }
+                selected={selection?.type === 'show-file-extensions'}
+                onSelect={() => setSelection({ type: 'show-file-extensions' })}
+              >
+                <Switch
+                  id="show-file-extensions"
+                  aria-describedby="show-file-extensions-description"
+                  checked={
+                    values?.['user.files.showExtensions'] ??
+                    settingsSchema.properties['user.files.showExtensions']
+                      .default
+                  }
+                  disabled={loading || loadFailed || saving}
+                  onCheckedChange={(checked) => {
+                    void saveSettings('user.files.showExtensions', checked)
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                title={
+                  settingsSchema.properties['user.files.colorCoding'].title
+                }
+                subtitle={
+                  settingsSchema.properties['user.files.colorCoding']
+                    .description
                 }
                 selected={selection?.type === 'color-coding'}
                 onSelect={() => setSelection({ type: 'color-coding' })}
@@ -320,11 +352,11 @@ export default function Settings() {
                   aria-describedby="color-coding-description"
                   checked={
                     values?.['user.files.colorCoding'] ??
-                    configSchema.properties['user.files.colorCoding'].default
+                    settingsSchema.properties['user.files.colorCoding'].default
                   }
                   disabled={loading || loadFailed || saving}
                   onCheckedChange={(checked) => {
-                    void saveConfig('user.files.colorCoding', checked)
+                    void saveSettings('user.files.colorCoding', checked)
                   }}
                 />
               </SettingRow>

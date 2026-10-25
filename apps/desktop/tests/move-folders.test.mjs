@@ -21,16 +21,16 @@ test('moves folders into indexed destinations and updates nested favorites', asy
     let favorites = [nested]
     const scans = []
     const history = []
+    const settings = {
+      get: async () => favorites,
+      set: async (_key, value) => {
+        favorites = value
+      },
+    }
     const move = createMoveFoldersHandler(
       {
         libraries: {
           list: async () => [{ rootPath: library, isTrash: false }],
-        },
-        config: {
-          get: async () => favorites,
-          set: async (_key, value) => {
-            favorites = value
-          },
         },
         moveHistory: {
           plan: async (items) => {
@@ -55,6 +55,7 @@ test('moves folders into indexed destinations and updates nested favorites', asy
           fail: async () => {},
         },
       },
+      settings,
       async (root) => scans.push(root),
     )
 
@@ -100,21 +101,20 @@ test('rejects unsafe moves before changing the filesystem', async () => {
     await mkdir(nested, { recursive: true })
     await mkdir(join(destination, 'source'), { recursive: true })
 
-    const move = createMoveFoldersHandler({
-      libraries: {
-        list: async () => [{ rootPath: library, isTrash: false }],
+    const move = createMoveFoldersHandler(
+      {
+        libraries: {
+          list: async () => [{ rootPath: library, isTrash: false }],
+        },
+        moveHistory: {
+          plan: async () => assert.fail('unsafe moves must not be recorded'),
+          markItemMoved: async () => {},
+          complete: async () => {},
+          fail: async () => {},
+        },
       },
-      config: {
-        get: async () => [],
-        set: async () => {},
-      },
-      moveHistory: {
-        plan: async () => assert.fail('unsafe moves must not be recorded'),
-        markItemMoved: async () => {},
-        complete: async () => {},
-        fail: async () => {},
-      },
-    })
+      { get: async () => [], set: async () => {} },
+    )
 
     await assert.rejects(move([library], destination), /Library roots/)
     await assert.rejects(move([source], nested), /into itself/)

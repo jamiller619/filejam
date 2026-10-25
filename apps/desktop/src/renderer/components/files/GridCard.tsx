@@ -84,6 +84,7 @@ type GridCardProps = {
   name: string
   isDirectory?: boolean
   highlight?: string | undefined
+  showExtension?: boolean
   title?: string
   children: ReactNode
   selected?: boolean
@@ -108,6 +109,7 @@ export default function GridCard(props: GridCardProps) {
           name={props.name}
           isDirectory={props.isDirectory}
           highlight={props.highlight}
+          showExtension={props.showExtension}
         />
       )}
     </>

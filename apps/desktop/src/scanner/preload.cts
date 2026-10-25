@@ -1,5 +1,6 @@
 import type { ServerApi } from '@filejam/server'
 import type { ScannerApi } from '@filejam/server/scanner'
+import type { SettingsApi } from '../settings/index.js'
 
 // Sandboxed preloads need CommonJS and can only require Electron's allowed modules.
 import electron = require('electron')
@@ -16,7 +17,7 @@ type FilejamApi = {
   ) => Promise<{ original: boolean }>
   setControlsColor: (color: string) => Promise<void>
   collections: ServerApi['collections']
-  config: ServerApi['config']
+  settings: SettingsApi
   libraries: Pick<ServerApi['libraries'], 'list'> & {
     add: () => Promise<
       Awaited<ReturnType<ServerApi['libraries']['list']>>[number] | null
@@ -50,9 +51,9 @@ const filejam: FilejamApi = {
       ipcRenderer.invoke('collections:setFavorite', id, included),
     recordView: (id) => ipcRenderer.invoke('collections:recordView', id),
   },
-  config: {
-    get: (key) => ipcRenderer.invoke('config:get', key),
-    set: (key, value) => ipcRenderer.invoke('config:set', key, value),
+  settings: {
+    get: (key) => ipcRenderer.invoke('settings:get', key),
+    set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
   },
   entries: {
     listChildren: (folder) =>

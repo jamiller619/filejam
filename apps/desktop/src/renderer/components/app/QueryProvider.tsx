@@ -17,8 +17,8 @@ export default function QueryProvider({
       void queryClient.invalidateQueries({ queryKey: ['entry-collections'] })
     }
 
-    const invalidateConfig = () => {
-      void queryClient.invalidateQueries({ queryKey: ['config'] })
+    const invalidateSettings = () => {
+      void queryClient.invalidateQueries({ queryKey: ['settings'] })
     }
 
     const invalidateFiles = () => {
@@ -27,7 +27,7 @@ export default function QueryProvider({
 
     window.addEventListener('filejam:libraries-updated', invalidateLibraries)
     window.addEventListener('collections-changed', invalidateCollections)
-    window.addEventListener('filejam:config-updated', invalidateConfig)
+    window.addEventListener('filejam:settings-updated', invalidateSettings)
     const unsubscribeScanner = window.scanner.onUpdated(invalidateFiles)
 
     return () => {
@@ -36,7 +36,7 @@ export default function QueryProvider({
         invalidateLibraries,
       )
       window.removeEventListener('collections-changed', invalidateCollections)
-      window.removeEventListener('filejam:config-updated', invalidateConfig)
+      window.removeEventListener('filejam:settings-updated', invalidateSettings)
       unsubscribeScanner()
     }
   }, [])

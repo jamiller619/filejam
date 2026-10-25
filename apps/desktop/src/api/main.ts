@@ -1,6 +1,7 @@
 import type { ServerApi } from '@filejam/server'
 import { BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
+import type { SettingsApi } from '../settings/index.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'
 import { createMoveFoldersHandler } from './moveFolders.js'
 
@@ -8,10 +9,15 @@ import { createMoveFoldersHandler } from './moveFolders.js'
 export function registerApiIpc(
   api: ServerApi,
   renderer: WebContents,
+  settings: SettingsApi,
   scanRoot?: (root: string) => Promise<unknown>,
 ) {
-  const addFavoriteFolders = createFavoriteFoldersHandler(api, scanRoot)
-  const moveFolders = createMoveFoldersHandler(api, scanRoot)
+  const addFavoriteFolders = createFavoriteFoldersHandler(
+    api,
+    settings,
+    scanRoot,
+  )
+  const moveFolders = createMoveFoldersHandler(api, settings, scanRoot)
 
   ipcMain.handle(
     'libraries:add',
@@ -50,22 +56,21 @@ export function registerApiIpc(
   )
 
   ipcMain.handle(
-    'config:get',
+    'settings:get',
     withIpcMiddleware(
-      (_event, key: Parameters<ServerApi['config']['get']>[0]) =>
-        api.config.get(key),
+      (_event, key: Parameters<SettingsApi['get']>[0]) => settings.get(key),
       authorizeRenderer(renderer),
     ),
   )
 
   ipcMain.handle(
-    'config:set',
+    'settings:set',
     withIpcMiddleware(
       (
         _event,
-        key: Parameters<ServerApi['config']['set']>[0],
-        value: Parameters<ServerApi['config']['set']>[1],
-      ) => api.config.set(key, value),
+        key: Parameters<SettingsApi['set']>[0],
+        value: Parameters<SettingsApi['set']>[1],
+      ) => settings.set(key, value),
       authorizeRenderer(renderer),
     ),
   )
@@ -182,8 +187,8 @@ export function registerApiIpc(
   return () => {
     ipcMain.removeHandler('libraries:add')
     ipcMain.removeHandler('favorites:addFolders')
-    ipcMain.removeHandler('config:get')
-    ipcMain.removeHandler('config:set')
+    ipcMain.removeHandler('settings:get')
+    ipcMain.removeHandler('settings:set')
 
     ipcMain.removeHandler('collections:list')
     ipcMain.removeHandler('collections:create')

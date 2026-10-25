@@ -11,7 +11,7 @@
       "~/*": ["./src/renderer/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.cts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.cts", "src/**/*.json"],
   "references": [
     {
       "path": "../../packages/server"

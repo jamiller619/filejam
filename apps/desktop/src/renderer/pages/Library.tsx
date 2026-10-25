@@ -29,7 +29,7 @@ export default function Library({
   }
 
   if (loading) {
-    return <p role="status">Loading library…</p>
+    return <p role="status">Loading library...</p>
   }
 
   if (!library) {

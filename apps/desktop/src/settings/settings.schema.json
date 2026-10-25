@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Filejam Desktop Settings Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ui": {
+    "categories": [
+      {
+        "namespace": "window",
+        "title": "Window"
+      },
+      {
+        "namespace": "user",
+        "title": "User"
+      }
+    ]
+  },
+  "required": [
+    "window.navbarWidth",
+    "window.detailsWidth",
+    "window.main",
+    "window.imageViewer",
+    "user.favoriteFolders",
+    "user.dateformat",
+    "user.files.showExtensions",
+    "user.files.colorCoding"
+  ],
+  "properties": {
+    "window.navbarWidth": {
+      "title": "Navigation Width",
+      "type": "integer",
+      "minimum": 120,
+      "maximum": 250,
+      "default": 160,
+      "description": "The width of the navigation pane in pixels."
+    },
+    "window.detailsWidth": {
+      "title": "Details Width",
+      "type": "integer",
+      "minimum": 280,
+      "maximum": 600,
+      "default": 380,
+      "description": "The width of the details pane in pixels."
+    },
+    "window.main": {
+      "$ref": "#/$defs/windowState",
+      "title": "Main Window State",
+      "default": {},
+      "description": "The last position, size, and display mode of the main window."
+    },
+    "window.imageViewer": {
+      "$ref": "#/$defs/windowState",
+      "title": "Image Viewer Window State",
+      "default": {},
+      "description": "The last position, size, and display mode of an image viewer window."
+    },
+    "user.favoriteFolders": {
+      "title": "Favorite Folders",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "uniqueItems": true,
+      "description": "The absolute paths of the user's favorite folders."
+    },
+    "user.dateformat": {
+      "title": "Date Format",
+      "type": "string",
+      "enum": ["relative", "absolute"],
+      "default": "relative",
+      "description": "Whether dates are displayed relative to the current time or as absolute dates and times."
+    },
+    "user.files.colorCoding": {
+      "title": "File Color Coding",
+      "type": "boolean",
+      "default": true,
+      "description": "Color coding for files based on some common data type."
+    },
+    "user.files.showExtensions": {
+      "title": "Show File Extensions",
+      "type": "boolean",
+      "default": false,
+      "description": "Whether file extensions are shown in file names."
+    }
+  },
+  "$defs": {
+    "windowState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "maximized": { "type": "boolean" },
+        "fullscreen": { "type": "boolean" }
+      }
+    }
+  }
+}
