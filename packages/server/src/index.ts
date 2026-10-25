@@ -15,6 +15,7 @@ type BootOptions = {
   trashRoots?: string[]
 }
 
+export type { DefaultFolder } from './api/defaultLibraries.js'
 export type { Library, ServerApi } from './api/index.js'
 export type {
   CollectionDefinition,

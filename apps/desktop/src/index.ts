@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { boot } from '@filejam/server'
 import { app, BrowserWindow, dialog, net, protocol, screen } from 'electron'
 import { registerApiIpc } from './api/main.js'
+import { resolveDefaultFolder } from './defaultFolders.js'
 import { registerImageViewerIpc } from './ipc/image-viewer.js'
 import { registerWindowIpc } from './ipc/window.js'
 import { createPreviewService } from './preview/create-service.js'
@@ -229,7 +230,8 @@ if (!app.requestSingleInstanceLock()) {
     }
 
     server = await boot({
-      resolveDefaultFolder: (folder) => app.getPath(folder),
+      resolveDefaultFolder: (folder) =>
+        resolveDefaultFolder(folder, (name) => app.getPath(name)),
       trashRoots: await getOsTrashRoots(),
     })
 

@@ -23,6 +23,7 @@ test('seeds native paths once and preserves existing names and later deletions',
       music: join(directory, 'Music'),
       pictures: join(directory, 'Pictures'),
       videos: join(directory, 'Movies'),
+      applications: join(directory, 'Applications'),
     }
 
     for (const folder of Object.values(folders)) {
@@ -53,7 +54,7 @@ test('seeds native paths once and preserves existing names and later deletions',
 
     const saved = await connection.db.select().from(libraries)
 
-    assert.equal(saved.length, 6)
+    assert.equal(saved.length, 7)
 
     assert.equal(
       saved.find((item) => item.name === 'My work').rootPath,
@@ -71,6 +72,56 @@ test('seeds native paths once and preserves existing names and later deletions',
       () => {
         assert.fail('Should not resolve folders again')
       },
+      () => assert.fail('Should not warn'),
+    )
+
+    assert.deepEqual(await connection.db.select().from(libraries), [])
+  } finally {
+    connection?.close()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('adds Applications once to installations initialized before it existed', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-defaults-'))
+  let connection
+
+  try {
+    connection = await createTestDatabase()
+    const applications = join(directory, 'Applications')
+
+    await mkdir(applications)
+    await connection.db.insert(initialization).values({
+      key: 'default-libraries',
+    })
+
+    const requested = []
+
+    const initializedOriginals = await createApi(
+      connection.db,
+    ).libraries.initializeDefaults(
+      (key) => {
+        requested.push(key)
+
+        return applications
+      },
+      () => assert.fail('Should not warn'),
+    )
+
+    assert.equal(initializedOriginals, false)
+    assert.deepEqual(requested, ['applications'])
+    assert.deepEqual(
+      (await connection.db.select().from(libraries)).map((library) => ({
+        name: library.name,
+        rootPath: library.rootPath,
+      })),
+      [{ name: 'Applications', rootPath: await realpath(applications) }],
+    )
+
+    await connection.db.delete(libraries)
+
+    await createApi(connection.db).libraries.initializeDefaults(
+      () => assert.fail('Should not resolve folders again'),
       () => assert.fail('Should not warn'),
     )
 
@@ -122,7 +173,7 @@ test('skips unavailable folders and files, and deduplicates resolved paths', asy
     assert.equal(saved.length, 1)
     assert.equal(saved[0].rootPath, await realpath(directory))
     assert.equal(warnings.length, 3)
-    assert.equal((await connection.db.select().from(initialization)).length, 1)
+    assert.equal((await connection.db.select().from(initialization)).length, 2)
   } finally {
     connection?.close()
     await rm(directory, { recursive: true, force: true })
@@ -161,7 +212,7 @@ test('an empty setup completes once, and a failed transaction can be retried', a
     )
 
     assert.deepEqual(await connection.db.select().from(libraries), [])
-    assert.equal((await connection.db.select().from(initialization)).length, 1)
+    assert.equal((await connection.db.select().from(initialization)).length, 2)
   } finally {
     connection?.close()
     await rm(directory, { recursive: true, force: true })
