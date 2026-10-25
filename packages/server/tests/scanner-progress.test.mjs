@@ -7,7 +7,7 @@ import { closeLogger, initLogger } from '../dist/logger.js'
 import { ScanProgressReporter } from '../dist/scanner/progress.js'
 
 test('global logs use cumulative work and wall-clock throughput, throttle heartbeats, and reset between runs', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-progress-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-progress-'))
   let now = 0
   const clock = mock.method(performance, 'now', () => now)
 

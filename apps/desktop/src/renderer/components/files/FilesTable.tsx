@@ -1,4 +1,4 @@
-import { Surface } from '@files/ui'
+import { Surface } from '@filejam/ui'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { css } from 'inline-css-modules'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'

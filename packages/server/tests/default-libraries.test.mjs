@@ -12,7 +12,7 @@ import { initialization } from '../dist/db/schemas/initialization.js'
 import { libraries } from '../dist/db/schemas/library.js'
 
 test('seeds native paths once and preserves existing names and later deletions', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-defaults-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-defaults-'))
   let connection
 
   try {
@@ -82,7 +82,7 @@ test('seeds native paths once and preserves existing names and later deletions',
 })
 
 test('skips unavailable folders and files, and deduplicates resolved paths', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-defaults-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-defaults-'))
   let connection
 
   try {
@@ -130,7 +130,7 @@ test('skips unavailable folders and files, and deduplicates resolved paths', asy
 })
 
 test('an empty setup completes once, and a failed transaction can be retried', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-defaults-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-defaults-'))
   let connection
 
   try {

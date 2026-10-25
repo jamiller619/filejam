@@ -11,7 +11,7 @@ const clientUrl = new URL('../dist/scanner/client.js', import.meta.url).href
 
 // Run native SQLite work in a child so Windows releases all handles before cleanup.
 async function child(source, flags = []) {
-  const directory = await mkdtemp(join(tmpdir(), 'files-pool-child-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-pool-child-'))
   const script = join(directory, 'test.mjs')
 
   try {
@@ -27,7 +27,7 @@ async function child(source, flags = []) {
 }
 
 test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, replaces crashed workers, and closes all workers', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-pool-scheduler-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-pool-scheduler-'))
 
   try {
     const roots = await Promise.all(
@@ -137,7 +137,7 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
 })
 
 test('real workers index and reconcile concurrent libraries with isolated caches and results', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-pool-persistence-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-pool-persistence-'))
 
   try {
     const roots = [
@@ -168,7 +168,7 @@ test('real workers index and reconcile concurrent libraries with isolated caches
       const roots = await Promise.all(${JSON.stringify(roots)}.map(root => realpath(root)))
       const { initLogger, closeLogger } = await import(${JSON.stringify(new URL('../dist/logger.js', import.meta.url).href)})
       await initLogger({ get: key => ({ 'appdata.logsPath': join(directory, 'logs'), 'log.level': 'info', 'log.retentionDays': 1 })[key] })
-      const databasePath = join(directory, 'files.sqlite')
+      const databasePath = join(directory, 'filejam.sqlite')
       const scanner = new FileScanner(join(directory, 'cache'), databasePath, { maxConcurrentScans: 2 })
       let overlap = false
       scanner.onUpdated(() => { void scanner.status().then(s => { if (s.active.length === 2) overlap = true }).catch(() => {}) })

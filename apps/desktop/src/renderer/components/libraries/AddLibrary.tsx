@@ -1,4 +1,4 @@
-import { Button, Icon } from '@files/ui'
+import { Button, Icon } from '@filejam/ui'
 import { useState } from 'react'
 import styles from './AddLibrary.styles.js'
 
@@ -15,10 +15,10 @@ function useAddLibrary() {
     setAddLibraryFailed(false)
 
     try {
-      const library = await window.files.libraries.add()
+      const library = await window.filejam.libraries.add()
 
       if (library) {
-        window.dispatchEvent(new Event('files:libraries-updated'))
+        window.dispatchEvent(new Event('filejam:libraries-updated'))
       }
     } catch {
       setAddLibraryFailed(true)

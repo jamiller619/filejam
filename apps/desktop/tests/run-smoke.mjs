@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import electron from 'electron'
 
-const directory = await mkdtemp(join(tmpdir(), 'files-desktop-'))
+const directory = await mkdtemp(join(tmpdir(), 'filejam-desktop-'))
 
 try {
   const config = join(directory, 'config.json')
@@ -20,7 +20,7 @@ try {
     }),
   )
 
-  const env = { ...process.env, FILES_CONFIG_FILE: config }
+  const env = { ...process.env, FILEJAM_CONFIG_FILE: config }
 
   delete env.ELECTRON_RUN_AS_NODE
 

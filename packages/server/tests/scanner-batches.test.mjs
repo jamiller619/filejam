@@ -25,7 +25,7 @@ async function inDatabaseProcess(directory, source) {
         import { openScanDatabase } from ${moduleUrl('../dist/scanner/persistence.js')}
         const directory = ${JSON.stringify(directory)}
         const root = join(directory, 'root')
-        const databasePath = join(directory, 'files.sqlite')
+        const databasePath = join(directory, 'filejam.sqlite')
         ${source}
       `,
     ],

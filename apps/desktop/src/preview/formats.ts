@@ -1,1 +1,1 @@
-export { imageMimeType as previewMimeType } from '@files/preview-images/formats'
+export { imageMimeType as previewMimeType } from '@filejam/preview-images/formats'

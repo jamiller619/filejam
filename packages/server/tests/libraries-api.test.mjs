@@ -8,11 +8,11 @@ import { initDatabase } from '../dist/db/index.js'
 import { libraries } from '../dist/db/schemas/library.js'
 
 test('libraries API returns plain records in stable order, including an empty database', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-libraries-api-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-libraries-api-'))
   let connection
 
   try {
-    connection = await initDatabase(join(directory, 'files.sqlite'))
+    connection = await initDatabase(join(directory, 'filejam.sqlite'))
 
     const api = createApi(connection.db)
 

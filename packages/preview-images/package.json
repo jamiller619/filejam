@@ -1,5 +1,5 @@
 {
-  "name": "@files/preview-images",
+  "name": "@filejam/preview-images",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,7 +14,7 @@
   "files": [
     "dist"
   ],
-  "filesApp": {
+  "filejamApp": {
     "type": "preview",
     "apiVersion": 1,
     "extensions": [
@@ -43,7 +43,7 @@
     }
   },
   "dependencies": {
-    "@files/plugin-api": "workspace:*"
+    "@filejam/plugin-api": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.4"

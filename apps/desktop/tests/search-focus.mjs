@@ -14,8 +14,8 @@ import { registerWindowIpc } from '../dist/ipc/window.js'
 async function run() {
   await app.whenReady()
 
-  const directory = await mkdtemp(join(tmpdir(), 'files-search-focus-'))
-  process.env.FILES_CONFIG_FILE = join(directory, 'config.json')
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-search-focus-'))
+  process.env.FILEJAM_CONFIG_FILE = join(directory, 'config.json')
   const connection = await initDatabase(join(directory, 'test.sqlite'))
   const api = createApi(connection.db, await initConfig())
   const library = await api.libraries.ensureRoot(app.getPath('temp'))

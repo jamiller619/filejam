@@ -1,6 +1,6 @@
-import type { Config } from '@files/server'
-import { schema as configSchema } from '@files/server/config-schema'
-import { Button, Icon, type IconName, Select, Switch } from '@files/ui'
+import type { Config } from '@filejam/server'
+import { schema as configSchema } from '@filejam/server/config-schema'
+import { Button, Icon, type IconName, Select, Switch } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { type HTMLAttributes, type ReactNode, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -397,7 +397,8 @@ export default function Settings() {
                 setSelection({ type: 'collection-new' })
               }}
             >
-              New collection
+              <Icon name="add" size={16} />
+              Add collection
             </Button>
           }
         >

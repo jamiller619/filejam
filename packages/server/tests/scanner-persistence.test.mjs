@@ -42,7 +42,7 @@ test('reads each entry metadata once on initial, unchanged, and changed scans', 
     {
       workerData: {
         cacheDirectory: join(dir, 'cache'),
-        databasePath: join(dir, 'files.sqlite'),
+        databasePath: join(dir, 'filejam.sqlite'),
         paths: [root, nested, file],
       },
     },
@@ -112,7 +112,7 @@ async function finish(scanner) {
 test('persists parents and metadata incrementally, repairs cache hits, and removes stale rows', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'scanner-db-'))
   const root = join(dir, 'root')
-  const databasePath = join(dir, 'files.sqlite')
+  const databasePath = join(dir, 'filejam.sqlite')
 
   await mkdir(join(root, 'nested'), { recursive: true })
   await mkdir(join(root, 'empty'))
@@ -193,7 +193,7 @@ test('follows file and directory symlinks when persisting entries', async (t) =>
   const root = join(directory, 'root')
   const targetDirectory = join(directory, 'target-directory')
   const targetFile = join(directory, 'target.txt')
-  const databasePath = join(directory, 'files.sqlite')
+  const databasePath = join(directory, 'filejam.sqlite')
   const linkedFile = join(root, 'linked.txt')
   const linkedDirectory = join(root, 'linked-directory')
 

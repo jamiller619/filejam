@@ -98,7 +98,7 @@ async function run() {
     )
 
     const libraries = await window.webContents.executeJavaScript(
-      'window.files.libraries.list()',
+      'window.filejam.libraries.list()',
     )
 
     assert.ok(Array.isArray(libraries))

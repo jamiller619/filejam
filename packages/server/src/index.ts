@@ -49,7 +49,7 @@ async function start(options: BootOptions) {
   let stopWatching: (() => void) | undefined
 
   try {
-    const databasePath = join(config.get('appdata.dbPath'), 'files.sqlite')
+    const databasePath = join(config.get('appdata.dbPath'), 'filejam.sqlite')
 
     database = await initDatabase(databasePath)
 

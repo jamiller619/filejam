@@ -3,8 +3,8 @@ import type {
   CollectionField,
   CollectionOperator,
   CollectionRule,
-} from '@files/server'
-import { Button, Input, Select } from '@files/ui'
+} from '@filejam/server'
+import { Button, Input, Select } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { useEffect, useState } from 'react'
 import { useApi } from '../../hooks/useApi.js'
@@ -104,7 +104,7 @@ const numberOperators: CollectionOperator[] = [
 type FieldType = 'text' | 'number' | 'date'
 
 type Collection = Awaited<
-  ReturnType<Window['files']['collections']['list']>
+  ReturnType<Window['filejam']['collections']['list']>
 >[number]
 
 export default function CollectionEditor({
@@ -176,12 +176,15 @@ export default function CollectionEditor({
           id="collection-match"
           aria-label="Rule matching"
           value={definition.match}
-          onChange={(event) =>
+          onChange={(event) => {
+            const match = event.currentTarget
+              .value as CollectionDefinition['match']
+
             setDefinition((current) => ({
               ...current,
-              match: event.currentTarget.value as 'all' | 'any',
+              match,
             }))
-          }
+          }}
         >
           <option value="all">All rules</option>
           <option value="any">Any rule</option>

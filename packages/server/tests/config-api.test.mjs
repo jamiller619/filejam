@@ -7,7 +7,7 @@ import { createConfigApi } from '../dist/api/config.js'
 import ConfigStore from '../dist/config/ConfigStore.js'
 
 test('config API reads, validates, and persists config values', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-config-api-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-config-api-'))
   const file = join(directory, 'config.json')
 
   const store = new ConfigStore(file, {
@@ -47,7 +47,7 @@ test('config API reads, validates, and persists config values', async () => {
 })
 
 test('config API validates and persists the date format', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-date-format-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-date-format-'))
   const file = join(directory, 'config.json')
   const store = new ConfigStore(file, { 'user.dateformat': 'relative' })
   const config = createConfigApi(store)

@@ -1,4 +1,4 @@
-import type { FileScanner } from '@files/server/scanner'
+import type { FileScanner } from '@filejam/server/scanner'
 import { ipcMain, type WebContents } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
 

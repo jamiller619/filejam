@@ -38,8 +38,8 @@ export async function createPreviewService(userData: string) {
   const registry = new PreviewRegistry(config.overrides)
   const base = dirname(fileURLToPath(import.meta.url))
 
-  await registry.register('@files/preview-images', base)
-  await registry.register('@files/preview-video', base)
+  await registry.register('@filejam/preview-images', base)
+  await registry.register('@filejam/preview-video', base)
 
   for (const name of config.packages ?? []) {
     try {

@@ -1,8 +1,8 @@
-import type { Config } from '@files/server'
+import type { Config } from '@filejam/server'
 import { formatDistanceToNow } from 'date-fns'
 
 type FileEntry = Awaited<
-  ReturnType<Window['files']['entries']['listChildren']>
+  ReturnType<Window['filejam']['entries']['listChildren']>
 >['entries'][number]
 
 export type FileColumn = keyof FileEntry

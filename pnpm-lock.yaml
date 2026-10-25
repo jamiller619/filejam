@@ -178,19 +178,19 @@ importers:
       '@derhuerst/ffprobe-static':
         specifier: 5.3.0
         version: 5.3.0
-      '@files/plugin-api':
+      '@filejam/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
-      '@files/preview-images':
+      '@filejam/preview-images':
         specifier: workspace:*
         version: link:../../packages/preview-images
-      '@files/preview-video':
+      '@filejam/preview-video':
         specifier: workspace:*
         version: link:../../packages/preview-video
-      '@files/server':
+      '@filejam/server':
         specifier: workspace:*
         version: link:../../packages/server
-      '@files/ui':
+      '@filejam/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/react-query':
@@ -259,7 +259,7 @@ importers:
 
   packages/preview-images:
     dependencies:
-      '@files/plugin-api':
+      '@filejam/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
     devDependencies:
@@ -269,7 +269,7 @@ importers:
 
   packages/preview-video:
     dependencies:
-      '@files/plugin-api':
+      '@filejam/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
     devDependencies:

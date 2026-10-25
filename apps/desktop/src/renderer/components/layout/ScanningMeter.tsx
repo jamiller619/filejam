@@ -1,4 +1,4 @@
-import type { ScannerStatus } from '@files/server/scanner'
+import type { ScannerStatus } from '@filejam/server/scanner'
 import { css } from 'inline-css-modules'
 import { useEffect, useRef, useState } from 'react'
 

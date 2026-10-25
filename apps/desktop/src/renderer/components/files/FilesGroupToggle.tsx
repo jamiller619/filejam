@@ -1,4 +1,4 @@
-import { Icon } from '@files/ui'
+import { Icon } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 
 const styles = css`

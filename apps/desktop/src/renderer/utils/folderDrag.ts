@@ -1,6 +1,6 @@
 import type { DragEvent } from 'react'
 
-export const folderDragType = 'application/x-files-folder-paths'
+export const folderDragType = 'application/x-filejam-folder-paths'
 
 function getFolderDragPreview(source: Element) {
   return (source.closest<HTMLElement>('[data-folder-drag-preview]') ??

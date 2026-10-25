@@ -8,7 +8,7 @@ import { entries } from '../dist/db/schemas/entry.js'
 import { libraries } from '../dist/db/schemas/library.js'
 
 test('creates a database, preserves data on reopen, and enforces constraints', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-db-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-db-'))
   const path = join(directory, 'nested', 'files #1.sqlite')
   let connection
 

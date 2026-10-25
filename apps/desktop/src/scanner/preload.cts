@@ -1,12 +1,12 @@
-import type { ServerApi } from '@files/server'
-import type { ScannerApi } from '@files/server/scanner'
+import type { ServerApi } from '@filejam/server'
+import type { ScannerApi } from '@filejam/server/scanner'
 
 // Sandboxed preloads need CommonJS and can only require Electron's allowed modules.
 import electron = require('electron')
 
 const { contextBridge, ipcRenderer } = electron
 
-type FilesApi = {
+type FilejamApi = {
   getDroppedFilePath: (file: File) => string
   addFavoriteFolders: (paths: string[]) => Promise<string[]>
   openImage: (libraryId: number, path: string) => Promise<void>
@@ -28,7 +28,7 @@ type FilesApi = {
   moveHistory: Pick<ServerApi['moveHistory'], 'list'>
 }
 
-const files: FilesApi = {
+const filejam: FilejamApi = {
   getDroppedFilePath: (file) => electron.webUtils.getPathForFile(file),
   addFavoriteFolders: (paths) =>
     ipcRenderer.invoke('favorites:addFolders', paths),
@@ -69,7 +69,7 @@ const files: FilesApi = {
   },
 }
 
-contextBridge.exposeInMainWorld('files', files)
+contextBridge.exposeInMainWorld('filejam', filejam)
 
 const scanner: ScannerApi & { onUpdated(listener: () => void): () => void } = {
   onUpdated: (listener) => {
@@ -91,7 +91,7 @@ contextBridge.exposeInMainWorld('scanner', scanner)
 
 declare global {
   interface Window {
-    files: FilesApi
+    filejam: FilejamApi
     scanner: ScannerApi & { onUpdated(listener: () => void): () => void }
   }
 }

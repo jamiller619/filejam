@@ -1,4 +1,4 @@
-﻿import { Button, Icon } from '@files/ui'
+﻿import { Button, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { useEffect, useRef, useState } from 'react'
@@ -133,7 +133,7 @@ export default function FilePreview({
 
     const controller = new AbortController()
 
-    void window.files
+    void window.filejam
       .previewCapabilities(entry.libraryId, entry.relativePath)
       .then((result) => {
         if (!controller.signal.aborted) {
@@ -157,7 +157,7 @@ export default function FilePreview({
     ...(color ? { color: color.light, darkColor: color.dark } : {}),
   })
 
-  const source = `files-preview://preview-image?${params}`
+  const source = `filejam-preview://preview-image?${params}`
   const shouldLoad = detail || nearViewport || settledSource === source
 
   useEffect(() => {

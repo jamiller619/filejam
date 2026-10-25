@@ -14,7 +14,7 @@ import type {
   PreviewExecutables,
   PreviewRequest,
   PreviewResult,
-} from '@files/plugin-api'
+} from '@filejam/plugin-api'
 import { utilityProcess } from 'electron'
 import type { PreviewRegistry, RegisteredProvider } from './registry.js'
 

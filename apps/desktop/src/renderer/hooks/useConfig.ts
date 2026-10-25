@@ -1,4 +1,4 @@
-import type { Config, ConfigKey } from '@files/server'
+import type { Config, ConfigKey } from '@filejam/server'
 import { useCallback, useMemo } from 'react'
 import { queryKeys } from '../queryClient.js'
 import { useApi } from './useApi.js'
@@ -54,7 +54,7 @@ export function useConfig<const Keys extends readonly ConfigKey[]>(keys: Keys) {
       )
 
       window.dispatchEvent(
-        new CustomEvent('files:config-updated', { detail: { key, value } }),
+        new CustomEvent('filejam:config-updated', { detail: { key, value } }),
       )
     },
     [allowedKeys, api, setValues],

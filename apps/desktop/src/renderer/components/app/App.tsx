@@ -1,4 +1,4 @@
-import { Theme, ToastProvider, ToastViewport } from '@files/ui'
+import { Theme, ToastProvider, ToastViewport } from '@filejam/ui'
 import QueryProvider from './QueryProvider.js'
 import Router from './Router.js'
 

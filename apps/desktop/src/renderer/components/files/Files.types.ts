@@ -1,15 +1,15 @@
 import type { Row, Table } from '@tanstack/react-table'
 import type { FileColumn } from '../../utils/fileColumns.js'
 
-export type Folder = Parameters<Window['files']['entries']['listChildren']>[0]
+export type Folder = Parameters<Window['filejam']['entries']['listChildren']>[0]
 
 export type FolderListing = Awaited<
-  ReturnType<Window['files']['entries']['listChildren']>
+  ReturnType<Window['filejam']['entries']['listChildren']>
 >
 
 export type Listing =
   | FolderListing
-  | Awaited<ReturnType<Window['files']['collections']['listEntries']>>
+  | Awaited<ReturnType<Window['filejam']['collections']['listEntries']>>
 
 export type FileEntry = Listing['entries'][number]
 export type FileRow = Row<FileEntry>

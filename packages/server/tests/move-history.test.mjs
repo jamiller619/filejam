@@ -8,7 +8,7 @@ import { initDatabase } from '../dist/db/index.js'
 
 test('move history preserves completed and interrupted operations across restarts', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'move-history-'))
-  const databasePath = join(directory, 'files.sqlite')
+  const databasePath = join(directory, 'filejam.sqlite')
   let connection
 
   try {

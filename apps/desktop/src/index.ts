@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { boot } from '@files/server'
+import { boot } from '@filejam/server'
 import { app, BrowserWindow, dialog, net, protocol, screen } from 'electron'
 import { registerApiIpc } from './api/main.js'
 import { registerImageViewerIpc } from './ipc/image-viewer.js'
@@ -13,14 +13,14 @@ import { readWindowState, trackWindowState } from './window-state.js'
 
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: 'files-preview',
+    scheme: 'filejam-preview',
     privileges: { standard: true, secure: true, stream: true },
   },
 ])
 
-if (!app.isPackaged && process.env.FILES_RENDERER_URL) {
+if (!app.isPackaged && process.env.FILEJAM_RENDERER_URL) {
   process.on('message', (message) => {
-    if (message === 'files:dev:quit') {
+    if (message === 'filejam:dev:quit') {
       app.quit()
     }
   })
@@ -55,7 +55,7 @@ async function createWindow() {
     screen.getAllDisplays().map((display) => display.workArea),
   )
   const current = new BrowserWindow({
-    title: 'Files',
+    title: 'Filejam',
     ...state.bounds,
     minWidth: 600,
     minHeight: 400,
@@ -123,7 +123,7 @@ async function createWindow() {
     window = undefined
   })
 
-  const rendererUrl = process.env.FILES_RENDERER_URL
+  const rendererUrl = process.env.FILEJAM_RENDERER_URL
 
   if (!app.isPackaged && rendererUrl) {
     const url = new URL(rendererUrl)
@@ -152,7 +152,7 @@ function reportFailure(error: unknown) {
   console.error('Desktop startup failed', error)
 
   dialog.showErrorBox(
-    'Files could not start',
+    'Filejam could not start',
     error instanceof Error ? error.message : String(error),
   )
 
@@ -236,7 +236,7 @@ if (!app.requestSingleInstanceLock()) {
     previews = await createPreviewService(app.getPath('userData'))
 
     protocol.handle(
-      'files-preview',
+      'filejam-preview',
       createPreviewHandler(
         server.api.libraries,
         (url, init) => net.fetch(url, init),

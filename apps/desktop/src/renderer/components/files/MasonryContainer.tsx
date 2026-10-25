@@ -1,4 +1,4 @@
-import { Surface } from '@files/ui'
+import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import {
   type Positioner,

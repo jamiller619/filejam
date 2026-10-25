@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, Icon } from '@files/ui'
+import { Button, ButtonGroup, Icon } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { useRef, useState } from 'react'
 import type { DateFormat, FileColumn } from '../../utils/fileColumns.js'
@@ -13,7 +13,7 @@ import FileCollections from './FileCollections.js'
 import FilePreview from './FilePreview.js'
 
 type FileEntry = Awaited<
-  ReturnType<Window['files']['entries']['listChildren']>
+  ReturnType<Window['filejam']['entries']['listChildren']>
 >['entries'][number]
 
 const metadata: readonly FileColumn[] = [
@@ -149,7 +149,7 @@ export default function FileDetails({
   const collectionsSection = useRef<HTMLDivElement>(null)
   const isFolder = entry.kind === 'directory'
   const isVideo = entry.mimeType?.startsWith('video/') ?? false
-  const videoSource = `files-preview://video?${new URLSearchParams({
+  const videoSource = `filejam-preview://video?${new URLSearchParams({
     libraryId: String(entry.libraryId),
     path: entry.relativePath,
     v: String(entry.modifiedAt),
@@ -178,6 +178,7 @@ export default function FileDetails({
       ariaLabel={`${isFolder ? 'Folder' : 'File'} details: ${entry.name}`}
       title={entry.name}
       closing={closing}
+      showCloseButton={false}
       onClose={onClose}
       onClosed={onClosed}
       footer={
@@ -229,7 +230,7 @@ export default function FileDetails({
             onOpen={() => {
               setImageError(null)
 
-              void window.files
+              void window.filejam
                 .openImage(entry.libraryId, entry.relativePath)
                 .catch(() => {
                   setImageError({

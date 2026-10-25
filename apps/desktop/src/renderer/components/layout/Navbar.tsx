@@ -1,5 +1,5 @@
-import type { Library } from '@files/server'
-import { Eyebrow, Icon } from '@files/ui'
+import type { Library } from '@filejam/server'
+import { Eyebrow, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { HTMLAttributes } from 'react'

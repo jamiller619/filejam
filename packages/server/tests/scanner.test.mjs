@@ -22,7 +22,7 @@ async function finished(scanner) {
 }
 
 test('worker scans, persists changes, rejects overlap, and handles failure and cancellation', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-scanner-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-scanner-'))
   const root = join(directory, 'root')
   const cache = join(root, '.cache')
 
@@ -37,7 +37,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
       })[key],
   })
 
-  let scanner = new FileScanner(cache, join(directory, 'files.sqlite'))
+  let scanner = new FileScanner(cache, join(directory, 'filejam.sqlite'))
 
   try {
     await writeFile(join(root, 'a.txt'), 'a')
@@ -56,7 +56,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
     })
 
     await scanner.close()
-    scanner = new FileScanner(cache, join(directory, 'files.sqlite'))
+    scanner = new FileScanner(cache, join(directory, 'filejam.sqlite'))
     await scanner.start(root)
     assert.equal((await finished(scanner)).state, 'completed')
 

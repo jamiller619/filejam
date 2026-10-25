@@ -25,15 +25,18 @@ export default function QueryProvider({
       void queryClient.invalidateQueries({ queryKey: ['files'] })
     }
 
-    window.addEventListener('files:libraries-updated', invalidateLibraries)
+    window.addEventListener('filejam:libraries-updated', invalidateLibraries)
     window.addEventListener('collections-changed', invalidateCollections)
-    window.addEventListener('files:config-updated', invalidateConfig)
+    window.addEventListener('filejam:config-updated', invalidateConfig)
     const unsubscribeScanner = window.scanner.onUpdated(invalidateFiles)
 
     return () => {
-      window.removeEventListener('files:libraries-updated', invalidateLibraries)
+      window.removeEventListener(
+        'filejam:libraries-updated',
+        invalidateLibraries,
+      )
       window.removeEventListener('collections-changed', invalidateCollections)
-      window.removeEventListener('files:config-updated', invalidateConfig)
+      window.removeEventListener('filejam:config-updated', invalidateConfig)
       unsubscribeScanner()
     }
   }, [])

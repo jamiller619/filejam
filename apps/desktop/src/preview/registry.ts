@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, extname, isAbsolute, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { PreviewManifest } from '@files/plugin-api'
+import type { PreviewManifest } from '@filejam/plugin-api'
 import mime from 'mime'
 
 export interface RegisteredProvider {
@@ -26,7 +26,7 @@ export class PreviewRegistry {
       : require.resolve(`${packagePath}/package.json`)
 
     const pkg = JSON.parse(await readFile(manifestPath, 'utf8'))
-    const app = pkg.filesApp
+    const app = pkg.filejamApp
 
     if (
       typeof pkg.name !== 'string' ||
@@ -96,7 +96,7 @@ export class PreviewRegistry {
     return {
       original: this.candidates(path).some(
         (p) =>
-          p.manifest.id === '@files/preview-images' &&
+          p.manifest.id === '@filejam/preview-images' &&
           p.manifest.capabilities.original,
       ),
     }

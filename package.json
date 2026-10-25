@@ -1,16 +1,16 @@
 {
-  "name": "files",
+  "name": "filejam",
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "build": "tsc -b && pnpm --filter @files/server copy:migrations && pnpm --filter @files/desktop copy:assets",
+    "build": "tsc -b && pnpm --filter @filejam/server copy:migrations && pnpm --filter @filejam/desktop copy:assets",
     "typecheck": "tsc -b --noEmit",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "format": "biome format --write .",
     "clean": "tsc -b --clean",
-    "start": "pnpm --filter @files/desktop start",
-    "dev": "pnpm --filter @files/desktop dev"
+    "start": "pnpm --filter @filejam/desktop start",
+    "dev": "pnpm --filter @filejam/desktop dev"
   },
   "keywords": [],
   "author": "",

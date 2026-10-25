@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url'
-import type { ServerApi } from '@files/server'
+import type { ServerApi } from '@filejam/server'
 import mime from 'mime'
 import { authorizePreview, PreviewAccessError } from './authorize.js'
 import { previewMimeType } from './formats.js'

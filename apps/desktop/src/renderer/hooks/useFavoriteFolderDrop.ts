@@ -10,20 +10,20 @@ export function useFavoriteFolderDrop() {
     const paths = internalPaths
       ? JSON.parse(internalPaths)
       : Array.from(dataTransfer.files, (file) =>
-          window.files.getDroppedFilePath(file),
+          window.filejam.getDroppedFilePath(file),
         )
 
-    const updatedFavorites = await window.files.addFavoriteFolders(paths)
+    const updatedFavorites = await window.filejam.addFavoriteFolders(paths)
 
     window.dispatchEvent(
-      new CustomEvent('files:config-updated', {
+      new CustomEvent('filejam:config-updated', {
         detail: {
           key: 'user.favoriteFolders',
           value: updatedFavorites,
         },
       }),
     )
-    window.dispatchEvent(new Event('files:libraries-updated'))
+    window.dispatchEvent(new Event('filejam:libraries-updated'))
   }
 
   const { dropError, isDragging, dropTargetProps } = useDropTarget({

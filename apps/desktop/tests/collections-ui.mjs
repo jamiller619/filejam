@@ -13,14 +13,14 @@ import { registerWindowIpc } from '../dist/ipc/window.js'
 const timeout = setTimeout(() => app.exit(1), 30000)
 
 async function run() {
-  const directory = await mkdtemp(join(tmpdir(), 'files-collections-ui-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-collections-ui-'))
   let connection
   let window
   let unregister
 
   try {
     await app.whenReady()
-    connection = await initDatabase(join(directory, 'files.sqlite'))
+    connection = await initDatabase(join(directory, 'filejam.sqlite'))
 
     const api = createApi(connection.db)
     const library = await api.libraries.ensureRoot(directory)
@@ -246,7 +246,7 @@ async function run() {
     connection.close()
 
     // Retain the screenshot for visual inspection; database is isolated in temp.
-    await rm(join(directory, 'files.sqlite'), {
+    await rm(join(directory, 'filejam.sqlite'), {
       force: true,
       recursive: true,
       maxRetries: 10,

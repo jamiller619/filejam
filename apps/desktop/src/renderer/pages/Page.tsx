@@ -1,4 +1,4 @@
-import { ScrollArea } from '@files/ui'
+import { ScrollArea } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { createContext, useContext, useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -145,7 +145,7 @@ type SplitViewState = {
   layout: Layout
 }
 
-const splitStoragePrefix = 'files:split-view:v1:'
+const splitStoragePrefix = 'filejam:split-view:v1:'
 const defaultSplitLayout = { primary: 50, secondary: 50 }
 
 function readSplitViewState(storageKey: string): SplitViewState {

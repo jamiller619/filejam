@@ -33,7 +33,7 @@ component in `../../components/Icon.tsx` preserves their paths, transforms,
 | `hide-details` | `inset.filled.righthalf.arrow.right.rectangle.svg` |
 
 ```tsx
-import { Icon } from '@files/ui'
+import { Icon } from '@filejam/ui'
 
 <Icon name="folder" size={20} />
 <Icon name="download" aria-label="Download" />

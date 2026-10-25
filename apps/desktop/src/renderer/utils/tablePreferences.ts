@@ -21,7 +21,7 @@ type TablePreferences = {
   columnSizing: ColumnSizingState
 }
 
-const storagePrefix = 'files:table:v1:'
+const storagePrefix = 'filejam:table:v1:'
 
 export function readTablePreferences(page: string): TablePreferences {
   const defaults: TablePreferences = {

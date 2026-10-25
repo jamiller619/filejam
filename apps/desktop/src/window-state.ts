@@ -1,4 +1,4 @@
-import type { Config } from '@files/server'
+import type { Config } from '@filejam/server'
 import type { BrowserWindow, Rectangle } from 'electron'
 
 export type WindowState = {

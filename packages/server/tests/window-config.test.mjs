@@ -7,7 +7,7 @@ import { createConfigApi } from '../dist/api/config.js'
 import ConfigStore from '../dist/config/ConfigStore.js'
 
 test('config API validates and persists window state', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-window-config-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-window-config-'))
   const file = join(directory, 'config.json')
   const store = new ConfigStore(file, {
     'app.locale': 'en-US',

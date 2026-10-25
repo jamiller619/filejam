@@ -1,4 +1,4 @@
-import { Button, Icon, ScrollArea } from '@files/ui'
+import { Button, Icon, ScrollArea } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react'
 
@@ -58,6 +58,7 @@ type DetailsPaneProps = {
   bodyClassName?: string | undefined
   closing?: boolean | undefined
   footer?: ReactNode | undefined
+  showCloseButton?: boolean | undefined
   onClose?: (() => void) | undefined
   onClosed?: (() => void) | undefined
 }
@@ -69,6 +70,7 @@ export default function DetailsPane({
   bodyClassName,
   closing = false,
   footer,
+  showCloseButton = true,
   onClose,
   onClosed,
 }: DetailsPaneProps) {
@@ -165,7 +167,7 @@ export default function DetailsPane({
     >
       <header className={styles.header}>
         <h3 className={styles.title}>{title}</h3>
-        {closable && (
+        {closable && showCloseButton && (
           <Button
             onClick={() => closeCallback.current?.()}
             aria-label="Hide details"

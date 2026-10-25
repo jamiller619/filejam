@@ -1,4 +1,4 @@
-import type { IconName } from '@files/ui'
+import type { IconName } from '@filejam/ui'
 
 const folderIcons: Readonly<Partial<Record<string, IconName>>> = {
   desktop: 'desktop',

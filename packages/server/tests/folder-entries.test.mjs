@@ -7,11 +7,11 @@ import { createApi } from '../dist/api/index.js'
 import { initDatabase } from '../dist/db/index.js'
 
 test('folder contents are immediate children isolated by library and report scan state', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-folder-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-folder-'))
   let connection
 
   try {
-    connection = await initDatabase(join(directory, 'files.sqlite'))
+    connection = await initDatabase(join(directory, 'filejam.sqlite'))
 
     const api = createApi(connection.db)
     const library = await api.libraries.ensureRoot('/first')
@@ -166,11 +166,11 @@ test('folder contents are immediate children isolated by library and report scan
 })
 
 test('folder sizes include nested contents and reflect updates and deletions', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-sizes-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-sizes-'))
   let connection
 
   try {
-    connection = await initDatabase(join(directory, 'files.sqlite'))
+    connection = await initDatabase(join(directory, 'filejam.sqlite'))
 
     const api = createApi(connection.db)
     const library = await api.libraries.ensureRoot('/sizes')

@@ -28,7 +28,7 @@ const server = await createServer({
   resolve: {
     alias: {
       '~': fileURLToPath(new URL('../src/renderer/', import.meta.url)),
-      '@files/ui': fileURLToPath(
+      '@filejam/ui': fileURLToPath(
         new URL('../../../packages/ui/src/index.ts', import.meta.url),
       ),
     },
@@ -52,7 +52,10 @@ const server = await createServer({
 await server.listen()
 server.printUrls()
 
-const env = { ...process.env, FILES_RENDERER_URL: server.resolvedUrls.local[0] }
+const env = {
+  ...process.env,
+  FILEJAM_RENDERER_URL: server.resolvedUrls.local[0],
+}
 
 delete env.ELECTRON_RUN_AS_NODE
 
@@ -98,7 +101,7 @@ async function stopElectron() {
     })
 
     if (running.connected) {
-      running.send('files:dev:quit')
+      running.send('filejam:dev:quit')
     } else {
       running.kill('SIGTERM')
     }

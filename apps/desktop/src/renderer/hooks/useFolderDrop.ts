@@ -60,13 +60,13 @@ export function useFolderDrop(destination: string | undefined) {
         return
       }
 
-      const favorites = await window.files.entries.moveFolders(
+      const favorites = await window.filejam.entries.moveFolders(
         folderPaths,
         destination,
       )
 
       window.dispatchEvent(
-        new CustomEvent('files:config-updated', {
+        new CustomEvent('filejam:config-updated', {
           detail: { key: 'user.favoriteFolders', value: favorites },
         }),
       )

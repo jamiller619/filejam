@@ -1,7 +1,7 @@
 import { constants } from 'node:fs'
 import { access, cp, realpath, rename, rm, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import type { ServerApi } from '@files/server'
+import type { ServerApi } from '@filejam/server'
 
 function pathKey(path: string) {
   const resolved = resolve(path)

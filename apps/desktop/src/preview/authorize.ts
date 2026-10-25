@@ -1,6 +1,6 @@
 import { realpath, stat } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import type { ServerApi } from '@files/server'
+import type { ServerApi } from '@filejam/server'
 
 export class PreviewAccessError extends Error {
   constructor(public status: number) {

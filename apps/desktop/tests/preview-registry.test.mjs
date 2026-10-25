@@ -6,13 +6,13 @@ import test from 'node:test'
 import { PreviewRegistry } from '../dist/preview/registry.js'
 
 test('preview metadata uses standard package fields', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-preview-package-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-preview-package-'))
   const entry = join(directory, 'custom-entry.js')
   const packageJson = {
     name: '@example/custom-preview',
     version: '2.3.4',
     main: './custom-entry.js',
-    filesApp: {
+    filejamApp: {
       type: 'preview',
       apiVersion: 1,
       extensions: ['custom'],

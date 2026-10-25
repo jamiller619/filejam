@@ -389,10 +389,19 @@ function FolderContents({
         libraryRoots={libraryRoots}
         relativePath={relativePath}
         collectionId={collectionId}
+        detailsOpen={detailsOpen && !detailsClosing}
         table={table}
         viewMode={viewMode}
         groupBy={groupBy}
         flatten={flatten}
+        onDetailsOpenChange={(open) => {
+          if (open) {
+            setDetailsOpen(true)
+            setDetailsClosing(false)
+          } else {
+            setDetailsClosing(true)
+          }
+        }}
         onFlattenChange={(flatten) => {
           selectFile(null)
           setPreferences((current) => ({ ...current, flatten }))

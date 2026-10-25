@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
-  "title": "Files App Config Schema",
+  "title": "Filejam App Config Schema",
   "type": "object",
   "additionalProperties": false,
   "x-ui": {

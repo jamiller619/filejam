@@ -4,6 +4,7 @@ import {
 } from '@base-ui/react/input'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
+import controlStyles from './Control.module.js'
 import Icon, { type IconName } from './Icon.js'
 
 const styles = css`
@@ -21,17 +22,6 @@ const styles = css`
     color: var(--suzy-text-muted);
     pointer-events: none;
     transform: translateY(-50%);
-  }
-
-  .input {
-    padding-inline-start: calc(var(--suzy-control-padding-x) + 20px);
-    background: var(--suzy-gray-4);
-    transition: background-color var(--suzy-duration-normal) var(--suzy-ease-standard);
-
-    &:hover,
-    &:focus {
-      background: var(--suzy-gray-5);
-    }
   }
 
   .small {
@@ -53,15 +43,16 @@ export default function Input({
   ...props
 }: InputProps) {
   const inputClassName = clsx(size === 'small' && styles.small, className)
+  const cssClassName = clsx(controlStyles.control, inputClassName)
 
   if (!icon) {
-    return <BaseUIInput {...props} className={inputClassName} />
+    return <BaseUIInput {...props} className={cssClassName} />
   }
 
   return (
     <span className={styles.root}>
       <Icon className={styles.icon} name={icon} size={14} />
-      <BaseUIInput {...props} className={clsx(styles.input, inputClassName)} />
+      <BaseUIInput {...props} className={cssClassName} />
     </span>
   )
 }

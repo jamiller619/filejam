@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import type { ServerApi } from '@files/server'
+import type { ServerApi } from '@filejam/server'
 
 export function createFavoriteFoldersHandler(
   api: ServerApi,

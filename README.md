@@ -1,10 +1,10 @@
-# Files
+# Filejam
 
 Private pnpm workspace using ESM and strict TypeScript.
 
-- `packages/server`: Node.js server package (`@files/server`).
-- `packages/ui`: browser UI package (`@files/ui`).
-- `apps/desktop`: Electron desktop application (`@files/desktop`).
+- `packages/server`: Node.js server package (`@filejam/server`).
+- `packages/ui`: browser UI package (`@filejam/ui`).
+- `apps/desktop`: Electron desktop application (`@filejam/desktop`).
 
 The desktop app boots the server in its main process and exposes scanner commands to a sandboxed renderer through a preload bridge.
 
@@ -39,9 +39,9 @@ quits, and activating the app reopens the window.
 The main entry is `apps/desktop/src/index.ts`. The preload is compiled from
 `src/scanner/preload.cts` to CommonJS so it works with Electron's renderer sandbox.
 The initial renderer is a small local HTML page; it has no Node.js access.
-Configuration follows the server's existing `FILES_CONFIG_FILE` and app-data defaults.
+Configuration follows the server's existing `FILEJAM_CONFIG_FILE` and app-data defaults.
 
-Run `pnpm --filter @files/desktop test` on a graphical host to smoke-test the real
+Run `pnpm --filter @filejam/desktop test` on a graphical host to smoke-test the real
 Electron window, scanner IPC, and server shutdown using temporary server data.
 The launcher clears `ELECTRON_RUN_AS_NODE` for Electron so it opens as a desktop app.
 
@@ -54,25 +54,25 @@ initialize services. Call `close()` during shutdown; a later `boot()` starts a
 fresh instance.
 
 ```ts
-import { boot } from '@files/server'
+import { boot } from '@filejam/server'
 
 const server = await boot()
 // Use server.db, server.scanner, server.logger, and server.config.
 await server.close()
 ```
 
-The database is `files.sqlite` inside the configured `appdata.dbPath` directory.
+The database is `filejam.sqlite` inside the configured `appdata.dbPath` directory.
 Logging and scanner cache use `appdata.logsPath` and `appdata.cachePath`.
-Set `FILES_CONFIG_FILE` to select a configuration file.
+Set `FILEJAM_CONFIG_FILE` to select a configuration file.
 
 After changing schemas in `packages/server/src/db/schemas`, run
-`pnpm --filter @files/server db:generate` and commit the generated migration files.
+`pnpm --filter @filejam/server db:generate` and commit the generated migration files.
 `pnpm build` copies migrations into the server build for runtime use.
-Run `pnpm --filter @files/server test` to check initialization and persistence.
+Run `pnpm --filter @filejam/server test` to check initialization and persistence.
 
 ## File scanner
 
-`FileScanner` from `@files/server/scanner` owns a bounded pool of Node worker threads (one by default). All crawling,
+`FileScanner` from `@filejam/server/scanner` owns a bounded pool of Node worker threads (one by default). All crawling,
 metadata checks, and cache reads/writes happen there. Supply an application-owned
 cache directory (for example, under Electron's `app.getPath('userData')`). Use one
 scanner pool per cache directory and close it during application shutdown.

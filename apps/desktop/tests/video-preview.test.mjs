@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url'
 import { createPreviewHandler } from '../dist/preview/handler.js'
 
 test('preview protocol streams authorized videos with range requests', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-video-preview-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-video-preview-'))
   const rootPath = join(directory, 'library')
 
   await mkdir(rootPath)
@@ -34,7 +34,7 @@ test('preview protocol streams authorized videos with range requests', async () 
   try {
     const params = new URLSearchParams({ libraryId: '1', path: 'clip.mp4' })
     const response = await handler(
-      new Request(`files-preview://video?${params}`, {
+      new Request(`filejam-preview://video?${params}`, {
         headers: { Range: 'bytes=0-2' },
       }),
     )
@@ -57,7 +57,7 @@ test('preview protocol streams authorized videos with range requests', async () 
     })
 
     assert.equal(
-      (await handler(new Request(`files-preview://video?${textParams}`)))
+      (await handler(new Request(`filejam-preview://video?${textParams}`)))
         .status,
       415,
     )

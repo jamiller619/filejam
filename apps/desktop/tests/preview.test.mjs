@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url'
 import { createPreviewHandler } from '../dist/preview/handler.js'
 
 test('preview protocol routes images, folders, library artwork and fallback icons', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'files-preview-'))
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-preview-'))
   const rootPath = join(directory, 'library')
 
   await mkdir(rootPath)
@@ -43,7 +43,7 @@ test('preview protocol routes images, folders, library artwork and fallback icon
   const request = (path, extra = {}) =>
     handler(
       new Request(
-        'files-preview://preview-image?' +
+        'filejam-preview://preview-image?' +
           new URLSearchParams({
             libraryId: '1',
             path,
@@ -128,20 +128,23 @@ test('preview protocol routes images, folders, library artwork and fallback icon
     assert.equal((await request('', { color: 'red;"><script>' })).status, 400)
 
     assert.equal(
-      (await handler(new Request('files-preview://preview-image?libraryId=1')))
-        .status,
+      (
+        await handler(
+          new Request('filejam-preview://preview-image?libraryId=1'),
+        )
+      ).status,
       400,
     )
 
     assert.equal(
-      (await handler(new Request('files-preview://other/1'))).status,
+      (await handler(new Request('filejam-preview://other/1'))).status,
       400,
     )
 
     assert.equal(
       (
         await handler(
-          new Request('files-preview://preview-image', { method: 'POST' }),
+          new Request('filejam-preview://preview-image', { method: 'POST' }),
         )
       ).status,
       405,

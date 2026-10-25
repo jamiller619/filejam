@@ -41,4 +41,4 @@ image.onerror = () => {
 
 params.delete('name')
 params.set('original', '1')
-image.src = `files-preview://preview-image?${params}`
+image.src = `filejam-preview://preview-image?${params}`

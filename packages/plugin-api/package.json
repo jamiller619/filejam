@@ -1,5 +1,5 @@
 {
-  "name": "@files/plugin-api",
+  "name": "@filejam/plugin-api",
   "version": "1.0.0",
   "type": "module",
   "exports": {

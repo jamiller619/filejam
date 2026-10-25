@@ -1,4 +1,4 @@
-import { useToastManager } from '@files/ui'
+import { useToastManager } from '@filejam/ui'
 
 /** Add, update, close, or track a promise with a toast from anywhere in the app.
  * `add({ title, description, timeout })` returns an ID for `update` and `close`.

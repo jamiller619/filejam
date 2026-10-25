@@ -16,11 +16,11 @@ import * as server from '../dist/index.js'
 test('boot owns initialization, concurrent startup, shutdown, and restart', async () => {
   assert.deepEqual(Object.keys(server), ['boot'])
 
-  const directory = await mkdtemp(join(tmpdir(), 'files-boot-'))
-  const previous = process.env.FILES_CONFIG_FILE
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-boot-'))
+  const previous = process.env.FILEJAM_CONFIG_FILE
   const configFile = join(directory, 'config.json')
 
-  process.env.FILES_CONFIG_FILE = configFile
+  process.env.FILEJAM_CONFIG_FILE = configFile
 
   let instance
 
@@ -95,9 +95,9 @@ test('boot owns initialization, concurrent startup, shutdown, and restart', asyn
     await instance?.close()
 
     if (previous === undefined) {
-      delete process.env.FILES_CONFIG_FILE
+      delete process.env.FILEJAM_CONFIG_FILE
     } else {
-      process.env.FILES_CONFIG_FILE = previous
+      process.env.FILEJAM_CONFIG_FILE = previous
     }
 
     await rm(directory, {

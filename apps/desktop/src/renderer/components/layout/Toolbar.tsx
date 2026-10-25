@@ -1,4 +1,4 @@
-import { Button, ButtonGroup, Icon, Input } from '@files/ui'
+import { Button, ButtonGroup, Icon, Input } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { useEffect } from 'react'
 import {

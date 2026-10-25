@@ -1,5 +1,5 @@
 {
-  "name": "@files/desktop",
+  "name": "@filejam/desktop",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,13 +13,13 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -b && pnpm --filter @files/server copy:migrations && node scripts/copy-assets.mjs",
+    "build": "tsc -b && pnpm --filter @filejam/server copy:migrations && node scripts/copy-assets.mjs",
     "typecheck": "tsc -b --noEmit",
     "clean": "tsc -b --clean",
     "start": "pnpm build && node scripts/start.mjs",
     "copy:assets": "node scripts/copy-assets.mjs",
     "test": "pnpm build && node --test tests/*.test.mjs && node tests/run-smoke.mjs",
-    "dev": "tsc -b && pnpm --filter @files/server copy:migrations && node scripts/dev.mjs"
+    "dev": "tsc -b && pnpm --filter @filejam/server copy:migrations && node scripts/dev.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
@@ -31,11 +31,11 @@
   },
   "dependencies": {
     "@derhuerst/ffprobe-static": "5.3.0",
-    "@files/plugin-api": "workspace:*",
-    "@files/preview-images": "workspace:*",
-    "@files/preview-video": "workspace:*",
-    "@files/server": "workspace:*",
-    "@files/ui": "workspace:*",
+    "@filejam/plugin-api": "workspace:*",
+    "@filejam/preview-images": "workspace:*",
+    "@filejam/preview-video": "workspace:*",
+    "@filejam/server": "workspace:*",
+    "@filejam/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.5",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.22",

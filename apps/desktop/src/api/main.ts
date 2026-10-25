@@ -1,4 +1,4 @@
-import type { ServerApi } from '@files/server'
+import type { ServerApi } from '@filejam/server'
 import { BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'

@@ -6,7 +6,7 @@ import {
   MenuItem,
   MenuSubmenu,
   Switch,
-} from '@files/ui'
+} from '@filejam/ui'
 import type { Table } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
 import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react'
@@ -68,6 +68,9 @@ const styles = css`
   }
   .favoriteButton[aria-pressed='true'] {
     color: var(--suzy-accent-9);
+  }
+  .detailsButton[aria-pressed='true'] {
+    background: var(--suzy-gray-6);
   }
   .favoriteIcon {
     position: relative;
@@ -154,9 +157,11 @@ type FilesToolbarProps<TData> = {
   libraryRoots: Map<number, string>
   relativePath?: string | undefined
   collectionId?: string | undefined
+  detailsOpen: boolean
   viewMode: FileViewMode
   groupBy: FileColumn | null
   flatten: boolean
+  onDetailsOpenChange: (open: boolean) => void
   onFlattenChange: (flatten: boolean) => void
   onGroupByChange: (groupBy: FileColumn | null) => void
   onViewModeChange: (viewMode: FileViewMode) => void
@@ -283,12 +288,14 @@ export default function FilesToolbar<TData>({
   libraryRoots,
   relativePath,
   collectionId,
+  detailsOpen,
   table,
   viewMode,
   groupBy,
   onGroupByChange,
   onViewModeChange,
   flatten,
+  onDetailsOpenChange,
   onFlattenChange,
 }: FilesToolbarProps<TData>) {
   const {
@@ -319,6 +326,7 @@ export default function FilesToolbar<TData>({
   const sortControlsRef = useRef<HTMLDivElement>(null)
   const primaryControlsRef = useRef<HTMLDivElement>(null)
   const overflowControlsRef = useRef<HTMLDivElement>(null)
+  const detailsControlsRef = useRef<HTMLDivElement>(null)
   const currentSort = table.getState().sorting[0]
   const currentSortLabel = currentSort
     ? fileColumnLabels[currentSort.id as FileColumn]
@@ -341,13 +349,15 @@ export default function FilesToolbar<TData>({
     const sortControls = sortControlsRef.current
     const primaryControls = primaryControlsRef.current
     const overflowControls = overflowControlsRef.current
+    const detailsControls = detailsControlsRef.current
 
     if (
       !toolbar ||
       !viewControls ||
       !sortControls ||
       !primaryControls ||
-      !overflowControls
+      !overflowControls ||
+      !detailsControls
     ) {
       return
     }
@@ -359,12 +369,13 @@ export default function FilesToolbar<TData>({
         Number.parseFloat(toolbarStyle.paddingInlineStart) -
         Number.parseFloat(toolbarStyle.paddingInlineEnd)
       const gap = Number.parseFloat(toolbarStyle.columnGap)
-      const visibleControlGroups = hasOverflowControls ? 4 : 3
+      const visibleControlGroups = hasOverflowControls ? 5 : 4
       const controlsWidth =
         viewControls.offsetWidth +
         sortControls.offsetWidth +
         primaryControls.offsetWidth +
         overflowControls.offsetWidth +
+        detailsControls.offsetWidth +
         gap * (visibleControlGroups - 1)
 
       setShowMore(hasOverflowControls && controlsWidth > availableWidth)
@@ -378,6 +389,7 @@ export default function FilesToolbar<TData>({
     observer.observe(sortControls)
     observer.observe(primaryControls)
     observer.observe(overflowControls)
+    observer.observe(detailsControls)
 
     return () => observer.disconnect()
   }, [hasOverflowControls])
@@ -521,6 +533,17 @@ export default function FilesToolbar<TData>({
             )}
           </Menu>
         )}
+        <div ref={detailsControlsRef} className={styles.controlGroup}>
+          <Button
+            className={styles.detailsButton}
+            aria-label={detailsOpen ? 'Hide details' : 'Show details'}
+            title={detailsOpen ? 'Hide details' : 'Show details'}
+            aria-pressed={detailsOpen}
+            onClick={() => onDetailsOpenChange(!detailsOpen)}
+          >
+            <Icon name="hide-details" size={18} />
+          </Button>
+        </div>
       </div>
     </>
   )

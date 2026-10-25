@@ -1,6 +1,6 @@
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Config, ConfigKey, ServerApi } from '@files/server'
+import type { Config, ConfigKey, ServerApi } from '@filejam/server'
 import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { authorizePreview } from '../preview/authorize.js'
 import { previewMimeType } from '../preview/formats.js'
@@ -121,7 +121,7 @@ export function registerImageViewerIpc(
       params.set('name', basename(path))
 
       try {
-        const rendererUrl = process.env.FILES_RENDERER_URL
+        const rendererUrl = process.env.FILEJAM_RENDERER_URL
 
         if (!app.isPackaged && rendererUrl) {
           const url = new URL('image-viewer.html', rendererUrl)

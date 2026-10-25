@@ -3,7 +3,7 @@ import type {
   PreviewExecutables,
   PreviewProvider,
   PreviewRequest,
-} from '@files/plugin-api'
+} from '@filejam/plugin-api'
 
 const controller = new AbortController()
 

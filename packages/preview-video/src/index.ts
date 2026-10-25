@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import type { PreviewProvider } from '@files/plugin-api'
+import type { PreviewProvider } from '@filejam/plugin-api'
 
 function run(executable: string, args: string[], signal: AbortSignal) {
   return new Promise<Buffer>((resolve, reject) => {
