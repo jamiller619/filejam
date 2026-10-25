@@ -71,10 +71,6 @@ const styles = css`
     text-decoration: none;
     cursor: pointer;
     &:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
-    &[draggable='true'] {
-      cursor: grab;
-      &:active { cursor: grabbing; }
-    }
   }
 `
 

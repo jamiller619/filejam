@@ -227,6 +227,7 @@ export default function FileDetails({
           <FilePreview
             entry={entry}
             size="100%"
+            variant="grid"
             onOpen={() => {
               setImageError(null)
 

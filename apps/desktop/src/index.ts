@@ -6,6 +6,7 @@ import { resolveDefaultFolder } from './defaultFolders.js'
 import { registerImageViewerIpc } from './ipc/image-viewer.js'
 import { registerWindowIpc } from './ipc/window.js'
 import { createPreviewService } from './preview/create-service.js'
+import { createFileIconProvider } from './preview/file-icons.js'
 import { createPreviewHandler } from './preview/handler.js'
 import type { PreviewService } from './preview/service.js'
 import { registerScannerIpc } from './scanner/main.js'
@@ -236,6 +237,12 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     previews = await createPreviewService(app.getPath('userData'))
+    const fileIcons = createFileIconProvider(async (file, size) => {
+      const icon = await app.getFileIcon(file, { size })
+      const bytes = icon.toPNG()
+
+      return bytes.length ? Uint8Array.from(bytes) : null
+    })
 
     protocol.handle(
       'filejam-preview',
@@ -243,6 +250,7 @@ if (!app.requestSingleInstanceLock()) {
         server.api.libraries,
         (url, init) => net.fetch(url, init),
         previews,
+        fileIcons,
       ),
     )
 

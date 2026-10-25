@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url'
 import type { ServerApi } from '@filejam/server'
 import mime from 'mime'
 import { authorizePreview, PreviewAccessError } from './authorize.js'
+import type { FileIconProvider } from './file-icons.js'
 import { previewMimeType } from './formats.js'
 import { previewIcon } from './icons.js'
 import type { PreviewService } from './service.js'
@@ -26,6 +27,7 @@ export function createPreviewHandler(
   libraries: Pick<ServerApi['libraries'], 'list'>,
   fetchFile: (url: string, init?: RequestInit) => Promise<Response>,
   service?: PreviewService,
+  fileIcon?: FileIconProvider,
 ) {
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'GET') {
@@ -94,6 +96,7 @@ export function createPreviewHandler(
     const width = dimension('width')
     const height = dimension('height')
     const original = url.searchParams.get('original') === '1'
+    const fallbackRequested = url.searchParams.get('fallback') === '1'
     const responseHeaders =
       url.searchParams.has('v') && !original ? immutableHeaders : noStoreHeaders
 
@@ -114,28 +117,54 @@ export function createPreviewHandler(
         libraryId,
         path,
       )
+      const variant =
+        url.searchParams.get('variant') === 'grid' ? 'grid' : 'list'
 
-      const icon = async () =>
-        original
-          ? new Response(null, { status: 415 })
-          : new Response(
-              await previewIcon({
-                directory: info.isDirectory(),
-                variant:
-                  url.searchParams.get('variant') === 'grid' ? 'grid' : 'list',
-                libraryName: file === root ? library.name : undefined,
-                color: color ?? '#7ce2fe',
-                darkColor: darkColor ?? undefined,
-              }),
-              {
-                headers: {
-                  ...responseHeaders,
-                  'Content-Type': 'image/svg+xml',
-                },
+      const fallbackIcon = async () =>
+        new Response(
+          await previewIcon({
+            directory: info.isDirectory(),
+            variant,
+            libraryName: file === root ? library.name : undefined,
+            color: color ?? '#7ce2fe',
+            darkColor: darkColor ?? undefined,
+          }),
+          {
+            headers: {
+              ...responseHeaders,
+              'Content-Type': 'image/svg+xml',
+            },
+          },
+        )
+
+      const icon = async () => {
+        if (original) {
+          return new Response(null, { status: 415 })
+        }
+
+        // Let the renderer retry with a marked fallback URL. That marker lets
+        // CSS cap low-resolution OS artwork without shrinking real previews.
+        if (fileIcon && info.isFile() && !fallbackRequested) {
+          return new Response(null, { status: 415 })
+        }
+
+        if (fileIcon && info.isFile()) {
+          const nativeIcon = await fileIcon(file, variant)
+
+          if (nativeIcon) {
+            return new Response(nativeIcon, {
+              headers: {
+                ...responseHeaders,
+                'Content-Type': 'image/png',
               },
-            )
+            })
+          }
+        }
 
-      if (!info.isFile() || url.searchParams.get('fallback') === '1') {
+        return fallbackIcon()
+      }
+
+      if (!info.isFile() || fallbackRequested) {
         return await icon()
       }
 

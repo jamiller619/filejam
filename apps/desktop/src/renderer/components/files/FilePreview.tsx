@@ -48,8 +48,14 @@ const styles = css`
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    border-radius: var(--suzy-radius-4);
+    border-radius: var(--suzy-radius-1);
     corner-shape: var(--suzy-corner-shape);
+  }
+
+  .preview[src*='fallback=1'] {
+    width: auto;
+    max-width: min(100%, 48px);
+    max-height: min(100%, 48px);
   }
 `
 
@@ -204,7 +210,7 @@ export default function FilePreview({
           onError={(event) => {
             setLoadedSource('')
 
-            // Ask Electron for an icon if Chromium cannot decode the source image.
+            // Retry through the native file icon path when a preview cannot decode.
             const image = event.currentTarget
 
             if (!new URL(image.src).searchParams.has('fallback')) {

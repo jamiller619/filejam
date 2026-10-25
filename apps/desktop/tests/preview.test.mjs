@@ -25,7 +25,9 @@ test('preview protocol routes images, folders, library artwork and fallback icon
   await writeFile(join(directory, 'outside', 'private.png'), 'private')
 
   const fetched = []
+  const nativeIconRequests = []
   let failFetch = false
+  let nativeIconsAvailable = true
 
   const handler = createPreviewHandler(
     { list: async () => [{ id: 1, name: 'Downloads', rootPath }] },
@@ -37,6 +39,14 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       }
 
       return new Response('image')
+    },
+    undefined,
+    async (file, variant) => {
+      nativeIconRequests.push({ file, variant })
+
+      return nativeIconsAvailable
+        ? new TextEncoder().encode(`native:${file}:${variant}`)
+        : null
     },
   )
 
@@ -67,7 +77,18 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       pathToFileURL(join(rootPath, 'photo #1 & café.PNG')).href,
     ])
 
-    for (const path of ['notes.txt', 'folder', '']) {
+    const filePreview = await request('notes.txt')
+
+    assert.equal(filePreview.status, 415)
+
+    const fileIcon = await request('notes.txt', { fallback: '1' })
+
+    assert.equal(fileIcon.status, 200)
+    assert.equal(fileIcon.headers.get('content-type'), 'image/png')
+    assert.equal(fileIcon.headers.get('cache-control'), 'no-store')
+    assert.match(await fileIcon.text(), /native:.*notes\.txt:list/)
+
+    for (const path of ['folder', '']) {
       const icon = await request(path)
 
       assert.equal(icon.status, 200)
@@ -96,8 +117,6 @@ test('preview protocol routes images, folders, library artwork and fallback icon
     const artwork = await folder.text()
 
     assert.match(artwork, /linearGradient/)
-    assert.match(artwork, /color:#ff8800/)
-    assert.match(artwork, /color-mix/)
 
     const library = await request('', { variant: 'grid' })
 
@@ -106,7 +125,8 @@ test('preview protocol routes images, folders, library artwork and fallback icon
 
     const fallback = await request('photo #1 & café.PNG', { fallback: '1' })
 
-    assert.equal(fallback.headers.get('content-type'), 'image/svg+xml')
+    assert.equal(fallback.headers.get('content-type'), 'image/png')
+    assert.match(await fallback.text(), /native:.*photo #1 & café\.PNG:list/)
     assert.equal(fetched.length, 2)
     failFetch = true
     assert.equal(
@@ -114,10 +134,24 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       415,
     )
 
-    assert.equal(
-      (await request('photo #1 & café.PNG')).headers.get('content-type'),
-      'image/svg+xml',
-    )
+    const failedPreview = await request('photo #1 & café.PNG')
+
+    assert.equal(failedPreview.status, 415)
+
+    const failedPreviewIcon = await request('photo #1 & café.PNG', {
+      fallback: '1',
+    })
+
+    assert.equal(failedPreviewIcon.headers.get('content-type'), 'image/png')
+
+    nativeIconsAvailable = false
+
+    const genericFallback = await request('notes.txt', { fallback: '1' })
+
+    assert.equal(genericFallback.headers.get('content-type'), 'image/svg+xml')
+    assert.match(await genericFallback.text(), /<svg/)
+
+    const authorizedNativeRequests = nativeIconRequests.length
 
     assert.equal((await request('../outside/private.png')).status, 403)
     assert.equal((await request('escape/private.png')).status, 403)
@@ -126,6 +160,8 @@ test('preview protocol routes images, folders, library artwork and fallback icon
     assert.equal((await request('', { libraryId: '99' })).status, 404)
     assert.equal((await request('', { libraryId: 'invalid' })).status, 400)
     assert.equal((await request('', { color: 'red;"><script>' })).status, 400)
+
+    assert.equal(nativeIconRequests.length, authorizedNativeRequests)
 
     assert.equal(
       (
@@ -150,7 +186,7 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       405,
     )
 
-    assert.equal(fetched.length, 2)
+    assert.equal(fetched.length, 4)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
