@@ -65,6 +65,10 @@ test('seeds native paths once and preserves existing names and later deletions',
       saved.find((item) => item.name === 'Videos').rootPath,
       await realpath(folders.videos),
     )
+    assert.equal(
+      saved.find((item) => item.name === 'Applications').typeId,
+      'applications',
+    )
 
     await connection.db.delete(libraries)
 
@@ -114,8 +118,15 @@ test('adds Applications once to installations initialized before it existed', as
       (await connection.db.select().from(libraries)).map((library) => ({
         name: library.name,
         rootPath: library.rootPath,
+        typeId: library.typeId,
       })),
-      [{ name: 'Applications', rootPath: await realpath(applications) }],
+      [
+        {
+          name: 'Applications',
+          rootPath: await realpath(applications),
+          typeId: 'applications',
+        },
+      ],
     )
 
     await connection.db.delete(libraries)

@@ -1,5 +1,9 @@
 import type { ServerApi } from '@filejam/server'
 import type { ScannerApi } from '@filejam/server/scanner'
+import type {
+  PresentedFolderListing,
+  PresentedLibrary,
+} from '../entries/types.js'
 import type { SettingsApi } from '../settings/index.js'
 
 // Sandboxed preloads need CommonJS and can only require Electron's allowed modules.
@@ -18,12 +22,17 @@ type FilejamApi = {
   setControlsColor: (color: string) => Promise<void>
   collections: ServerApi['collections']
   settings: SettingsApi
-  libraries: Pick<ServerApi['libraries'], 'list'> & {
+  libraries: {
+    list: () => Promise<PresentedLibrary[]>
     add: () => Promise<
       Awaited<ReturnType<ServerApi['libraries']['list']>>[number] | null
     >
   }
-  entries: Pick<ServerApi['entries'], 'listChildren'> & {
+  entries: {
+    listChildren: (
+      folder: Parameters<ServerApi['entries']['listChildren']>[0],
+    ) => Promise<PresentedFolderListing>
+    activate: (id: number) => Promise<void>
     moveFolders: (paths: string[], destination: string) => Promise<string[]>
   }
   moveHistory: Pick<ServerApi['moveHistory'], 'list'>
@@ -58,6 +67,7 @@ const filejam: FilejamApi = {
   entries: {
     listChildren: (folder) =>
       ipcRenderer.invoke('entries:listChildren', folder),
+    activate: (id) => ipcRenderer.invoke('entries:activate', id),
     moveFolders: (paths, destination) =>
       ipcRenderer.invoke('entries:moveFolders', paths, destination),
   },

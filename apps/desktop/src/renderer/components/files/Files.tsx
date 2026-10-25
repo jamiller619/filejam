@@ -143,6 +143,10 @@ function FolderContents({
   )
   const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
+  const folderView =
+    relativePath === ''
+      ? libraries.find((library) => library.id === libraryId)?.folderView
+      : null
   const search = folder ? searchText.trim() || undefined : undefined
   const {
     columnVisibility,
@@ -154,6 +158,7 @@ function FolderContents({
     flatten,
     setPreferences,
   } = useFilesTablePreferences(preferencesKey)
+  const effectiveFlatten = folderView?.recursive ?? flatten
 
   const [viewError, setViewError] = useState('')
   const [tableWidth, setTableWidth] = useState(0)
@@ -175,6 +180,10 @@ function FolderContents({
       minSize: column === 'name' ? minimumNameColumnWidth : 80,
       maxSize: 600,
       accessorFn: (entry: Listing['entries'][number]) => {
+        if (column === 'name') {
+          return entry.presentation?.displayName ?? entry.name
+        }
+
         if (column === 'relativePath') {
           const root = libraryRoots.get(entry.libraryId)
 
@@ -198,11 +207,11 @@ function FolderContents({
           ? api.entries.listChildren({
               libraryId,
               relativePath,
-              recursive: flatten,
+              recursive: effectiveFlatten,
               ...(search ? { search } : {}),
             })
           : Promise.reject(new Error('Missing file source')),
-    [api, collectionId, flatten, libraryId, relativePath, search],
+    [api, collectionId, effectiveFlatten, libraryId, relativePath, search],
   )
   const queryKey = useMemo(
     () =>
@@ -210,10 +219,10 @@ function FolderContents({
         collectionId,
         libraryId,
         relativePath,
-        flatten,
+        flatten: effectiveFlatten,
         search,
       }),
-    [collectionId, flatten, libraryId, relativePath, search],
+    [collectionId, effectiveFlatten, libraryId, relativePath, search],
   )
   const {
     data: listing,
@@ -365,6 +374,12 @@ function FolderContents({
     viewFile(id)
   }
 
+  function openEntry(id: number) {
+    void api.entries
+      .activate(id)
+      .catch(() => setViewError('Unable to open this application.'))
+  }
+
   function toggleGroup(key: string) {
     setCollapsedGroupKeys((current) => {
       const next = new Set(current)
@@ -398,7 +413,8 @@ function FolderContents({
         table={table}
         viewMode={viewMode}
         groupBy={groupBy}
-        flatten={flatten}
+        flatten={effectiveFlatten}
+        flattenLocked={folderView?.allowFlattenToggle === false}
         onDetailsOpenChange={(open) => {
           if (open) {
             setDetailsOpen(true)
@@ -436,6 +452,7 @@ function FolderContents({
           groupReferenceDate={groupReferenceDate}
           ariaLabel={ariaLabel}
           onActivateFile={activateFile}
+          onOpenEntry={openEntry}
           onToggleGroup={toggleGroup}
           onWidthChange={setTableWidth}
         />
@@ -453,6 +470,7 @@ function FolderContents({
           showFileExtensions={showFileExtensions}
           ariaLabel={ariaLabel}
           onActivateFile={activateFile}
+          onOpenEntry={openEntry}
           onToggleGroup={toggleGroup}
         />
       )}

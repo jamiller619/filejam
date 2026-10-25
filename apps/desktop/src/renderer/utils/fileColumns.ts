@@ -5,7 +5,7 @@ type FileEntry = Awaited<
   ReturnType<Window['filejam']['entries']['listChildren']>
 >['entries'][number]
 
-export type FileColumn = keyof FileEntry
+export type FileColumn = Exclude<keyof FileEntry, 'presentation'>
 export type DateFormat = Settings['user.dateformat']
 
 export const fileColumnLabels: Record<FileColumn, string> = {

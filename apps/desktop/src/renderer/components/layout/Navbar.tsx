@@ -143,7 +143,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           {dropError && <p role="alert">{dropError}</p>}
         </li>
         <li>
-          <Eyebrow className={styles.eyebrow}>Libraries</Eyebrow>
+          <Eyebrow className={styles.eyebrow}>Locations</Eyebrow>
         </li>
         {otherLibraries.map((library) => (
           <li key={library.id}>

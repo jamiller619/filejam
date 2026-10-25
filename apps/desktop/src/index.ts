@@ -1,8 +1,18 @@
 import { fileURLToPath } from 'node:url'
 import { boot } from '@filejam/server'
-import { app, BrowserWindow, dialog, net, protocol, screen } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  net,
+  protocol,
+  screen,
+  shell,
+} from 'electron'
 import { registerApiIpc } from './api/main.js'
 import { resolveDefaultFolder } from './defaultFolders.js'
+import { createEntryRegistry } from './entries/create-registry.js'
+import type { EntryRegistry } from './entries/registry.js'
 import { registerImageViewerIpc } from './ipc/image-viewer.js'
 import { registerWindowIpc } from './ipc/window.js'
 import { createPreviewService } from './preview/create-service.js'
@@ -47,6 +57,7 @@ let previews: PreviewService | undefined
 let saveMainWindowState: (() => Promise<void>) | undefined
 let settings: SettingsStore | undefined
 let settingsApi: SettingsApi | undefined
+let entryRegistry: EntryRegistry | undefined
 
 async function createWindow() {
   if (!server || quitting) {
@@ -119,6 +130,8 @@ async function createWindow() {
     current.webContents,
     currentSettingsApi,
     (root) => scanner.start(root),
+    entryRegistry,
+    (path) => shell.openPath(path),
   )
 
   // The scanner bridge is privileged: this window only hosts local app content.
@@ -265,6 +278,9 @@ if (!app.requestSingleInstanceLock()) {
 
     settings = initializedSettings.store
     settingsApi = createSettingsApi(settings)
+    entryRegistry = await createEntryRegistry(app.getPath('userData'), (path) =>
+      shell.readShortcutLink(path),
+    )
 
     if (initializedSettings.legacyKeys.length) {
       const runtimeConfig = { ...legacyConfig }
@@ -307,6 +323,7 @@ if (!app.requestSingleInstanceLock()) {
         (url, init) => net.fetch(url, init),
         previews,
         fileIcons,
+        entryRegistry,
       ),
     )
 

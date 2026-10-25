@@ -161,6 +161,7 @@ type FilesToolbarProps<TData> = {
   viewMode: FileViewMode
   groupBy: FileColumn | null
   flatten: boolean
+  flattenLocked?: boolean | undefined
   onDetailsOpenChange: (open: boolean) => void
   onFlattenChange: (flatten: boolean) => void
   onGroupByChange: (groupBy: FileColumn | null) => void
@@ -295,6 +296,7 @@ export default function FilesToolbar<TData>({
   onGroupByChange,
   onViewModeChange,
   flatten,
+  flattenLocked = false,
   onDetailsOpenChange,
   onFlattenChange,
 }: FilesToolbarProps<TData>) {
@@ -485,7 +487,7 @@ export default function FilesToolbar<TData>({
           ref={primaryControlsRef}
           className={`${styles.controlGroup} ${styles.trailingControls}`}
         >
-          {currentFolderPath && !collectionId && (
+          {currentFolderPath && !collectionId && !flattenLocked && (
             <label className={styles.menuSetting} htmlFor={flattenSwitchId}>
               <span>Flatten view</span>
               <Switch

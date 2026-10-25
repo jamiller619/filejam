@@ -226,6 +226,7 @@ type FilesTableProps = {
   groupReferenceDate: Date
   ariaLabel: string
   onActivateFile: (id: number) => void
+  onOpenEntry: (id: number) => void
   onToggleGroup: (key: string) => void
   onWidthChange: (width: number) => void
 }
@@ -244,6 +245,7 @@ export default function FilesTable({
   groupReferenceDate,
   ariaLabel,
   onActivateFile,
+  onOpenEntry,
   onToggleGroup,
   onWidthChange,
 }: FilesTableProps) {
@@ -452,6 +454,7 @@ export default function FilesTable({
 
               const { row } = item
               const entry = row.original
+              const displayName = entry.presentation?.displayName ?? entry.name
               const entryPath =
                 entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
                   ? formatFullPath(
@@ -470,6 +473,11 @@ export default function FilesTable({
                   data-selected={selectedIds.has(entry.id)}
                   data-file-id={entry.id}
                   data-folder-drag-preview={entryPath ? true : undefined}
+                  onDoubleClick={
+                    entry.presentation?.activation
+                      ? () => onOpenEntry(entry.id)
+                      : undefined
+                  }
                 >
                   {row.getVisibleCells().map((cell) => {
                     const column = cell.column.id as FileColumn
@@ -506,13 +514,13 @@ export default function FilesTable({
                               <button
                                 type="button"
                                 className={styles.name}
-                                title={entry.name}
+                                title={displayName}
                                 onClick={() => onActivateFile(entry.id)}
-                                aria-label={`Show details for ${entry.name}`}
+                                aria-label={`Show details for ${displayName}`}
                                 aria-expanded={selectedId === entry.id}
                               >
                                 <FileName
-                                  name={entry.name}
+                                  name={displayName}
                                   highlight={search}
                                   showExtension={showFileExtensions}
                                 />

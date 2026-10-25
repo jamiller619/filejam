@@ -148,6 +148,7 @@ export default function FileDetails({
   const infoSection = useRef<HTMLDListElement>(null)
   const collectionsSection = useRef<HTMLDivElement>(null)
   const isFolder = entry.kind === 'directory'
+  const displayName = entry.presentation?.displayName ?? entry.name
   const isVideo = entry.mimeType?.startsWith('video/') ?? false
   const videoSource = `filejam-preview://video?${new URLSearchParams({
     libraryId: String(entry.libraryId),
@@ -175,8 +176,8 @@ export default function FileDetails({
   return (
     <DetailsPane
       bodyClassName={styles.details}
-      ariaLabel={`${isFolder ? 'Folder' : 'File'} details: ${entry.name}`}
-      title={entry.name}
+      ariaLabel={`${isFolder ? 'Folder' : 'File'} details: ${displayName}`}
+      title={displayName}
       closing={closing}
       showCloseButton={false}
       onClose={onClose}
@@ -258,6 +259,14 @@ export default function FileDetails({
             </dd>
           </div>
         ))}
+        {Object.entries(entry.presentation?.details ?? {}).map(
+          ([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ),
+        )}
       </dl>
       {!isFolder && (
         <div ref={collectionsSection}>

@@ -6,8 +6,8 @@ import { entrySize } from './entrySize.js'
 
 export function createEntriesApi(db: Database) {
   return {
-    /** Main-process file access; intentionally not exposed over renderer IPC. */
-    async getFileSource(id: number) {
+    /** Main-process entry access; intentionally not exposed over renderer IPC. */
+    async getEntrySource(id: number) {
       if (!Number.isSafeInteger(id) || id <= 0) {
         return null
       }
@@ -17,10 +17,11 @@ export function createEntriesApi(db: Database) {
           rootPath: libraries.rootPath,
           relativePath: entries.relativePath,
           name: entries.name,
+          kind: entries.kind,
         })
         .from(entries)
         .innerJoin(libraries, eq(entries.libraryId, libraries.id))
-        .where(and(eq(entries.id, id), eq(entries.kind, 'file')))
+        .where(eq(entries.id, id))
 
       return source ?? null
     },

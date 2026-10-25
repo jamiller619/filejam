@@ -1,6 +1,7 @@
 import { pathToFileURL } from 'node:url'
 import type { ServerApi } from '@filejam/server'
 import mime from 'mime'
+import type { EntryRegistry } from '../entries/registry.js'
 import { authorizePreview, PreviewAccessError } from './authorize.js'
 import type { FileIconProvider } from './file-icons.js'
 import { previewMimeType } from './formats.js'
@@ -28,6 +29,7 @@ export function createPreviewHandler(
   fetchFile: (url: string, init?: RequestInit) => Promise<Response>,
   service?: PreviewService,
   fileIcon?: FileIconProvider,
+  entryRegistry?: EntryRegistry,
 ) {
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'GET') {
@@ -119,6 +121,20 @@ export function createPreviewHandler(
       )
       const variant =
         url.searchParams.get('variant') === 'grid' ? 'grid' : 'list'
+      const presentation = entryRegistry
+        ? await entryRegistry.resolve({
+            path: file,
+            name:
+              library.rootPath === file
+                ? library.name
+                : (path.split('/').at(-1) ?? path),
+            kind: info.isDirectory()
+              ? 'directory'
+              : info.isSymbolicLink()
+                ? 'symlink'
+                : 'file',
+          })
+        : null
 
       const fallbackIcon = async () =>
         new Response(
@@ -149,7 +165,11 @@ export function createPreviewHandler(
         }
 
         if (fileIcon && info.isFile()) {
-          const nativeIcon = await fileIcon(file, variant)
+          const iconPath =
+            presentation?.icon?.type === 'native'
+              ? presentation.icon.path
+              : file
+          const nativeIcon = await fileIcon(iconPath, variant)
 
           if (nativeIcon) {
             return new Response(nativeIcon, {

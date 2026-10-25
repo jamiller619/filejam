@@ -42,6 +42,7 @@ type FilesGridProps = {
   showFileExtensions: boolean
   ariaLabel: string
   onActivateFile: (id: number) => void
+  onOpenEntry: (id: number) => void
   onToggleGroup: (key: string) => void
 }
 
@@ -58,9 +59,11 @@ export default function FilesGrid({
   showFileExtensions,
   ariaLabel,
   onActivateFile,
+  onOpenEntry,
   onToggleGroup,
 }: FilesGridProps) {
   function renderFileCard(entry: FileEntry, masonry: boolean) {
+    const displayName = entry.presentation?.displayName ?? entry.name
     const folderPath =
       entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
         ? formatFullPath(
@@ -72,7 +75,7 @@ export default function FilesGrid({
     return (
       <GridCard
         as={masonry ? 'div' : 'li'}
-        name={entry.name}
+        name={displayName}
         isDirectory={entry.kind === 'directory'}
         highlight={search}
         showExtension={showFileExtensions}
@@ -90,7 +93,10 @@ export default function FilesGrid({
             }
           : {
               onClick: () => onActivateFile(entry.id),
-              'aria-label': `Show details for ${entry.name}`,
+              onDoubleClick: entry.presentation?.activation
+                ? () => onOpenEntry(entry.id)
+                : undefined,
+              'aria-label': `Show details for ${displayName}`,
               'aria-expanded': selectedId === entry.id,
             })}
       >

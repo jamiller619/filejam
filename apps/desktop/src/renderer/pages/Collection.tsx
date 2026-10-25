@@ -13,7 +13,7 @@ export default function Collection() {
   }
 
   if (loading) {
-    return <p role="status">Loading collection…</p>
+    return <p role="status">Loading collection...</p>
   }
 
   if (!collection) {

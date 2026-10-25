@@ -1,3 +1,4 @@
+import type { EntryResolution } from '@filejam/plugin-api'
 import type { Row, Table } from '@tanstack/react-table'
 import type { FileColumn } from '../../utils/fileColumns.js'
 
@@ -7,11 +8,22 @@ export type FolderListing = Awaited<
   ReturnType<Window['filejam']['entries']['listChildren']>
 >
 
-export type Listing =
-  | FolderListing
-  | Awaited<ReturnType<Window['filejam']['collections']['listEntries']>>
+type CollectionListing = Awaited<
+  ReturnType<Window['filejam']['collections']['listEntries']>
+>
 
-export type FileEntry = Listing['entries'][number]
+export type FileEntry = (
+  | FolderListing['entries'][number]
+  | CollectionListing['entries'][number]
+) & {
+  presentation?: EntryResolution | null
+}
+
+export type Listing = (
+  | Omit<FolderListing, 'entries'>
+  | Omit<CollectionListing, 'entries'>
+) & { entries: FileEntry[] }
+
 export type FileRow = Row<FileEntry>
 export type FilesTableModel = Table<FileEntry>
 

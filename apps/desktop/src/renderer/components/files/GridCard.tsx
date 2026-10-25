@@ -1,5 +1,5 @@
 import { css } from 'inline-css-modules'
-import type { DragEventHandler, ReactNode } from 'react'
+import type { DragEventHandler, MouseEventHandler, ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useFolderDrop } from '../../hooks/useFolderDrop.js'
 import FileName from './FileName.js'
@@ -93,6 +93,7 @@ type GridCardProps = {
   | { to: string }
   | {
       onClick: () => void
+      onDoubleClick?: MouseEventHandler<HTMLButtonElement> | undefined
       'aria-label'?: string
       'aria-expanded'?: boolean
     }
@@ -144,6 +145,7 @@ export default function GridCard(props: GridCardProps) {
           aria-label={props['aria-label']}
           aria-expanded={props['aria-expanded']}
           onClick={props.onClick}
+          onDoubleClick={props.onDoubleClick}
         >
           {content}
         </button>

@@ -27,8 +27,13 @@ test('libraries API returns plain records in stable order, including an empty da
     await connection.db.insert(libraries).values(records)
 
     const result = await api.libraries.list()
+    const expected = records.map((record) => ({
+      ...record,
+      typeId: null,
+      isTrash: false,
+    }))
 
-    assert.deepEqual(result, [records[2], records[1], records[0]])
+    assert.deepEqual(result, [expected[2], expected[1], expected[0]])
     assert.deepEqual(structuredClone(result), result)
     // Scanning an existing root must retain the user's library name and ID.
     assert.deepEqual(await api.libraries.ensureRoot('/documents-1'), records[2])

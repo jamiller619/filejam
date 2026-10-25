@@ -84,7 +84,11 @@ async function initializeGroup(
         continue
       }
 
-      defaults.push({ name: folders[folder] ?? folder, rootPath })
+      defaults.push({
+        name: folders[folder] ?? folder,
+        rootPath,
+        typeId: folder === 'applications' ? 'applications' : null,
+      })
     } catch (error) {
       // OS folders can be absent, disabled, or inaccessible. Do not create them.
       warn(`Skipping default folder: ${folder}`, error)

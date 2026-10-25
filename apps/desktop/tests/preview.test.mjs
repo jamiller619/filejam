@@ -191,3 +191,44 @@ test('preview protocol routes images, folders, library artwork and fallback icon
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+test('entry providers can redirect native icon lookup to a resolved target', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-entry-icon-'))
+  const rootPath = join(directory, 'Applications')
+  const shortcut = join(rootPath, 'Editor.lnk')
+  const target = 'C:\\Program Files\\Editor\\editor.exe'
+
+  await mkdir(rootPath)
+  await writeFile(shortcut, 'shortcut')
+
+  const iconRequests = []
+  const handler = createPreviewHandler(
+    { list: async () => [{ id: 1, name: 'Applications', rootPath }] },
+    async () => new Response(null, { status: 415 }),
+    undefined,
+    async (path) => {
+      iconRequests.push(path)
+
+      return new Uint8Array([1])
+    },
+    {
+      resolve: async () => ({
+        typeId: '@example/application',
+        icon: { type: 'native', path: target },
+      }),
+    },
+  )
+
+  try {
+    const response = await handler(
+      new Request(
+        'filejam-preview://preview-image?libraryId=1&path=Editor.lnk&fallback=1',
+      ),
+    )
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(iconRequests, [target])
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})

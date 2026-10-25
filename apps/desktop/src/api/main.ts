@@ -1,5 +1,12 @@
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { ServerApi } from '@filejam/server'
 import { BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
+import type { EntryRegistry } from '../entries/registry.js'
+import type {
+  PresentedEntry,
+  PresentedFolderListing,
+  PresentedLibrary,
+} from '../entries/types.js'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
 import type { SettingsApi } from '../settings/index.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'
@@ -11,6 +18,8 @@ export function registerApiIpc(
   renderer: WebContents,
   settings: SettingsApi,
   scanRoot?: (root: string) => Promise<unknown>,
+  entryRegistry?: EntryRegistry,
+  openPath?: (path: string) => Promise<string>,
 ) {
   const addFavoriteFolders = createFavoriteFoldersHandler(
     api,
@@ -77,16 +86,104 @@ export function registerApiIpc(
 
   ipcMain.handle(
     'libraries:list',
-    withIpcMiddleware(() => api.libraries.list(), authorizeRenderer(renderer)),
+    withIpcMiddleware(async (): Promise<PresentedLibrary[]> => {
+      const libraries = await api.libraries.list()
+
+      return libraries.map((library) => ({
+        ...library,
+        folderView: entryRegistry?.folderView(library.typeId) ?? null,
+      }))
+    }, authorizeRenderer(renderer)),
   )
 
   ipcMain.handle(
     'entries:listChildren',
     withIpcMiddleware(
-      (_event, folder: Parameters<ServerApi['entries']['listChildren']>[0]) =>
-        api.entries.listChildren(folder),
+      async (
+        _event,
+        folder: Parameters<ServerApi['entries']['listChildren']>[0],
+      ): Promise<PresentedFolderListing> => {
+        const libraries = await api.libraries.list()
+        const library = libraries.find((item) => item.id === folder?.libraryId)
+        const folderView =
+          folder?.relativePath === ''
+            ? entryRegistry?.folderView(library?.typeId)
+            : null
+        const listing = await api.entries.listChildren({
+          ...folder,
+          ...(folderView?.recursive || folder.recursive
+            ? { recursive: true }
+            : {}),
+        })
+
+        const entries = await Promise.all(
+          listing.entries.map(
+            async (entry): Promise<PresentedEntry> => ({
+              ...entry,
+              presentation:
+                library && entryRegistry
+                  ? await entryRegistry.resolve({
+                      path: resolve(library.rootPath, entry.relativePath),
+                      name: entry.name,
+                      kind: entry.kind,
+                    })
+                  : null,
+            }),
+          ),
+        )
+
+        return {
+          ...listing,
+          entries:
+            folderView && !folderView.showDirectories
+              ? entries.filter((entry) => entry.kind !== 'directory')
+              : entries,
+        }
+      },
       authorizeRenderer(renderer),
     ),
+  )
+
+  ipcMain.handle(
+    'entries:activate',
+    withIpcMiddleware(async (_event, id: number) => {
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error('Invalid entry reference')
+      }
+
+      const source = await api.entries.getEntrySource(id)
+
+      if (!source || !entryRegistry || !openPath) {
+        throw new Error('Entry cannot be activated')
+      }
+
+      const candidate = resolve(source.rootPath, source.relativePath)
+      const relation = relative(source.rootPath, candidate)
+
+      if (
+        isAbsolute(source.relativePath) ||
+        relation === '..' ||
+        relation.startsWith(`..${sep}`)
+      ) {
+        throw new Error('Entry path is outside its library')
+      }
+
+      const presentation = await entryRegistry.resolve({
+        path: candidate,
+        name: source.name,
+        kind: source.kind,
+      })
+
+      if (presentation?.activation?.type !== 'open-path') {
+        throw new Error('Entry cannot be activated')
+      }
+
+      const error = await openPath(presentation.activation.path)
+
+      if (error) {
+        throw new Error(error)
+      }
+    }, authorizeRenderer(renderer)),
   )
 
   ipcMain.handle(
@@ -202,6 +299,7 @@ export function registerApiIpc(
 
     ipcMain.removeHandler('libraries:list')
     ipcMain.removeHandler('entries:listChildren')
+    ipcMain.removeHandler('entries:activate')
     ipcMain.removeHandler('entries:moveFolders')
     ipcMain.removeHandler('moveHistory:list')
   }
