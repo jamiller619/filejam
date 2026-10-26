@@ -1,7 +1,10 @@
+import { lstat, readdir } from 'node:fs/promises'
+import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
 import { and, asc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
+import mime from 'mime'
 import type { Database } from '../db/index.js'
 import { entries, type NewEntry } from '../db/schemas/entry.js'
-import { libraries } from '../db/schemas/library.js'
+import { volumes } from '../db/schemas/volume.js'
 import { entrySize } from './entrySize.js'
 
 export function createEntriesApi(db: Database) {
@@ -14,33 +17,41 @@ export function createEntriesApi(db: Database) {
 
       const [source] = await db
         .select({
-          rootPath: libraries.rootPath,
+          rootPath: volumes.rootPath,
           relativePath: entries.relativePath,
           name: entries.name,
           kind: entries.kind,
         })
         .from(entries)
-        .innerJoin(libraries, eq(entries.libraryId, libraries.id))
+        .innerJoin(volumes, eq(entries.volumeId, volumes.id))
         .where(eq(entries.id, id))
 
       return source ?? null
     },
     async listChildren(folder: {
-      libraryId: number
+      volumeId: number
       relativePath: string
       recursive?: boolean
       search?: string
     }) {
       if (
         !folder ||
-        !Number.isSafeInteger(folder.libraryId) ||
-        folder.libraryId <= 0 ||
+        !Number.isSafeInteger(folder.volumeId) ||
+        folder.volumeId <= 0 ||
         typeof folder.relativePath !== 'string' ||
         (folder.recursive !== undefined &&
           typeof folder.recursive !== 'boolean') ||
         (folder.search !== undefined && typeof folder.search !== 'string')
       ) {
         throw new Error('Invalid folder reference')
+      }
+
+      let refreshError: unknown
+
+      try {
+        await refreshDirectory(db, folder.volumeId, folder.relativePath)
+      } catch (error) {
+        refreshError = error
       }
 
       const search = folder.search?.trim() ?? ''
@@ -52,13 +63,17 @@ export function createEntriesApi(db: Database) {
         .from(entries)
         .where(
           and(
-            eq(entries.libraryId, folder.libraryId),
+            eq(entries.volumeId, folder.volumeId),
             eq(entries.relativePath, folder.relativePath),
             eq(entries.kind, 'directory'),
           ),
         )
 
       if (!directory) {
+        if (refreshError) {
+          throw refreshError
+        }
+
         return { folder: null, entries: [], scanned: false }
       }
 
@@ -70,7 +85,7 @@ export function createEntriesApi(db: Database) {
         .from(entries)
         .where(
           and(
-            eq(entries.libraryId, folder.libraryId),
+            eq(entries.volumeId, folder.volumeId),
             includeDescendants
               ? inArray(
                   entries.id,
@@ -81,7 +96,7 @@ export function createEntriesApi(db: Database) {
                     select child.id, child.kind from entries as child
                     join descendants on child.parent_id = descendants.id
                     where descendants.kind = 'directory'
-                      and child.library_id = ${folder.libraryId}
+                      and child.volume_id = ${folder.volumeId}
                   )
                   select id from descendants
                 )`,
@@ -119,26 +134,26 @@ export function createEntriesApi(db: Database) {
             )),
       }
     },
-    async listPaths(libraryId: number) {
+    async listPaths(volumeId: number) {
       return db
         .select({ id: entries.id, path: entries.relativePath })
         .from(entries)
-        .where(eq(entries.libraryId, libraryId))
+        .where(eq(entries.volumeId, volumeId))
     },
     /** Preserve IDs and parent references when refreshing filesystem metadata. */
     upsert: (values: NewEntry) => upsertEntry(db, values),
     /** Reconcile deletions only after a complete, successful traversal. */
-    async completeScan(libraryId: number, unseenIds: Iterable<number>) {
+    async completeScan(volumeId: number, unseenIds: Iterable<number>) {
       await db.transaction(async (tx) => {
         const ids = [...unseenIds]
 
-        // Stay below SQLite's parameter limit, including the library filter.
+        // Stay below SQLite's parameter limit, including the volume filter.
         for (let index = 0; index < ids.length; index += 500) {
           await tx
             .delete(entries)
             .where(
               and(
-                eq(entries.libraryId, libraryId),
+                eq(entries.volumeId, volumeId),
                 inArray(entries.id, ids.slice(index, index + 500)),
               ),
             )
@@ -148,10 +163,7 @@ export function createEntriesApi(db: Database) {
           .update(entries)
           .set({ childrenDirty: false, childrenScannedAt: new Date() })
           .where(
-            and(
-              eq(entries.libraryId, libraryId),
-              eq(entries.kind, 'directory'),
-            ),
+            and(eq(entries.volumeId, volumeId), eq(entries.kind, 'directory')),
           )
       })
     },
@@ -167,7 +179,7 @@ export async function upsertEntry(
     .insert(entries)
     .values(values)
     .onConflictDoUpdate({
-      target: [entries.libraryId, entries.relativePath],
+      target: [entries.volumeId, entries.relativePath],
       set: values,
     })
     .returning({ id: entries.id })
@@ -177,4 +189,141 @@ export async function upsertEntry(
   }
 
   return entry
+}
+
+async function refreshDirectory(
+  db: Database,
+  volumeId: number,
+  relativePath: string,
+) {
+  const [volume] = await db
+    .select()
+    .from(volumes)
+    .where(eq(volumes.id, volumeId))
+
+  if (!volume) {
+    throw new Error('Volume not found')
+  }
+
+  const directoryPath = resolve(volume.rootPath, relativePath)
+  const relation = relative(volume.rootPath, directoryPath)
+
+  if (
+    isAbsolute(relativePath) ||
+    relation === '..' ||
+    relation.startsWith(`..${sep}`)
+  ) {
+    throw new Error('Folder path is outside its volume')
+  }
+
+  const directory = await ensureDirectory(
+    db,
+    volume.id,
+    volume.rootPath,
+    relation,
+  )
+  const children = await readdir(directoryPath, { withFileTypes: true })
+  const indexedAt = new Date()
+  const visibleNames = new Set<string>()
+
+  for (const child of children) {
+    const childPath = resolve(directoryPath, child.name)
+
+    try {
+      const metadata = await lstat(childPath)
+      const childRelativePath = relative(volume.rootPath, childPath)
+        .split(sep)
+        .join('/')
+      const kind = metadata.isDirectory()
+        ? 'directory'
+        : metadata.isSymbolicLink()
+          ? 'symlink'
+          : 'file'
+
+      visibleNames.add(child.name)
+
+      await upsertEntry(db, {
+        volumeId: volume.id,
+        parentId: directory.id,
+        name: child.name,
+        relativePath: childRelativePath,
+        kind,
+        size: kind === 'directory' ? null : metadata.size,
+        mimeType:
+          kind === 'file'
+            ? (mime.getType(child.name) ?? 'application/octet-stream')
+            : null,
+        modifiedAt: metadata.mtime,
+        createdAt: metadata.birthtime,
+        indexedAt,
+        childrenDirty: kind === 'directory',
+      })
+    } catch {
+      // Files may disappear or become inaccessible while a directory is read.
+    }
+  }
+
+  const previousChildren = await db
+    .select({ id: entries.id, name: entries.name })
+    .from(entries)
+    .where(eq(entries.parentId, directory.id))
+
+  for (const child of previousChildren) {
+    if (!visibleNames.has(child.name)) {
+      await db.delete(entries).where(eq(entries.id, child.id))
+    }
+  }
+
+  await db
+    .update(entries)
+    .set({ childrenDirty: false, childrenScannedAt: indexedAt })
+    .where(eq(entries.id, directory.id))
+}
+
+async function ensureDirectory(
+  db: Database,
+  volumeId: number,
+  rootPath: string,
+  nativeRelativePath: string,
+) {
+  const segments = nativeRelativePath.split(sep).filter(Boolean)
+  let parentId: number | null = null
+  let currentPath = rootPath
+  let directory: { id: number } | undefined
+
+  for (let index = 0; index <= segments.length; index++) {
+    const segment = segments[index - 1]
+
+    if (segment) {
+      currentPath = resolve(currentPath, segment)
+    }
+
+    const metadata = await lstat(currentPath)
+
+    if (!metadata.isDirectory()) {
+      throw new Error('Folder location is not a directory')
+    }
+
+    const path = relative(rootPath, currentPath).split(sep).join('/')
+    directory = await upsertEntry(db, {
+      volumeId,
+      parentId,
+      name: segment ?? (basename(rootPath) || rootPath),
+      relativePath: path,
+      kind: 'directory',
+      size: null,
+      mimeType: null,
+      modifiedAt: metadata.mtime,
+      createdAt: metadata.birthtime,
+      indexedAt: new Date(),
+      childrenDirty: true,
+    })
+    parentId = directory.id
+  }
+
+  if (!directory) {
+    throw new Error('Unable to index folder')
+  }
+
+  return directory
 }

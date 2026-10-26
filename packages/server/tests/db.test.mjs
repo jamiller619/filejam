@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { initDatabase } from '../dist/db/index.js'
 import { entries } from '../dist/db/schemas/entry.js'
-import { libraries } from '../dist/db/schemas/library.js'
+import { volumes } from '../dist/db/schemas/volume.js'
 
 test('creates a database, preserves data on reopen, and enforces constraints', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-db-'))
@@ -18,11 +18,11 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     const { db } = connection
 
     await db
-      .insert(libraries)
-      .values({ id: 1, name: 'Files', rootPath: '/files' })
+      .insert(volumes)
+      .values({ id: 1, name: 'Files', rootPath: '/files', kind: 'system' })
 
     const entry = {
-      libraryId: 1,
+      volumeId: 1,
       name: 'example.txt',
       relativePath: 'example.txt',
       kind: 'file',
@@ -35,14 +35,14 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     await assert.rejects(
       db
         .insert(entries)
-        .values({ ...entry, libraryId: 999 })
+        .values({ ...entry, volumeId: 999 })
         .run(),
     )
 
-    connection.close()
+    await connection.close()
 
     connection = await initDatabase(path)
-    assert.equal((await connection.db.select().from(libraries)).length, 1)
+    assert.equal((await connection.db.select().from(volumes)).length, 1)
     assert.equal((await connection.db.select().from(entries)).length, 1)
 
     const migrations = await connection.db.all(
@@ -61,11 +61,16 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
       ),
     )
 
-    await connection.db.delete(libraries)
+    await connection.db.delete(volumes)
     assert.deepEqual(await connection.db.select().from(entries), [])
   } finally {
-    connection?.close()
-    await rm(directory, { recursive: true, force: true })
+    await connection?.close()
+    await rm(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    })
   }
 })
 

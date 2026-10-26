@@ -4,7 +4,7 @@ import { isIgnoredScanPath } from './ignore.js'
 import type { FileScanner } from './index.js'
 
 /** Watch before the initial scan so edits during indexing receive another pass. */
-export function watchLibraries(
+export function watchRoots(
   roots: string[],
   scanner: FileScanner,
   excludedPaths: string[],
@@ -53,12 +53,12 @@ export function watchLibraries(
       })
 
       watcher.on('error', (error) =>
-        warn(`Library watcher failed: ${root}`, error),
+        warn(`Filesystem watcher failed: ${root}`, error),
       )
 
       watchers.push(watcher)
     } catch (error) {
-      warn(`Unable to watch library: ${root}`, error)
+      warn(`Unable to watch filesystem root: ${root}`, error)
     }
   }
 

@@ -89,15 +89,15 @@ export function createMoveFoldersHandler(
           throw new Error('Folders can only be moved into another folder.')
         }
 
-        const libraries = (await api.libraries.list()).filter(
-          (library) => !library.isTrash,
+        const volumes = (await api.volumes.list()).filter(
+          (volume) => !volume.isTrash,
         )
-        const destinationLibrary = libraries.find((library) =>
-          containsPath(library.rootPath, destination),
+        const destinationVolume = volumes.find((volume) =>
+          containsPath(volume.rootPath, destination),
         )
 
-        if (!destinationLibrary) {
-          throw new Error('The destination must be inside a library.')
+        if (!destinationVolume) {
+          throw new Error('The destination must be on a mounted volume.')
         }
 
         const moves: Array<{
@@ -113,15 +113,15 @@ export function createMoveFoldersHandler(
             throw new Error('Only folders can be moved.')
           }
 
-          const sourceLibrary = libraries.find((library) =>
-            containsPath(library.rootPath, source),
+          const sourceVolume = volumes.find((volume) =>
+            containsPath(volume.rootPath, source),
           )
 
           if (
-            !sourceLibrary ||
-            pathKey(source) === pathKey(sourceLibrary.rootPath)
+            !sourceVolume ||
+            pathKey(source) === pathKey(sourceVolume.rootPath)
           ) {
-            throw new Error('Library roots cannot be moved.')
+            throw new Error('Volume roots cannot be moved.')
           }
 
           if (containsPath(source, destination)) {
@@ -136,7 +136,7 @@ export function createMoveFoldersHandler(
             )
           }
 
-          moves.push({ source, target, sourceRoot: sourceLibrary.rootPath })
+          moves.push({ source, target, sourceRoot: sourceVolume.rootPath })
         }
 
         const targetKeys = new Set<string>()
@@ -202,7 +202,7 @@ export function createMoveFoldersHandler(
         }
 
         const roots = new Set([
-          destinationLibrary.rootPath,
+          destinationVolume.rootPath,
           ...moves.map((move) => move.sourceRoot),
         ])
 

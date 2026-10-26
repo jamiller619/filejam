@@ -9,10 +9,10 @@ test('moves folders into indexed destinations and updates nested favorites', asy
   const directory = await mkdtemp(join(tmpdir(), 'move-folders-'))
 
   try {
-    const library = join(directory, 'library')
-    const source = join(library, 'source')
+    const volume = join(directory, 'volume')
+    const source = join(volume, 'source')
     const nested = join(source, 'nested')
-    const destination = join(library, 'destination')
+    const destination = join(volume, 'destination')
 
     await mkdir(nested, { recursive: true })
     await mkdir(destination)
@@ -29,8 +29,8 @@ test('moves folders into indexed destinations and updates nested favorites', asy
     }
     const move = createMoveFoldersHandler(
       {
-        libraries: {
-          list: async () => [{ rootPath: library, isTrash: false }],
+        volumes: {
+          list: async () => [{ rootPath: volume, isTrash: false }],
         },
         moveHistory: {
           plan: async (items) => {
@@ -69,7 +69,7 @@ test('moves folders into indexed destinations and updates nested favorites', asy
     await assert.rejects(readFile(join(source, 'nested', 'note.txt')))
     assert.deepEqual(updated, [join(movedSource, 'nested')])
     assert.deepEqual(favorites, updated)
-    assert.deepEqual(scans, [library])
+    assert.deepEqual(scans, [volume])
     assert.deepEqual(history, [
       {
         id: 'operation',
@@ -93,18 +93,18 @@ test('rejects unsafe moves before changing the filesystem', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'move-folders-'))
 
   try {
-    const library = join(directory, 'library')
-    const source = join(library, 'source')
+    const volume = join(directory, 'volume')
+    const source = join(volume, 'source')
     const nested = join(source, 'nested')
-    const destination = join(library, 'destination')
+    const destination = join(volume, 'destination')
 
     await mkdir(nested, { recursive: true })
     await mkdir(join(destination, 'source'), { recursive: true })
 
     const move = createMoveFoldersHandler(
       {
-        libraries: {
-          list: async () => [{ rootPath: library, isTrash: false }],
+        volumes: {
+          list: async () => [{ rootPath: volume, isTrash: false }],
         },
         moveHistory: {
           plan: async () => assert.fail('unsafe moves must not be recorded'),
@@ -116,7 +116,7 @@ test('rejects unsafe moves before changing the filesystem', async () => {
       { get: async () => [], set: async () => {} },
     )
 
-    await assert.rejects(move([library], destination), /Library roots/)
+    await assert.rejects(move([volume], destination), /Volume roots/)
     await assert.rejects(move([source], nested), /into itself/)
     await assert.rejects(move([source], destination), /already exists/)
   } finally {

@@ -6,15 +6,13 @@ import { drizzle } from 'drizzle-orm/libsql'
 import { migrate } from 'drizzle-orm/libsql/migrator'
 import * as collectionSchema from './schemas/collection.js'
 import * as entrySchema from './schemas/entry.js'
-import * as initializationSchema from './schemas/initialization.js'
-import * as librarySchema from './schemas/library.js'
 import * as moveHistorySchema from './schemas/moveHistory.js'
+import * as volumeSchema from './schemas/volume.js'
 
 const schema = {
   ...collectionSchema,
-  ...librarySchema,
+  ...volumeSchema,
   ...entrySchema,
-  ...initializationSchema,
   ...moveHistorySchema,
 }
 

@@ -8,12 +8,12 @@ export const entrySize = sql<number | null>`case
     with recursive contents(id, kind, size) as (
       select id, kind, size from entries as child
       where child.parent_id = "entries"."id"
-        and child.library_id = "entries"."library_id"
+        and child.volume_id = "entries"."volume_id"
       union all
       select child.id, child.kind, child.size
       from entries as child join contents on child.parent_id = contents.id
       where contents.kind = 'directory'
-        and child.library_id = "entries"."library_id"
+        and child.volume_id = "entries"."volume_id"
     )
     select coalesce(sum(case when kind != 'directory' then size else 0 end), 0)
     from contents

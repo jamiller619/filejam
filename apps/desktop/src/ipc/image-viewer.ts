@@ -11,7 +11,7 @@ import { authorizeRenderer, withIpcMiddleware } from './middleware.js'
 
 export function registerImageViewerIpc(
   owner: BrowserWindow,
-  libraries: Pick<ServerApi['libraries'], 'list'>,
+  volumes: Pick<ServerApi['volumes'], 'list'>,
   registry?: PreviewRegistry,
   settings?: SettingsApi,
 ) {
@@ -20,14 +20,14 @@ export function registerImageViewerIpc(
 
   ipcMain.handle(
     'preview:capabilities',
-    withIpcMiddleware(async (_event, libraryId: unknown, path: unknown) => {
-      if (!Number.isSafeInteger(libraryId) || typeof path !== 'string') {
+    withIpcMiddleware(async (_event, volumeId: unknown, path: unknown) => {
+      if (!Number.isSafeInteger(volumeId) || typeof path !== 'string') {
         throw new Error('Invalid preview request')
       }
 
       const { file, info } = await authorizePreview(
-        libraries,
-        libraryId as number,
+        volumes,
+        volumeId as number,
         path,
       )
 
@@ -42,20 +42,20 @@ export function registerImageViewerIpc(
 
   ipcMain.handle(
     'window:openImage',
-    withIpcMiddleware(async (_event, libraryId: unknown, path: unknown) => {
-      if (!Number.isSafeInteger(libraryId) || typeof path !== 'string') {
+    withIpcMiddleware(async (_event, volumeId: unknown, path: unknown) => {
+      if (!Number.isSafeInteger(volumeId) || typeof path !== 'string') {
         throw new Error('Invalid image request')
       }
 
       const params = new URLSearchParams({
-        libraryId: String(libraryId),
+        volumeId: String(volumeId),
         path,
         original: '1',
       })
 
       const authorized = await authorizePreview(
-        libraries,
-        libraryId as number,
+        volumes,
+        volumeId as number,
         path,
       )
 

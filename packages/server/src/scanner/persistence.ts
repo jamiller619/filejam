@@ -16,9 +16,9 @@ export async function openScanDatabase(
   const api = createApi(connection.db)
 
   try {
-    const library = await api.libraries.ensureRoot(root)
-    const isTrash = await api.libraries.isTrashRoot(root)
-    const previous = await api.entries.listPaths(library.id)
+    const volume = await api.volumes.ensure(root)
+    const isTrash = await api.volumes.isTrashRoot(root)
+    const previous = await api.entries.listPaths(volume.id)
     // Start with all stored paths; committed batches remove encountered paths.
     // Remaining rows are deletion candidates only if the entire scan succeeds.
     const unseen = new Map(previous.map((entry) => [entry.path, entry.id]))
@@ -46,7 +46,7 @@ export async function openScanDatabase(
         path,
         parentKey: key === '' ? null : pathKey(dirname(path)),
         values: {
-          libraryId: library.id,
+          volumeId: volume.id,
           relativePath: key,
           name,
           kind,
@@ -158,7 +158,7 @@ export async function openScanDatabase(
       // Never call this after cancellation or failure: an incomplete traversal
       // cannot distinguish deleted entries from entries it has not reached.
       async complete() {
-        await api.entries.completeScan(library.id, unseen.values())
+        await api.entries.completeScan(volume.id, unseen.values())
       },
     }
   } catch (error) {

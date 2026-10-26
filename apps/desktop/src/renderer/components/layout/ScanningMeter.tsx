@@ -100,8 +100,8 @@ export default function ScanningMeter() {
   const percentage = determinate
     ? Math.min(100, Math.round((status.processed / status.total) * 100))
     : null
-  const libraryCount = status.active.length + status.queued.length
-  const label = libraryCount === 1 ? 'Scanning folder' : 'Scanning folders'
+  const rootCount = status.active.length + status.queued.length
+  const label = rootCount === 1 ? 'Scanning folder' : 'Scanning folders'
 
   return (
     <div className={styles.meter} data-visible={visible} role="status">

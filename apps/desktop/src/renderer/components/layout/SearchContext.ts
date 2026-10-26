@@ -25,7 +25,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const canSearch =
-      location.pathname === '/' || location.pathname.startsWith('/libraries/')
+      location.pathname === '/' || location.pathname.startsWith('/browse/')
     const routeSearch = new URLSearchParams(location.search).get('search') ?? ''
 
     setSearch(canSearch ? routeSearch : '')

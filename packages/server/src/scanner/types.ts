@@ -22,7 +22,7 @@ export interface ScanResults {
 }
 
 export interface ScannerStatus extends ScanStatus {
-  libraries: ScanStatus[]
+  roots: ScanStatus[]
   active: string[]
   queued: string[]
 }

@@ -308,7 +308,7 @@ export class FileScanner implements ScannerApi {
         this.#queue.has(canonical) ||
         this.#slots.some((slot) => slot.root === canonical)
       ) {
-        throw new Error('A scan is already running for this library')
+        throw new Error('A scan is already running for this root')
       }
 
       if (!this.#queue.size && !this.#slots.some((slot) => slot.root)) {
@@ -344,35 +344,33 @@ export class FileScanner implements ScannerApi {
   }
 
   #snapshot(): ScannerStatus {
-    const libraries = structuredClone([...this.#states.values()])
+    const roots = structuredClone([...this.#states.values()])
     const active = this.#slots.flatMap((slot) => (slot.root ? [slot.root] : []))
     const queued = [...this.#queue]
 
     const state =
       active.length || queued.length
         ? 'scanning'
-        : libraries.some((s) => s.state === 'cancelled')
+        : roots.some((s) => s.state === 'cancelled')
           ? 'cancelled'
-          : libraries.some((s) => s.state === 'failed')
+          : roots.some((s) => s.state === 'failed')
             ? 'failed'
-            : libraries.length
+            : roots.length
               ? 'completed'
               : 'idle'
 
     return {
       state,
-      root: libraries.length === 1 ? (libraries[0]?.root ?? null) : null,
+      root: roots.length === 1 ? (roots[0]?.root ?? null) : null,
       phase: active.length
-        ? libraries.some(
-            (s) => s.state === 'scanning' && s.phase === 'checking',
-          )
+        ? roots.some((s) => s.state === 'scanning' && s.phase === 'checking')
           ? 'checking'
           : 'crawling'
         : 'idle',
-      total: libraries.reduce((n, s) => n + s.total, 0),
-      processed: libraries.reduce((n, s) => n + s.processed, 0),
-      error: libraries.find((s) => s.error)?.error ?? null,
-      libraries,
+      total: roots.reduce((n, s) => n + s.total, 0),
+      processed: roots.reduce((n, s) => n + s.processed, 0),
+      error: roots.find((s) => s.error)?.error ?? null,
+      roots,
       active,
       queued,
     }

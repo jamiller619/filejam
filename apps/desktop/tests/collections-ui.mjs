@@ -23,10 +23,10 @@ async function run() {
     connection = await initDatabase(join(directory, 'filejam.sqlite'))
 
     const api = createApi(connection.db)
-    const library = await api.libraries.ensureRoot(directory)
+    const volume = await api.volumes.ensure(directory)
 
     const root = await api.entries.upsert({
-      libraryId: library.id,
+      volumeId: volume.id,
       name: 'root',
       relativePath: '',
       kind: 'directory',
@@ -34,7 +34,7 @@ async function run() {
     })
 
     const file = await api.entries.upsert({
-      libraryId: library.id,
+      volumeId: volume.id,
       parentId: root.id,
       name: 'Example.txt',
       relativePath: 'Example.txt',
@@ -42,7 +42,7 @@ async function run() {
       indexedAt: new Date(),
     })
 
-    await api.entries.completeScan(library.id, [])
+    await api.entries.completeScan(volume.id, [])
 
     window = new BrowserWindow({
       width: 1100,

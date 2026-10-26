@@ -83,7 +83,7 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
       let status = await scanner.status()
       assert.equal(status.active.length, 2)
       assert.equal(status.queued.length, 1)
-      assert.equal(status.libraries.length, 3)
+      assert.equal(status.roots.length, 3)
       assert.equal(starts.length, 2)
       await assert.rejects(scanner.start(join(roots[0], '..', 'a')), /already running/)
       scanner.enqueue(roots[0]); scanner.enqueue(join(roots[0], '..', 'a'))
@@ -100,7 +100,7 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
       assert.equal(starts.filter(root => root === roots[0]).length, 2)
       workers[0].crash()
       status = await scanner.status()
-      assert.equal(status.libraries.find(s => s.root === roots[2]).state, 'failed')
+      assert.equal(status.roots.find(s => s.root === roots[2]).state, 'failed')
       assert.equal(workers[0].closed, true)
       scanner.enqueue(roots[2])
       status = await scanner.status()
@@ -136,7 +136,7 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
   }
 })
 
-test('real workers index and reconcile concurrent libraries with isolated caches and results', async () => {
+test('real workers index and reconcile concurrent volumes with isolated caches and results', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-pool-persistence-'))
 
   try {
@@ -191,16 +191,16 @@ test('real workers index and reconcile concurrent libraries with isolated caches
         await scanner.startAll([join(directory, 'missing'), ...roots])
         const status = await finish()
         assert.equal(status.state, 'failed')
-        assert.equal(status.libraries.filter(s => s.state === 'completed').length, 3)
+        assert.equal(status.roots.filter(s => s.state === 'completed').length, 3)
         assert.deepEqual((await scanner.results(roots[0])).removed, ['0.txt'])
         assert.deepEqual((await scanner.results(roots[1])).changed, ['0.txt'])
         assert.deepEqual(await scanner.results(roots[2]), { added: [], changed: [], removed: [] })
         const connection = await initDatabase(databasePath)
         try {
           const api = createApi(connection.db)
-          for (const library of await api.libraries.list()) {
-            const listing = await api.entries.listChildren({ libraryId: library.id, relativePath: '' })
-            assert.equal(listing.entries.length, library.rootPath === roots[0] ? 129 : 130)
+          for (const volume of await api.volumes.list()) {
+            const listing = await api.entries.listChildren({ volumeId: volume.id, relativePath: '' })
+            assert.equal(listing.entries.length, volume.rootPath === roots[0] ? 129 : 130)
             assert.equal(listing.scanned, true)
           }
         } finally { connection.close() }
@@ -211,12 +211,12 @@ test('real workers index and reconcile concurrent libraries with isolated caches
       assert.equal(completed[0].processed, 393)
       assert.equal(completed[0].total, 393)
       assert.equal(completed[0].added, 390)
-      assert.equal(completed[0].completedLibraries, 3)
-      assert.equal(completed[0].activeLibraries, 0)
+      assert.equal(completed[0].completedRoots, 3)
+      assert.equal(completed[0].activeRoots, 0)
       assert.ok(logs.every(log => !('root' in log)))
       const failed = logs.find(log => log.msg === 'Scan failed')
-      assert.equal(failed.completedLibraries, 3)
-      assert.equal(failed.failedLibraries, 1)
+      assert.equal(failed.completedRoots, 3)
+      assert.equal(failed.failedRoots, 1)
       assert.equal(failed.errors.length, 1)
     `)
   } finally {

@@ -10,16 +10,16 @@ test('caches file type icons by extension and requested display size', async () 
     return new TextEncoder().encode(`${file}:${size}`)
   })
 
-  const first = await provider('/library/first.pdf', 'list')
-  const second = await provider('/library/second.PDF', 'list')
-  const grid = await provider('/library/third.pdf', 'grid')
+  const first = await provider('/volume/first.pdf', 'list')
+  const second = await provider('/volume/second.PDF', 'list')
+  const grid = await provider('/volume/third.pdf', 'grid')
 
-  assert.equal(new TextDecoder().decode(first), '/library/first.pdf:normal')
+  assert.equal(new TextDecoder().decode(first), '/volume/first.pdf:normal')
   assert.equal(second, first)
-  assert.equal(new TextDecoder().decode(grid), '/library/third.pdf:large')
+  assert.equal(new TextDecoder().decode(grid), '/volume/third.pdf:large')
   assert.deepEqual(loads, [
-    { file: '/library/first.pdf', size: 'normal' },
-    { file: '/library/third.pdf', size: 'large' },
+    { file: '/volume/first.pdf', size: 'normal' },
+    { file: '/volume/third.pdf', size: 'large' },
   ])
 })
 

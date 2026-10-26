@@ -61,7 +61,7 @@ const defaultField = {
 const fields: { value: CollectionField; label: string; type: FieldType }[] = [
   defaultField,
   { value: 'relativePath', label: 'Path', type: 'text' },
-  { value: 'libraryId', label: 'Library ID', type: 'number' },
+  { value: 'volumeId', label: 'Volume ID', type: 'number' },
   { value: 'kind', label: 'Kind', type: 'text' },
   { value: 'mimeType', label: 'MIME type', type: 'text' },
   { value: 'size', label: 'Size', type: 'number' },

@@ -1,22 +1,21 @@
 import { join } from 'node:path'
-import type { ResolveDefaultFolder } from './api/defaultLibraries.js'
 import { createApi } from './api/index.js'
+import type { VolumeInput } from './api/volumes.js'
 import { initConfig } from './config/index.js'
 import { initDatabase } from './db/index.js'
 import { closeLogger, createLogger, initLogger } from './logger.js'
 import { FileScanner } from './scanner/index.js'
-import { watchLibraries } from './scanner/watch.js'
 
 // Keep the startup promise so callers also share initialization while it is in flight.
 let running: ReturnType<typeof start> | undefined
 
 type BootOptions = {
-  resolveDefaultFolder?: ResolveDefaultFolder
+  volumes?: VolumeInput[]
   trashRoots?: string[]
 }
 
-export type { DefaultFolder } from './api/defaultLibraries.js'
-export type { Library, ServerApi } from './api/index.js'
+export type { ServerApi, Volume } from './api/index.js'
+export type { VolumeInput } from './api/volumes.js'
 export type {
   CollectionDefinition,
   CollectionField,
@@ -47,7 +46,6 @@ async function start(options: BootOptions) {
 
   let database: Awaited<ReturnType<typeof initDatabase>> | undefined
   let scanner: FileScanner | undefined
-  let stopWatching: (() => void) | undefined
 
   try {
     const databasePath = join(config.get('appdata.dbPath'), 'filejam.sqlite')
@@ -55,14 +53,9 @@ async function start(options: BootOptions) {
     database = await initDatabase(databasePath)
 
     const api = createApi(database.db)
-    if (options.resolveDefaultFolder) {
-      await api.libraries.initializeDefaults(
-        options.resolveDefaultFolder,
-        (message, error) => logger.warn(message, error),
-      )
-    }
+    await api.volumes.sync(options.volumes ?? [])
 
-    await api.libraries.ensureTrashRoots(options.trashRoots ?? [])
+    await api.volumes.ensureTrashRoots(options.trashRoots ?? [])
 
     // Keep background indexing bounded. Scans are dominated by filesystem and
     // SQLite I/O, so matching worker count to CPU cores only creates contention
@@ -72,25 +65,9 @@ async function start(options: BootOptions) {
     // A round trip confirms the worker loaded before exposing the server.
     await scanner.status()
 
-    // Include previously seeded libraries: their setup marker may predate
-    // automatic scanning. A batch acknowledges its start without delaying boot
-    // until indexing finishes, and the pool processes roots concurrently.
-    const libraries = await api.libraries.list()
-
-    stopWatching = watchLibraries(
-      libraries.map((library) => library.rootPath),
-      scanner,
-      [
-        config.get('appdata.dbPath'),
-        config.get('appdata.cachePath'),
-        config.get('appdata.logsPath'),
-      ],
-      (message, error) => logger.warn(message, error),
-    )
-
-    await scanner.startAll(libraries.map((library) => library.rootPath))
-
-    logger.info('Server started', { queuedLibraries: libraries.length })
+    logger.info('Server started', {
+      mountedVolumes: options.volumes?.length ?? 0,
+    })
 
     let closing: Promise<void> | undefined
 
@@ -104,11 +81,10 @@ async function start(options: BootOptions) {
         // then flush the logger after the final server message.
         closing ??= (async () => {
           try {
-            stopWatching?.()
             await scanner?.close()
           } finally {
             try {
-              database?.close()
+              await database?.close()
               logger.info('Server stopped')
             } finally {
               await closeLogger()
@@ -124,10 +100,9 @@ async function start(options: BootOptions) {
     logger.error('Server startup failed', error)
 
     try {
-      stopWatching?.()
       await scanner?.close()
     } finally {
-      database?.close()
+      await database?.close()
       await closeLogger()
     }
 

@@ -9,13 +9,11 @@ import {
 import CollectionEditor from '../components/collections/CollectionEditor.js'
 import DetailsPane from '../components/layout/DetailsPane.js'
 import { useDetailsPane } from '../components/layout/DetailsPaneContext.js'
-import AddLibrary from '../components/libraries/AddLibrary.js'
 import { useApi } from '../hooks/useApi.js'
 import {
   notifyCollectionsChanged,
   useCollections,
 } from '../hooks/useCollections.js'
-import { useLibraries } from '../hooks/useLibraries.js'
 import { useSettings } from '../hooks/useSettings.js'
 import Page from './Page.js'
 
@@ -214,7 +212,6 @@ type SettingsSelection =
   | { type: 'date-format' }
   | { type: 'show-file-extensions' }
   | { type: 'color-coding' }
-  | { type: 'library'; id: number }
   | { type: 'collection-new' }
   | { type: 'collection'; id: string }
 
@@ -236,18 +233,12 @@ export default function Settings() {
   const [collectionError, setCollectionError] = useState(false)
   const [selection, setSelection] = useState<SettingsSelection | null>(null)
   const {
-    libraries,
-    loading: librariesLoading,
-    loadFailed: librariesLoadFailed,
-  } = useLibraries()
-  const {
     collections,
     loading: collectionsLoading,
     loadFailed: collectionsLoadFailed,
     refresh: refreshCollections,
   } = useCollections()
   const dateFormat = values?.['user.dateformat'] ?? 'relative'
-  const userLibraries = libraries.filter((library) => !library.isTrash)
 
   useEffect(() => {
     detailsPane.setVisible(true)
@@ -364,62 +355,6 @@ export default function Settings() {
           )
         })}
         <Section
-          title="Libraries"
-          headingId="libraries-heading"
-          headerActions={<AddLibrary />}
-        >
-          {librariesLoadFailed ? (
-            <p className={`${styles.emptyState} ${styles.error}`} role="alert">
-              Unable to load libraries.
-            </p>
-          ) : librariesLoading ? (
-            <p className={styles.emptyState} role="status">
-              Loading libraries...
-            </p>
-          ) : userLibraries.length === 0 ? (
-            <div className={styles.emptyState}>
-              <Icon className={styles.emptyIcon} name="folder" size={24} />
-              No libraries added yet. Add a folder to start indexing it.
-            </div>
-          ) : (
-            userLibraries.map((library) => (
-              <SettingRow
-                key={library.id}
-                icon="folder"
-                title={library.name}
-                subtitle={library.rootPath}
-                selected={
-                  selection?.type === 'library' && selection.id === library.id
-                }
-                onSelect={() =>
-                  setSelection({ type: 'library', id: library.id })
-                }
-              >
-                <Button
-                  variant="ghost"
-                  className={styles.editIcon}
-                  aria-label={`Edit ${library.name}`}
-                  onClick={() =>
-                    setSelection({ type: 'library', id: library.id })
-                  }
-                >
-                  <Icon name="edit" size={20} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  className={styles.deleteIcon}
-                  aria-label={`Delete ${library.name}`}
-                  onClick={() =>
-                    setSelection({ type: 'library', id: library.id })
-                  }
-                >
-                  <Icon name="trash" size={20} />
-                </Button>
-              </SettingRow>
-            ))
-          )}
-        </Section>
-        <Section
           title="Collections"
           headingId="collections-heading"
           headerActions={
@@ -525,7 +460,6 @@ export default function Settings() {
           <SettingsDetails
             selection={selection}
             dateFormat={dateFormat}
-            libraries={userLibraries}
             collections={collections}
             onCollectionSaved={(collection) => {
               notifyCollectionsChanged()
@@ -582,7 +516,6 @@ function SettingRow({
 type SettingsDetailsProps = {
   selection: SettingsSelection | null
   dateFormat: string
-  libraries: ReturnType<typeof useLibraries>['libraries']
   collections: ReturnType<typeof useCollections>['collections']
   onCollectionSaved: (
     collection: ReturnType<typeof useCollections>['collections'][number],
@@ -592,14 +525,9 @@ type SettingsDetailsProps = {
 function SettingsDetails({
   selection,
   dateFormat,
-  libraries,
   collections,
   onCollectionSaved,
 }: SettingsDetailsProps) {
-  const library =
-    selection?.type === 'library'
-      ? libraries.find((item) => item.id === selection.id)
-      : undefined
   const collection =
     selection?.type === 'collection'
       ? collections.find((item) => item.id === selection.id)
@@ -613,7 +541,7 @@ function SettingsDetails({
     >
       {!selection && (
         <p className={styles.detailsEmpty}>
-          Select a setting, library, or collection to view its details.
+          Select a setting or collection to view its details.
         </p>
       )}
       {selection?.type === 'date-format' && (
@@ -623,16 +551,6 @@ function SettingsDetails({
           metadata={[['Current value', dateFormat]]}
         />
       )}
-      {library && (
-        <SettingsDetailsContent
-          type="Library"
-          title={library.name}
-          metadata={[
-            ['Folder', library.rootPath],
-            ['Library ID', String(library.id)],
-          ]}
-        />
-      )}
       {collection && (
         <CollectionEditor collection={collection} onSaved={onCollectionSaved} />
       )}
@@ -640,7 +558,6 @@ function SettingsDetails({
         <CollectionEditor onSaved={onCollectionSaved} />
       )}
       {selection &&
-        !library &&
         !collection &&
         selection.type !== 'collection-new' &&
         selection.type !== 'date-format' && (

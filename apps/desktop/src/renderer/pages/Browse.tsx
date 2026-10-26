@@ -1,48 +1,46 @@
 import { useParams, useSearchParams } from 'react-router'
 import Files, { type Folder } from '../components/files/Files.js'
-import { useLibraries } from '../hooks/useLibraries.js'
+import { useVolumes } from '../hooks/useVolumes.js'
 import Page from './Page.js'
 
-export default function Library({
+export default function Browse({
   folder: suppliedFolder,
 }: {
   folder?: Folder
 }) {
-  const { libraryId } = useParams()
+  const { volumeId } = useParams()
   const [searchParams] = useSearchParams()
-  const { libraries, loadFailed, loading } = useLibraries()
-
+  const { volumes, loadFailed, loading } = useVolumes()
   const folder = suppliedFolder ?? {
-    libraryId: Number(libraryId),
-    relativePath: searchParams.get('folder') ?? '',
+    volumeId: Number(volumeId),
+    relativePath: searchParams.get('path') ?? '',
   }
-
-  const library = libraries.find((item) => item.id === folder.libraryId)
+  const volume = volumes.find((item) => item.id === folder.volumeId)
   const segments = folder.relativePath.split('/').filter(Boolean)
 
-  if (!Number.isSafeInteger(folder.libraryId) || folder.libraryId <= 0) {
-    return <p role="status">Invalid library.</p>
+  if (!Number.isSafeInteger(folder.volumeId) || folder.volumeId <= 0) {
+    return <p role="status">Invalid folder location.</p>
   }
 
   if (loadFailed) {
-    return <p role="status">Unable to load library.</p>
+    return <p role="status">Unable to load the volume.</p>
   }
 
   if (loading) {
-    return <p role="status">Loading library...</p>
+    return <p role="status">Loading folder...</p>
   }
 
-  if (!library) {
-    return <p role="status">Library not found.</p>
+  if (!volume) {
+    return <p role="status">Volume not found.</p>
   }
 
   return (
     <Page
-      title={segments.at(-1) ?? library.name}
+      title={segments.at(-1) ?? volume.name}
       split={{
         storageKey: JSON.stringify([
-          'library',
-          folder.libraryId,
+          'folder',
+          folder.volumeId,
           folder.relativePath,
         ]),
         content: (

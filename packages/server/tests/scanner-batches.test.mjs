@@ -88,7 +88,7 @@ test('scan batches roll back parents and bookkeeping, preserve IDs, and respect 
   }
 })
 
-test('deletion batches handle multiple chunks and stay within the selected library', async () => {
+test('deletion batches handle multiple chunks and stay within the selected volume', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-delete-batch-'))
 
   try {
@@ -98,10 +98,10 @@ test('deletion batches handle multiple chunks and stay within the selected libra
       const connection = await initDatabase(databasePath)
       try {
         const api = createApi(connection.db)
-        const library = await api.libraries.ensureRoot(root)
-        const other = await api.libraries.ensureRoot(join(directory, 'other'))
+        const volume = await api.volumes.ensure(root)
+        const other = await api.volumes.ensure(join(directory, 'other'))
         const values = Array.from({ length: 1101 }, (_, index) => ({
-          libraryId: index === 1100 ? other.id : library.id,
+          volumeId: index === 1100 ? other.id : volume.id,
           relativePath: String(index),
           name: String(index),
           kind: 'file',
@@ -112,10 +112,10 @@ test('deletion batches handle multiple chunks and stay within the selected libra
           await connection.db.insert(entries).values(values.slice(index, index + 100))
         const rows = await connection.db.select().from(entries)
         function* ids() { for (const row of rows) yield row.id }
-        await api.entries.completeScan(library.id, ids())
+        await api.entries.completeScan(volume.id, ids())
         const remaining = await connection.db.select().from(entries)
         assert.equal(remaining.length, 1)
-        assert.equal(remaining[0].libraryId, other.id)
+        assert.equal(remaining[0].volumeId, other.id)
         await api.entries.completeScan(other.id, [])
         assert.equal((await connection.db.select().from(entries)).length, 1)
       } finally {

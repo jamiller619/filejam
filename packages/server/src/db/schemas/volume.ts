@@ -1,14 +1,16 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-export const libraries = sqliteTable('libraries', {
+export const volumes = sqliteTable('volumes', {
   id: integer('id').primaryKey(),
   name: text('name').notNull(),
-
-  // Absolute filesystem path to the library directory.
   rootPath: text('root_path').notNull().unique(),
-  // Stable semantic identity supplied by the host, independent of the name.
+  kind: text('kind', {
+    enum: ['system', 'internal', 'external', 'removable', 'network', 'virtual'],
+  })
+    .notNull()
+    .default('internal'),
   typeId: text('type_id'),
   isTrash: integer('is_trash', { mode: 'boolean' }).notNull().default(false),
 })
 
-export type Library = typeof libraries.$inferSelect
+export type Volume = typeof volumes.$inferSelect

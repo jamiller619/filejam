@@ -217,7 +217,7 @@ type FilesTableProps = {
   listing: Listing
   rowGroups: FileRowGroup[]
   collapsedGroupKeys: ReadonlySet<string>
-  libraryRoots: ReadonlyMap<number, string>
+  volumeRoots: ReadonlyMap<number, string>
   selectedId: number | null
   selectedIds: ReadonlySet<number>
   search: string | undefined
@@ -236,7 +236,7 @@ export default function FilesTable({
   listing,
   rowGroups,
   collapsedGroupKeys,
-  libraryRoots,
+  volumeRoots,
   selectedId,
   selectedIds,
   search,
@@ -456,9 +456,9 @@ export default function FilesTable({
               const entry = row.original
               const displayName = entry.presentation?.displayName ?? entry.name
               const entryPath =
-                entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
+                entry.kind === 'directory' && volumeRoots.has(entry.volumeId)
                   ? formatFullPath(
-                      libraryRoots.get(entry.libraryId) ?? '',
+                      volumeRoots.get(entry.volumeId) ?? '',
                       entry.relativePath,
                     )
                   : undefined
@@ -602,7 +602,7 @@ function FolderNameLink({
       title={entry.name}
       viewTransition
       to={folderUrl({
-        libraryId: entry.libraryId,
+        volumeId: entry.volumeId,
         relativePath: entry.relativePath,
       })}
       onDragEnd={(event) => {

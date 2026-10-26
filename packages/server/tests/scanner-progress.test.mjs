@@ -28,14 +28,14 @@ test('global logs use cumulative work and wall-clock throughput, throttle heartb
     changes: { added, changed, removed },
   })
 
-  const snapshot = (libraries, active, queued = []) => ({
+  const snapshot = (roots, active, queued = []) => ({
     state: active.length || queued.length ? 'scanning' : 'completed',
     phase: active.length ? 'checking' : 'idle',
     root: null,
     total: 0,
     processed: 0,
     error: null,
-    libraries,
+    roots,
     active,
     queued,
   })
@@ -112,8 +112,8 @@ test('global logs use cumulative work and wall-clock throughput, throttle heartb
     assert.equal(logs[0].added, 11)
     assert.equal(logs[0].elapsedMs, 1000)
     assert.equal(logs[0].entriesPerSecond, 30)
-    assert.equal(logs[0].activeLibraries, 2)
-    assert.equal(logs[0].queuedLibraries, 1)
+    assert.equal(logs[0].activeRoots, 2)
+    assert.equal(logs[0].queuedRoots, 1)
     assert.equal(logs[1].processed, 75)
     assert.equal(logs[1].total, 75)
     assert.equal(logs[1].added, 19)
@@ -127,7 +127,7 @@ test('global logs use cumulative work and wall-clock throughput, throttle heartb
     assert.equal(logs[3].processed, 10)
     assert.equal(logs[3].total, 20)
     assert.equal(logs[3].added, 3)
-    assert.equal(logs[3].failedLibraries, 1)
+    assert.equal(logs[3].failedRoots, 1)
     assert.deepEqual(logs[3].errors, [{ root: 'd', error: 'worker exited' }])
     assert.ok(logs.every((log) => !('root' in log)))
   } finally {

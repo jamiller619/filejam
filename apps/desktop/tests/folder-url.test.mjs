@@ -6,25 +6,25 @@ import {
 } from '../dist/renderer/utils/folderUrl.js'
 
 test('folder URLs identify only the exact current folder', () => {
-  const libraryRoot = { libraryId: 1, relativePath: '' }
-  const parent = { libraryId: 1, relativePath: 'Photos' }
-  const child = { libraryId: 1, relativePath: 'Photos/Trips' }
+  const volumeRoot = { volumeId: 1, relativePath: '' }
+  const parent = { volumeId: 1, relativePath: 'Photos' }
+  const child = { volumeId: 1, relativePath: 'Photos/Trips' }
 
   const childLocation = new URL(folderUrl(child), 'https://files.test')
 
-  assert.equal(isCurrentFolderUrl(childLocation, libraryRoot), false)
+  assert.equal(isCurrentFolderUrl(childLocation, volumeRoot), false)
   assert.equal(isCurrentFolderUrl(childLocation, parent), false)
   assert.equal(isCurrentFolderUrl(childLocation, child), true)
 })
 
-test('folder URL matching distinguishes libraries and ignores other queries', () => {
-  const folder = { libraryId: 1, relativePath: 'Documents' }
+test('folder URL matching distinguishes volumes and ignores other queries', () => {
+  const folder = { volumeId: 1, relativePath: 'Documents' }
 
   assert.equal(
     isCurrentFolderUrl(
       {
-        pathname: '/libraries/1',
-        search: '?folder=Documents&view=grid',
+        pathname: '/browse/1',
+        search: '?path=Documents&view=grid',
       },
       folder,
     ),
@@ -33,8 +33,8 @@ test('folder URL matching distinguishes libraries and ignores other queries', ()
   assert.equal(
     isCurrentFolderUrl(
       {
-        pathname: '/libraries/2',
-        search: '?folder=Documents',
+        pathname: '/browse/2',
+        search: '?path=Documents',
       },
       folder,
     ),

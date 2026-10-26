@@ -8,16 +8,16 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
-import { libraries } from './library.js'
+import { volumes } from './volume.js'
 
 export const entries = sqliteTable(
   'entries',
   {
     id: integer('id').primaryKey(),
 
-    libraryId: integer('library_id')
+    volumeId: integer('volume_id')
       .notNull()
-      .references(() => libraries.id, { onDelete: 'cascade' }),
+      .references(() => volumes.id, { onDelete: 'cascade' }),
 
     // The root has no parent; deleting a directory cascades through its subtree.
     parentId: integer('parent_id').references(
@@ -27,8 +27,8 @@ export const entries = sqliteTable(
 
     name: text('name').notNull(),
 
-    // Relative to libraries.rootPath, using "/" separators.
-    // The library root itself uses "".
+    // Relative to volumes.rootPath, using "/" separators.
+    // The volume root itself uses "".
     relativePath: text('relative_path').notNull(),
 
     kind: text('kind', {
@@ -61,8 +61,8 @@ export const entries = sqliteTable(
       .default(true),
   },
   (table) => [
-    uniqueIndex('entries_library_path_unique').on(
-      table.libraryId,
+    uniqueIndex('entries_volume_path_unique').on(
+      table.volumeId,
       table.relativePath,
     ),
 

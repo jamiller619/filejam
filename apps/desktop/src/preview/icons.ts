@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 
-const libraryIcons: Record<string, string> = {
+const volumeIcons: Record<string, string> = {
   desktop: 'desktopcomputer',
   music: 'music.note',
   videos: 'film',
@@ -25,13 +25,13 @@ function asset(name: string) {
 export async function previewIcon({
   directory,
   variant,
-  libraryName,
+  volumeName,
   color,
   darkColor,
 }: {
   directory: boolean
   variant: 'list' | 'grid'
-  libraryName: string | undefined
+  volumeName: string | undefined
   color: string
   darkColor?: string | undefined
 }) {
@@ -51,8 +51,8 @@ export async function previewIcon({
     svg = svg.replace('</svg>', `${colorStyle}</svg>`)
 
     const overlay =
-      libraryName && Object.hasOwn(libraryIcons, libraryName.toLowerCase())
-        ? libraryIcons[libraryName.toLowerCase()]
+      volumeName && Object.hasOwn(volumeIcons, volumeName.toLowerCase())
+        ? volumeIcons[volumeName.toLowerCase()]
         : undefined
 
     if (overlay) {

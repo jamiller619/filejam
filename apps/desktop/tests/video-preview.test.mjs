@@ -8,7 +8,7 @@ import { createPreviewHandler } from '../dist/preview/handler.js'
 
 test('preview protocol streams authorized videos with range requests', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-video-preview-'))
-  const rootPath = join(directory, 'library')
+  const rootPath = join(directory, 'volume')
 
   await mkdir(rootPath)
   await writeFile(join(rootPath, 'clip.mp4'), 'video')
@@ -32,7 +32,7 @@ test('preview protocol streams authorized videos with range requests', async () 
   )
 
   try {
-    const params = new URLSearchParams({ libraryId: '1', path: 'clip.mp4' })
+    const params = new URLSearchParams({ volumeId: '1', path: 'clip.mp4' })
     const response = await handler(
       new Request(`filejam-preview://video?${params}`, {
         headers: { Range: 'bytes=0-2' },
@@ -52,7 +52,7 @@ test('preview protocol streams authorized videos with range requests', async () 
     ])
 
     const textParams = new URLSearchParams({
-      libraryId: '1',
+      volumeId: '1',
       path: 'notes.txt',
     })
 

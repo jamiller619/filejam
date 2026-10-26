@@ -151,7 +151,7 @@ export default function FileDetails({
   const displayName = entry.presentation?.displayName ?? entry.name
   const isVideo = entry.mimeType?.startsWith('video/') ?? false
   const videoSource = `filejam-preview://video?${new URLSearchParams({
-    libraryId: String(entry.libraryId),
+    volumeId: String(entry.volumeId),
     path: entry.relativePath,
     v: String(entry.modifiedAt),
   })}`
@@ -233,7 +233,7 @@ export default function FileDetails({
               setImageError(null)
 
               void window.filejam
-                .openImage(entry.libraryId, entry.relativePath)
+                .openImage(entry.volumeId, entry.relativePath)
                 .catch(() => {
                   setImageError({
                     id: entry.id,

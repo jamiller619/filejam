@@ -8,7 +8,7 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router'
-import { useLibraries } from '../../hooks/useLibraries.js'
+import { useVolumes } from '../../hooks/useVolumes.js'
 import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderUrl } from '../../utils/folderUrl.js'
 import { useSearch } from './SearchContext.js'
@@ -125,11 +125,11 @@ function Search() {
 }
 
 export function Search2() {
-  const libraryMatch = useMatch('/libraries/:libraryId')
+  const volumeMatch = useMatch('/browse/:volumeId')
   const homeMatch = useMatch('/')
   const location = useLocation()
   const { search, setSearch } = useSearch()
-  const canSearch = libraryMatch !== null || homeMatch !== null
+  const canSearch = volumeMatch !== null || homeMatch !== null
 
   useEffect(() => {
     const currentSearch =
@@ -202,18 +202,18 @@ function NavButtons() {
 }
 
 function Breadcrumbs() {
-  const match = useMatch('/libraries/:libraryId')
+  const match = useMatch('/browse/:volumeId')
   const [searchParams] = useSearchParams()
-  const { libraries } = useLibraries()
+  const { volumes } = useVolumes()
 
-  const library = match
-    ? libraries.find((item) => item.id === Number(match.params.libraryId))
+  const volume = match
+    ? volumes.find((item) => item.id === Number(match.params.volumeId))
     : undefined
 
-  const segments = (searchParams.get('folder') ?? '').split('/').filter(Boolean)
+  const segments = (searchParams.get('path') ?? '').split('/').filter(Boolean)
   const isHome = useMatch('/') !== null
   const relativePath = segments.join('/')
-  const fullPath = library ? formatFullPath(library.rootPath, relativePath) : ''
+  const fullPath = volume ? formatFullPath(volume.rootPath, relativePath) : ''
 
   return (
     <div className={style.location}>
@@ -228,19 +228,19 @@ function Breadcrumbs() {
         >
           <Icon name="home" size={18} />
         </Button>
-        {library && (
+        {volume && (
           <>
             <span aria-hidden="true">/</span>
             {segments.length ? (
               <Link
                 className={style.link}
-                to={folderUrl({ libraryId: library.id, relativePath: '' })}
+                to={folderUrl({ volumeId: volume.id, relativePath: '' })}
                 viewTransition
               >
-                {library.name}
+                {volume.name}
               </Link>
             ) : (
-              <span aria-current="page">{library.name}</span>
+              <span aria-current="page">{volume.name}</span>
             )}
             {segments.map((segment, index) => {
               const segmentPath = segments.slice(0, index + 1).join('/')
@@ -254,7 +254,7 @@ function Breadcrumbs() {
                     <Link
                       className={style.link}
                       to={folderUrl({
-                        libraryId: library.id,
+                        volumeId: volume.id,
                         relativePath: segmentPath,
                       })}
                       viewTransition

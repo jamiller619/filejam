@@ -265,8 +265,8 @@ function fieldColumn(field: CollectionField) {
       return entries.name
     case 'relativePath':
       return entries.relativePath
-    case 'libraryId':
-      return entries.libraryId
+    case 'volumeId':
+      return entries.volumeId
     case 'kind':
       return entries.kind
     case 'mimeType':

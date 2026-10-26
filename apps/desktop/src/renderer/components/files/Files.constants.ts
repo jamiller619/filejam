@@ -23,7 +23,7 @@ export const defaultColumnWidths: Partial<Record<FileColumn, number>> = {
   childrenDirty: 130,
   size: 110,
   id: 110,
-  libraryId: 110,
+  volumeId: 110,
   parentId: 110,
 }
 

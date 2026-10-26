@@ -1,7 +1,7 @@
 export const collectionFields = [
   'name',
   'relativePath',
-  'libraryId',
+  'volumeId',
   'kind',
   'mimeType',
   'size',

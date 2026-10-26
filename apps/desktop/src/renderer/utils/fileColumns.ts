@@ -10,7 +10,7 @@ export type DateFormat = Settings['user.dateformat']
 
 export const fileColumnLabels: Record<FileColumn, string> = {
   id: 'ID',
-  libraryId: 'Library ID',
+  volumeId: 'Volume ID',
   parentId: 'Parent ID',
   name: 'Name',
   relativePath: 'Path',

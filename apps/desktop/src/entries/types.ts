@@ -7,8 +7,8 @@ export type FolderView = {
   allowFlattenToggle: boolean
 }
 
-export type PresentedLibrary = Awaited<
-  ReturnType<ServerApi['libraries']['list']>
+export type PresentedVolume = Awaited<
+  ReturnType<ServerApi['volumes']['list']>
 >[number] & {
   folderView: FolderView | null
 }

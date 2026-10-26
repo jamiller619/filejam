@@ -2,8 +2,9 @@ import type { ServerApi } from '@filejam/server'
 import type { ScannerApi } from '@filejam/server/scanner'
 import type {
   PresentedFolderListing,
-  PresentedLibrary,
+  PresentedVolume,
 } from '../entries/types.js'
+import type { PresentedLocation } from '../locations.js'
 import type { SettingsApi } from '../settings/index.js'
 
 // Sandboxed preloads need CommonJS and can only require Electron's allowed modules.
@@ -14,19 +15,19 @@ const { contextBridge, ipcRenderer } = electron
 type FilejamApi = {
   getDroppedFilePath: (file: File) => string
   addFavoriteFolders: (paths: string[]) => Promise<string[]>
-  openImage: (libraryId: number, path: string) => Promise<void>
+  openImage: (volumeId: number, path: string) => Promise<void>
   previewCapabilities: (
-    libraryId: number,
+    volumeId: number,
     path: string,
   ) => Promise<{ original: boolean }>
   setControlsColor: (color: string) => Promise<void>
   collections: ServerApi['collections']
   settings: SettingsApi
-  libraries: {
-    list: () => Promise<PresentedLibrary[]>
-    add: () => Promise<
-      Awaited<ReturnType<ServerApi['libraries']['list']>>[number] | null
-    >
+  volumes: {
+    list: () => Promise<PresentedVolume[]>
+  }
+  locations: {
+    list: () => Promise<PresentedLocation[]>
   }
   entries: {
     listChildren: (
@@ -42,10 +43,10 @@ const filejam: FilejamApi = {
   getDroppedFilePath: (file) => electron.webUtils.getPathForFile(file),
   addFavoriteFolders: (paths) =>
     ipcRenderer.invoke('favorites:addFolders', paths),
-  openImage: (libraryId, path) =>
-    ipcRenderer.invoke('window:openImage', libraryId, path),
-  previewCapabilities: (libraryId, path) =>
-    ipcRenderer.invoke('preview:capabilities', libraryId, path),
+  openImage: (volumeId, path) =>
+    ipcRenderer.invoke('window:openImage', volumeId, path),
+  previewCapabilities: (volumeId, path) =>
+    ipcRenderer.invoke('preview:capabilities', volumeId, path),
   setControlsColor: (color) =>
     ipcRenderer.invoke('window:setControlsColor', color),
   collections: {
@@ -74,9 +75,11 @@ const filejam: FilejamApi = {
   moveHistory: {
     list: () => ipcRenderer.invoke('moveHistory:list'),
   },
-  libraries: {
-    list: () => ipcRenderer.invoke('libraries:list'),
-    add: () => ipcRenderer.invoke('libraries:add'),
+  volumes: {
+    list: () => ipcRenderer.invoke('volumes:list'),
+  },
+  locations: {
+    list: () => ipcRenderer.invoke('locations:list'),
   },
 }
 

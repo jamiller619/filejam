@@ -5,11 +5,11 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { createFavoriteFoldersHandler } from '../dist/api/favoriteFolders.js'
 
-test('folder drops persist, deduplicate, validate and register external roots', async () => {
+test('folder drops persist, deduplicate, and validate mounted paths', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'favorite-folders-'))
 
   try {
-    const inside = join(directory, 'library', 'child')
+    const inside = join(directory, 'volume', 'child')
     const outside = join(directory, 'external')
     const trash = join(directory, 'trash')
 
@@ -24,11 +24,10 @@ test('folder drops persist, deduplicate, validate and register external roots', 
     let favorites = []
 
     const roots = [
-      { rootPath: join(directory, 'library'), isTrash: false },
+      { rootPath: directory, isTrash: false },
       { rootPath: trash, isTrash: true },
     ]
 
-    const scans = []
     const settings = {
       get: async () => favorites,
       set: async (_key, value) => {
@@ -38,14 +37,11 @@ test('folder drops persist, deduplicate, validate and register external roots', 
 
     const add = createFavoriteFoldersHandler(
       {
-        libraries: {
+        volumes: {
           list: async () => roots,
-          ensureRoot: async (rootPath) =>
-            roots.push({ rootPath, isTrash: false }),
         },
       },
       settings,
-      async (root) => scans.push(root),
     )
 
     await assert.rejects(add([inside, file]), /Only folders/)
@@ -57,8 +53,7 @@ test('folder drops persist, deduplicate, validate and register external roots', 
     assert.deepEqual(favorites, [inside, outside])
     await add([inside, outside, outside])
     assert.deepEqual(favorites, [inside, outside])
-    assert.deepEqual(scans, [outside])
-    assert.equal(roots.length, 3)
+    assert.equal(roots.length, 2)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

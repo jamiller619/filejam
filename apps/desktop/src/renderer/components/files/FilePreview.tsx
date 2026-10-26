@@ -60,7 +60,7 @@ const styles = css`
 `
 
 type Entry = {
-  libraryId: number
+  volumeId: number
   relativePath: string
   modifiedAt: Date | string | null
 }
@@ -118,7 +118,7 @@ export default function FilePreview({
   const [loadedSource, setLoadedSource] = useState('')
   const [settledSource, setSettledSource] = useState('')
   const [originalSource, setOriginalSource] = useState('')
-  const identity = `${entry.libraryId}:${entry.relativePath}:${entry.modifiedAt}`
+  const identity = `${entry.volumeId}:${entry.relativePath}:${entry.modifiedAt}`
   const imageCandidate = Boolean(onOpen && originalSource === identity)
   const detail = Boolean(onOpen)
 
@@ -140,7 +140,7 @@ export default function FilePreview({
     const controller = new AbortController()
 
     void window.filejam
-      .previewCapabilities(entry.libraryId, entry.relativePath)
+      .previewCapabilities(entry.volumeId, entry.relativePath)
       .then((result) => {
         if (!controller.signal.aborted) {
           setOriginalSource(result?.original ? identity : '')
@@ -149,10 +149,10 @@ export default function FilePreview({
       .catch(() => undefined)
 
     return () => controller.abort()
-  }, [detail, entry.libraryId, entry.relativePath, identity])
+  }, [detail, entry.volumeId, entry.relativePath, identity])
 
   const params = new URLSearchParams({
-    libraryId: String(entry.libraryId),
+    volumeId: String(entry.volumeId),
     path: entry.relativePath,
     v: String(entry.modifiedAt),
     variant,

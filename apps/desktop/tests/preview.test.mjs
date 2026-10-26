@@ -6,9 +6,9 @@ import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { createPreviewHandler } from '../dist/preview/handler.js'
 
-test('preview protocol routes images, folders, library artwork and fallback icons', async () => {
+test('preview protocol routes images, folders, volume artwork and fallback icons', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-preview-'))
-  const rootPath = join(directory, 'library')
+  const rootPath = join(directory, 'volume')
 
   await mkdir(rootPath)
   await mkdir(join(rootPath, 'folder'))
@@ -55,7 +55,7 @@ test('preview protocol routes images, folders, library artwork and fallback icon
       new Request(
         'filejam-preview://preview-image?' +
           new URLSearchParams({
-            libraryId: '1',
+            volumeId: '1',
             path,
             ...extra,
           }),
@@ -118,9 +118,9 @@ test('preview protocol routes images, folders, library artwork and fallback icon
 
     assert.match(artwork, /linearGradient/)
 
-    const library = await request('', { variant: 'grid' })
+    const volume = await request('', { variant: 'grid' })
 
-    assert.match(await library.text(), /x="77"/)
+    assert.match(await volume.text(), /x="77"/)
     assert.doesNotMatch(artwork, /x="77"/)
 
     const fallback = await request('photo #1 & café.PNG', { fallback: '1' })
@@ -157,18 +157,15 @@ test('preview protocol routes images, folders, library artwork and fallback icon
     assert.equal((await request('escape/private.png')).status, 403)
     assert.equal((await request(rootPath)).status, 403)
     assert.equal((await request('missing.png')).status, 404)
-    assert.equal((await request('', { libraryId: '99' })).status, 404)
-    assert.equal((await request('', { libraryId: 'invalid' })).status, 400)
+    assert.equal((await request('', { volumeId: '99' })).status, 404)
+    assert.equal((await request('', { volumeId: 'invalid' })).status, 400)
     assert.equal((await request('', { color: 'red;"><script>' })).status, 400)
 
     assert.equal(nativeIconRequests.length, authorizedNativeRequests)
 
     assert.equal(
-      (
-        await handler(
-          new Request('filejam-preview://preview-image?libraryId=1'),
-        )
-      ).status,
+      (await handler(new Request('filejam-preview://preview-image?volumeId=1')))
+        .status,
       400,
     )
 
@@ -222,7 +219,7 @@ test('entry providers can redirect native icon lookup to a resolved target', asy
   try {
     const response = await handler(
       new Request(
-        'filejam-preview://preview-image?libraryId=1&path=Editor.lnk&fallback=1',
+        'filejam-preview://preview-image?volumeId=1&path=Editor.lnk&fallback=1',
       ),
     )
 

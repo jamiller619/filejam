@@ -183,7 +183,7 @@ test('persists parents and metadata incrementally, repairs cache hits, and remov
     assert.deepEqual(rows.map((row) => row.relativePath).sort(), ['', 'empty'])
   } finally {
     await scanner.close()
-    connection.close()
+    await connection.close()
     await rm(dir, { recursive: true, force: true })
   }
 })

@@ -102,23 +102,23 @@ async function run() {
       1,
     )
 
-    const libraries = await window.webContents.executeJavaScript(
-      'window.filejam.libraries.list()',
+    const volumes = await window.webContents.executeJavaScript(
+      'window.filejam.volumes.list()',
     )
 
-    assert.ok(Array.isArray(libraries))
+    assert.ok(Array.isArray(volumes))
 
-    for (const library of libraries) {
-      assert.equal(typeof library.id, 'number')
-      assert.equal(typeof library.name, 'string')
-      assert.equal(typeof library.rootPath, 'string')
+    for (const volume of volumes) {
+      assert.equal(typeof volume.id, 'number')
+      assert.equal(typeof volume.name, 'string')
+      assert.equal(typeof volume.rootPath, 'string')
     }
 
-    if (libraries[0]) {
-      const library = libraries[0]
+    if (volumes[0]) {
+      const volume = volumes[0]
 
       await window.webContents.executeJavaScript(
-        `location.hash = ${JSON.stringify('#/libraries/')} + ${library.id}; undefined`,
+        `location.hash = ${JSON.stringify('#/browse/')} + ${volume.id}; undefined`,
       )
 
       let heading
@@ -128,7 +128,7 @@ async function run() {
           'document.querySelector("#root h2")?.textContent',
         )
 
-        if (heading === library.name) {
+        if (heading === volume.name) {
           break
         }
 
@@ -137,8 +137,8 @@ async function run() {
 
       assert.equal(
         heading,
-        library.name,
-        'Library route renders the selected folder',
+        volume.name,
+        'Volume route renders the selected folder',
       )
 
       assert.equal(

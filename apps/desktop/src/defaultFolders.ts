@@ -1,9 +1,15 @@
 import { win32 } from 'node:path'
-import type { DefaultFolder } from '@filejam/server'
+export type DefaultFolder =
+  | 'applications'
+  | 'desktop'
+  | 'documents'
+  | 'downloads'
+  | 'music'
+  | 'pictures'
 
 type GetElectronPath = (name: Exclude<DefaultFolder, 'applications'>) => string
 
-/** Resolve Filejam's default libraries to each OS's shared native folders. */
+/** Resolve sidebar shortcuts to each OS's native folders. */
 export function resolveDefaultFolder(
   folder: DefaultFolder,
   getElectronPath: GetElectronPath,

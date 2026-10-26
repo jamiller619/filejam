@@ -1,5 +1,5 @@
-import type { Library } from '@filejam/server'
-import { Eyebrow, Icon } from '@filejam/ui'
+import type { Volume } from '@filejam/server'
+import { Eyebrow, Icon, type IconName } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { HTMLAttributes } from 'react'
@@ -8,9 +8,9 @@ import { useSettings } from '~/hooks/useSettings.js'
 import { useCollections } from '../../hooks/useCollections.js'
 import { useFavoriteFolderDrop } from '../../hooks/useFavoriteFolderDrop.js'
 import { useFolderDrag } from '../../hooks/useFolderDrag.js'
-import { useLibraries } from '../../hooks/useLibraries.js'
+import { useLocations } from '../../hooks/useLocations.js'
+import { useVolumes } from '../../hooks/useVolumes.js'
 import { folderUrl, isCurrentFolderUrl } from '../../utils/folderUrl.js'
-import { getLibraryIcon } from '../../utils/libraryIcon.js'
 import { normalizePath } from '../../utils/normalizePath.js'
 
 const styles = css`
@@ -22,10 +22,7 @@ const styles = css`
     min-height: 0;
     padding: var(--suzy-space-2);
 
-    .eyebrow {
-      margin-block-start: var(--suzy-space-3);
-    }
-
+    .eyebrow { margin-block-start: var(--suzy-space-3); }
     ol {
       display: flex;
       flex: 1 1 auto;
@@ -35,6 +32,7 @@ const styles = css`
       list-style: none;
       margin: var(--suzy-space-6) 0 0;
       padding: 0;
+      overflow-y: auto;
 
       a {
         display: flex;
@@ -42,23 +40,17 @@ const styles = css`
         text-decoration: none;
         gap: var(--suzy-space-2);
         color: var(--suzy-gray-12);
-        line-height: 0;
+        line-height: 1;
         padding: var(--suzy-space-1) var(--suzy-space-2);
         border-radius: var(--suzy-radius-3);
         corner-shape: var(--suzy-corner-shape);
-
-        &:hover {
-          background: lch(from var(--suzy-gray-11) l c h / 20%);
-          color: var(--suzy-gray-12);
-        }
-
+        &:hover { background: lch(from var(--suzy-gray-11) l c h / 20%); }
         &[aria-current='page'] {
           background: var(--suzy-accent-9);
           color: var(--suzy-accent-1);
         }
       }
     }
-
     .favorites {
       border-radius: var(--suzy-radius-3);
       outline: 2px solid transparent;
@@ -66,39 +58,38 @@ const styles = css`
         outline-color: var(--suzy-accent-9);
         background: var(--suzy-gray-4);
       }
-      ol { margin: 0; }
+      ol { margin: 0; overflow: visible; }
     }
-    .dropHint { padding: var(--suzy-space-2); color: var(--suzy-gray-11); font-size: 0.85em; }
-    .settings {
-      margin-block-start: auto;
+    .dropHint {
+      padding: var(--suzy-space-2);
+      color: var(--suzy-gray-11);
+      font-size: 0.85em;
     }
+    .settings { margin-block-start: auto; }
   }
 `
 
+const locationIcons: Record<string, IconName> = {
+  applications: 'grid',
+  desktop: 'desktop',
+  downloads: 'download',
+  documents: 'documents',
+  music: 'music',
+  pictures: 'image',
+  trash: 'trash',
+}
+
 export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
-  const location = useLocation()
-  const { libraries, loadFailed } = useLibraries()
-
+  const currentLocation = useLocation()
+  const { volumes, loadFailed: volumesFailed } = useVolumes()
+  const { locations, loadFailed: locationsFailed } = useLocations()
   const { collections, loadFailed: collectionsFailed } = useCollections()
-
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
   const folderDragProps = useFolderDrag()
-  const favoriteFolders = useFavoriteFolders(libraries)
-
-  const favoriteLibraryIds = new Set(
-    favoriteFolders
-      .filter((favorite) => favorite.relativePath === '')
-      .map((favorite) => favorite.library.id),
-  )
-
-  const otherLibraries = libraries.filter(
-    (library) => !library.isTrash && !favoriteLibraryIds.has(library.id),
-  )
-
-  const trashLibraries = libraries.filter((library) => library.isTrash)
-
-  const currentFolder = (libraryId: number, relativePath = '') =>
-    isCurrentFolderUrl(location, { libraryId, relativePath })
+  const favoriteFolders = useFavoriteFolders(volumes)
+  const deviceVolumes = volumes.filter((volume) => !volume.isTrash)
+  const currentFolder = (volumeId: number, relativePath = '') =>
+    isCurrentFolderUrl(currentLocation, { volumeId, relativePath })
 
   return (
     <nav {...props} className={clsx(styles.navbar, props.className)}>
@@ -109,79 +100,75 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             <span>Home</span>
           </NavLink>
         </li>
+
         <li className={styles.favorites} {...dropTargetProps}>
           <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
           {favoriteFolders.length === 0 && (
             <div className={styles.dropHint}>Drop folders here</div>
           )}
           <ol aria-label="Favorite folders">
-            {favoriteFolders.map(({ path, library, relativePath }) => (
+            {favoriteFolders.map(({ path, volume, relativePath, name }) => (
               <li key={path}>
                 <Link
-                  to={folderUrl({ libraryId: library.id, relativePath })}
+                  to={folderUrl({ volumeId: volume.id, relativePath })}
                   title={path}
                   viewTransition
                   aria-current={
-                    currentFolder(library.id, relativePath) ? 'page' : undefined
+                    currentFolder(volume.id, relativePath) ? 'page' : undefined
                   }
                   {...folderDragProps(path)}
                 >
-                  <Icon
-                    name={
-                      relativePath ? 'folder' : getLibraryIcon(library.name)
-                    }
-                    size="20"
-                  />
-                  <span>
-                    {relativePath.split('/').filter(Boolean).at(-1) ??
-                      library.name}
-                  </span>
+                  <Icon name="folder" size="20" />
+                  <span>{name}</span>
                 </Link>
               </li>
             ))}
           </ol>
           {dropError && <p role="alert">{dropError}</p>}
         </li>
+
         <li>
           <Eyebrow className={styles.eyebrow}>Locations</Eyebrow>
         </li>
-        {otherLibraries.map((library) => (
-          <li key={library.id}>
+        {locations.map((location) => (
+          <li key={location.id}>
             <Link
-              to={`/libraries/${library.id}`}
-              title={library.rootPath}
+              to={folderUrl(location)}
               viewTransition
-              aria-current={currentFolder(library.id) ? 'page' : undefined}
-              {...folderDragProps(library.rootPath)}
+              aria-current={
+                currentFolder(location.volumeId, location.relativePath)
+                  ? 'page'
+                  : undefined
+              }
             >
-              <Icon name={getLibraryIcon(library.name)} size="20" />
-              <span>{library.name}</span>
+              <Icon name={locationIcons[location.id] ?? 'folder'} size="20" />
+              <span>{location.name}</span>
             </Link>
           </li>
         ))}
-        {loadFailed && <li role="status">Unable to load folders.</li>}
-        {trashLibraries.map((library) => {
-          const drive = library.rootPath.match(/^[a-z]:/i)?.[0].toUpperCase()
+        {locationsFailed && <li role="status">Unable to load locations.</li>}
 
-          const label =
-            trashLibraries.length > 1 && drive
-              ? `${drive} ${library.name}`
-              : library.name
+        {deviceVolumes.length > 0 && (
+          <li>
+            <Eyebrow className={styles.eyebrow}>Devices</Eyebrow>
+          </li>
+        )}
+        {deviceVolumes.map((volume) => (
+          <li key={volume.id}>
+            <Link
+              to={folderUrl({ volumeId: volume.id, relativePath: '' })}
+              title={volume.rootPath}
+              viewTransition
+              aria-current={currentFolder(volume.id) ? 'page' : undefined}
+              {...folderDragProps(volume.rootPath)}
+            >
+              <Icon name="hard-drive" size="20" />
+              <span>{volume.name}</span>
+            </Link>
+          </li>
+        ))}
+        {volumesFailed && <li role="status">Unable to load devices.</li>}
 
-          return (
-            <li key={library.id}>
-              <Link
-                to={`/libraries/${library.id}`}
-                title={library.rootPath}
-                viewTransition
-                aria-current={currentFolder(library.id) ? 'page' : undefined}
-              >
-                <Icon name="trash" size="20" />
-                <span>{label}</span>
-              </Link>
-            </li>
-          )
-        })}
         <li>
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>
@@ -196,6 +183,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
         {collectionsFailed && (
           <li role="status">Unable to load collections.</li>
         )}
+
         <li className={styles.settings}>
           <NavLink to="/settings" title="Settings" viewTransition>
             <Icon name="settings" size="20" />
@@ -207,35 +195,32 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   )
 }
 
-function useFavoriteFolders(libraries: Library[]) {
+function useFavoriteFolders(volumes: Volume[]) {
   const { values } = useSettings(['user.favoriteFolders'])
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
 
-  const favoriteFolders = favoritePaths.flatMap((path) => {
-    const library = libraries.find((item) => {
-      if (item.isTrash) {
-        return false
-      }
+  return favoritePaths.flatMap((path) => {
+    const target = normalizePath(path)
+    const volume = volumes
+      .filter((item) => !item.isTrash)
+      .filter((item) => {
+        const root = normalizePath(item.rootPath)
 
-      const root = normalizePath(item.rootPath)
-      const target = normalizePath(path)
+        return target === root || target.startsWith(`${root}/`)
+      })
+      .sort((a, b) => b.rootPath.length - a.rootPath.length)[0]
 
-      return target === root || target.startsWith(`${root}/`)
-    })
-
-    if (!library) {
+    if (!volume) {
       return []
     }
 
-    const root = library.rootPath.replace(/[\\/]+$/, '')
-
+    const root = volume.rootPath.replace(/[\\/]+$/, '')
     const relativePath = path
       .slice(root.length)
       .replace(/^[\\/]+/, '')
       .replaceAll('\\', '/')
+    const name = relativePath.split('/').filter(Boolean).at(-1) ?? volume.name
 
-    return [{ path, library, relativePath }]
+    return [{ path, volume, relativePath, name }]
   })
-
-  return favoriteFolders
 }

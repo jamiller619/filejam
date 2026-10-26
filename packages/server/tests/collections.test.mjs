@@ -36,8 +36,8 @@ test('collections evaluate saved rules from entry metadata and user state', asyn
       ['favorites', 'recents'],
     )
 
-    const first = await api.libraries.ensureRoot('/first')
-    const second = await api.libraries.ensureRoot('/second')
+    const first = await api.volumes.ensure('/first')
+    const second = await api.volumes.ensure('/second')
     const now = new Date()
     const base = {
       relativePath: 'one.txt',
@@ -49,10 +49,10 @@ test('collections evaluate saved rules from entry metadata and user state', asyn
       indexedAt: now,
     }
 
-    const one = await api.entries.upsert({ ...base, libraryId: first.id })
+    const one = await api.entries.upsert({ ...base, volumeId: first.id })
     const two = await api.entries.upsert({
       ...base,
-      libraryId: second.id,
+      volumeId: second.id,
       relativePath: 'two.jpg',
       name: 'two.jpg',
       size: 200,

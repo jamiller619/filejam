@@ -69,7 +69,7 @@ async function scan(input: string) {
   const progressTimer = setInterval(reportProgress, 1000)
 
   try {
-    // Canonicalize aliases so the same directory shares a library and cache key.
+    // Canonicalize aliases so the same directory shares a volume and cache key.
     const root = await realpath(input)
     const rootMetadata = await stat(root)
 

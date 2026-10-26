@@ -15,25 +15,25 @@ function withinRoot(root: string, file: string) {
 }
 
 export async function authorizePreview(
-  libraries: Pick<ServerApi['libraries'], 'list'>,
-  libraryId: number,
+  volumes: Pick<ServerApi['volumes'], 'list'>,
+  volumeId: number,
   path: string,
 ) {
   if (
-    !Number.isSafeInteger(libraryId) ||
-    libraryId <= 0 ||
+    !Number.isSafeInteger(volumeId) ||
+    volumeId <= 0 ||
     path.includes('\0') // NULL byte check
   ) {
     throw new PreviewAccessError(400)
   }
 
-  const library = (await libraries.list()).find((item) => item.id === libraryId)
+  const volume = (await volumes.list()).find((item) => item.id === volumeId)
 
-  if (!library) {
+  if (!volume) {
     throw new PreviewAccessError(404)
   }
 
-  const root = await realpath(library.rootPath)
+  const root = await realpath(volume.rootPath)
   const candidate = resolve(root, path)
 
   if (isAbsolute(path) || !withinRoot(root, candidate)) {
@@ -46,5 +46,5 @@ export async function authorizePreview(
     throw new PreviewAccessError(403)
   }
 
-  return { file, root, library, info: await stat(file) }
+  return { file, root, volume, info: await stat(file) }
 }

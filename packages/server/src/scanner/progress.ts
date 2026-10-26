@@ -85,8 +85,8 @@ export class ScanProgressReporter {
 
     const elapsedMs = Math.round(now - this.#startedAt)
 
-    const errors = status.libraries.flatMap((library) =>
-      library.error ? [{ root: library.root, error: library.error }] : [],
+    const errors = status.roots.flatMap((root) =>
+      root.error ? [{ root: root.root, error: root.error }] : [],
     )
 
     const logger = createLogger('scanner')
@@ -102,16 +102,15 @@ export class ScanProgressReporter {
           elapsedMs > 0
             ? Math.round((aggregate.processed * 1000) / elapsedMs)
             : 0,
-        activeLibraries: status.active.length,
-        queuedLibraries: status.queued.length,
-        completedLibraries: status.libraries.filter(
-          (library) => library.state === 'completed',
+        activeRoots: status.active.length,
+        queuedRoots: status.queued.length,
+        completedRoots: status.roots.filter(
+          (root) => root.state === 'completed',
         ).length,
-        failedLibraries: status.libraries.filter(
-          (library) => library.state === 'failed',
-        ).length,
-        cancelledLibraries: status.libraries.filter(
-          (library) => library.state === 'cancelled',
+        failedRoots: status.roots.filter((root) => root.state === 'failed')
+          .length,
+        cancelledRoots: status.roots.filter(
+          (root) => root.state === 'cancelled',
         ).length,
         error: status.error,
         errors,
