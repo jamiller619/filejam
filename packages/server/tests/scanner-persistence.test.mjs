@@ -18,8 +18,8 @@ test('reads each entry metadata once on initial, unchanged, and changed scans', 
   await mkdir(nested, { recursive: true })
   await writeFile(file, 'hello')
 
-  // Instrument real filesystem calls inside the scanner worker, including the
-  // synchronous stat used by file-entry-cache, rather than mocking scan logic.
+  // Instrument real filesystem calls inside the scanner worker rather than
+  // mocking scan logic.
   const worker = new Worker(
     new URL(
       `data:text/javascript,${encodeURIComponent(`
@@ -109,7 +109,7 @@ async function finish(scanner) {
   throw new Error('Scan timed out')
 }
 
-test('persists parents and metadata incrementally, repairs cache hits, and removes stale rows', async () => {
+test('persists metadata incrementally, repairs missing rows, and removes stale rows', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'scanner-db-'))
   const root = join(dir, 'root')
   const databasePath = join(dir, 'filejam.sqlite')
@@ -124,7 +124,9 @@ test('persists parents and metadata incrementally, repairs cache hits, and remov
   )
 
   const connection = await initDatabase(databasePath)
-  const scanner = new FileScanner(join(dir, 'cache'), databasePath)
+  const scanner = new FileScanner(join(dir, 'cache'), databasePath, {
+    collectChangePaths: true,
+  })
 
   try {
     await scanner.start(root)
@@ -170,11 +172,11 @@ test('persists parents and metadata incrementally, repairs cache hits, and remov
     await finish(scanner)
     assert.equal((await connection.db.select().from(entries)).length, 303)
 
-    assert.deepEqual(await scanner.results(), {
-      added: [],
-      changed: [],
-      removed: [],
-    })
+    const repaired = await scanner.results()
+
+    assert.equal(repaired.added.length, 300)
+    assert.deepEqual(repaired.changed, [])
+    assert.deepEqual(repaired.removed, [])
 
     await rm(join(root, 'nested'), { recursive: true })
     await scanner.start(root)
@@ -220,7 +222,9 @@ test('follows file and directory symlinks when persisting entries', async (t) =>
       throw error
     }
 
-    const scanner = new FileScanner(join(directory, 'cache'), databasePath)
+    const scanner = new FileScanner(join(directory, 'cache'), databasePath, {
+      collectChangePaths: true,
+    })
 
     try {
       await scanner.start(root)

@@ -13,7 +13,7 @@ export type { ScanResults, ScanStatus, WorkerApi } from './types.js'
 /**
  * Promise-based facade for a dedicated scanner worker. Filesystem traversal and
  * indexing run there; this thread only sends commands and receives snapshots.
- * One active scan per instance; the pool prevents concurrent access to a root cache.
+ * One active scan per instance; the pool prevents concurrent writes to a root.
  */
 export class ScannerWorker implements WorkerApi {
   readonly #onFailure: (error: Error) => void
@@ -32,15 +32,22 @@ export class ScannerWorker implements WorkerApi {
   >()
 
   constructor(
-    cacheDirectory: string,
+    _cacheDirectory: string,
     databasePath: string,
     onFailure: (error: Error) => void,
+    excludedPaths: string[] = [],
+    collectChangePaths = false,
   ) {
     this.#onFailure = onFailure
 
     this.#worker = new Worker(new URL('./worker.js', import.meta.url), {
       // The pool initializes migrations once before dispatching any scans.
-      workerData: { cacheDirectory, databasePath, databaseInitialized: true },
+      workerData: {
+        databasePath,
+        databaseInitialized: true,
+        excludedPaths,
+        collectChangePaths,
+      },
     })
 
     this.#worker.on('message', (message: ScannerResponse | ScanProgress) => {
@@ -94,6 +101,7 @@ export class ScannerWorker implements WorkerApi {
   #request<T extends ScanStatus | ScanResults>(
     method: ScannerRequest['method'],
     root?: string,
+    scanPath?: string,
   ): Promise<T> {
     if (this.#failure) {
       return Promise.reject(this.#failure)
@@ -113,6 +121,7 @@ export class ScannerWorker implements WorkerApi {
           id,
           method,
           ...(root === undefined ? {} : { root }),
+          ...(scanPath === undefined ? {} : { scanPath }),
         } satisfies ScannerRequest)
       } catch (error) {
         this.#pending.delete(id)
@@ -133,8 +142,8 @@ export class ScannerWorker implements WorkerApi {
     return this.#request<ScanStatus>('initialize')
   }
 
-  start(root: string) {
-    return this.#request<ScanStatus>('start', root)
+  start(root: string, scanPath?: string) {
+    return this.#request<ScanStatus>('start', root, scanPath)
   }
 
   status() {

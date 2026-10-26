@@ -1,6 +1,16 @@
 import { lstat, readdir } from 'node:fs/promises'
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
-import { and, asc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  gte,
+  inArray,
+  lt,
+  or,
+  sql,
+} from 'drizzle-orm'
 import mime from 'mime'
 import type { Database } from '../db/index.js'
 import { entries, type NewEntry } from '../db/schemas/entry.js'
@@ -134,16 +144,50 @@ export function createEntriesApi(db: Database) {
             )),
       }
     },
-    async listPaths(volumeId: number) {
+    async listPaths(volumeId: number, relativePrefix = '') {
       return db
         .select({ id: entries.id, path: entries.relativePath })
         .from(entries)
-        .where(eq(entries.volumeId, volumeId))
+        .where(volumePathCondition(volumeId, relativePrefix))
+    },
+    async listScanEntries(volumeId: number, relativePrefix = '') {
+      return db
+        .select({
+          id: entries.id,
+          path: entries.relativePath,
+          kind: entries.kind,
+          size: entries.size,
+          modifiedAt: entries.modifiedAt,
+        })
+        .from(entries)
+        .where(volumePathCondition(volumeId, relativePrefix))
+    },
+    async listDirectoryAncestors(volumeId: number, relativePath: string) {
+      const ancestors = ancestorPaths(relativePath)
+
+      if (!ancestors.length) {
+        return []
+      }
+
+      return db
+        .select({ id: entries.id, path: entries.relativePath })
+        .from(entries)
+        .where(
+          and(
+            eq(entries.volumeId, volumeId),
+            eq(entries.kind, 'directory'),
+            inArray(entries.relativePath, ancestors),
+          ),
+        )
     },
     /** Preserve IDs and parent references when refreshing filesystem metadata. */
     upsert: (values: NewEntry) => upsertEntry(db, values),
     /** Reconcile deletions only after a complete, successful traversal. */
-    async completeScan(volumeId: number, unseenIds: Iterable<number>) {
+    async completeScan(
+      volumeId: number,
+      unseenIds: Iterable<number>,
+      scannedDirectoryIds?: Iterable<number>,
+    ) {
       await db.transaction(async (tx) => {
         const ids = [...unseenIds]
 
@@ -159,15 +203,74 @@ export function createEntriesApi(db: Database) {
             )
         }
 
-        await tx
-          .update(entries)
-          .set({ childrenDirty: false, childrenScannedAt: new Date() })
-          .where(
-            and(eq(entries.volumeId, volumeId), eq(entries.kind, 'directory')),
-          )
+        const directoryIds = scannedDirectoryIds
+          ? [...scannedDirectoryIds]
+          : undefined
+        const scannedAt = new Date()
+
+        if (directoryIds) {
+          for (let index = 0; index < directoryIds.length; index += 500) {
+            await tx
+              .update(entries)
+              .set({ childrenDirty: false, childrenScannedAt: scannedAt })
+              .where(
+                and(
+                  eq(entries.volumeId, volumeId),
+                  eq(entries.kind, 'directory'),
+                  inArray(entries.id, directoryIds.slice(index, index + 500)),
+                ),
+              )
+          }
+        } else {
+          await tx
+            .update(entries)
+            .set({ childrenDirty: false, childrenScannedAt: scannedAt })
+            .where(
+              and(
+                eq(entries.volumeId, volumeId),
+                eq(entries.kind, 'directory'),
+              ),
+            )
+        }
       })
     },
   }
+}
+
+function volumePathCondition(volumeId: number, relativePrefix: string) {
+  const volume = eq(entries.volumeId, volumeId)
+
+  if (!relativePrefix) {
+    return volume
+  }
+
+  const descendantPrefix = `${relativePrefix}/`
+
+  return and(
+    volume,
+    or(
+      eq(entries.relativePath, relativePrefix),
+      and(
+        gte(entries.relativePath, descendantPrefix),
+        lt(entries.relativePath, `${descendantPrefix}\uffff`),
+      ),
+    ),
+  )
+}
+
+function ancestorPaths(relativePath: string) {
+  if (!relativePath) {
+    return []
+  }
+
+  const paths = ['']
+  const segments = relativePath.split('/').filter(Boolean)
+
+  for (let index = 1; index < segments.length; index++) {
+    paths.push(segments.slice(0, index).join('/'))
+  }
+
+  return paths
 }
 
 /** Shared by individual API writes and scanner-owned batch transactions. */
@@ -223,6 +326,20 @@ async function refreshDirectory(
     relation,
   )
   const children = await readdir(directoryPath, { withFileTypes: true })
+  const previousChildren = await db
+    .select({
+      id: entries.id,
+      name: entries.name,
+      kind: entries.kind,
+      modifiedAt: entries.modifiedAt,
+      childrenDirty: entries.childrenDirty,
+      childrenScannedAt: entries.childrenScannedAt,
+    })
+    .from(entries)
+    .where(eq(entries.parentId, directory.id))
+  const previousByName = new Map(
+    previousChildren.map((child) => [child.name, child]),
+  )
   const indexedAt = new Date()
   const visibleNames = new Set<string>()
 
@@ -239,6 +356,11 @@ async function refreshDirectory(
         : metadata.isSymbolicLink()
           ? 'symlink'
           : 'file'
+      const previous = previousByName.get(child.name)
+      const unchangedDirectory =
+        kind === 'directory' &&
+        previous?.kind === 'directory' &&
+        previous.modifiedAt?.getTime() === metadata.mtime.getTime()
 
       visibleNames.add(child.name)
 
@@ -256,17 +378,21 @@ async function refreshDirectory(
         modifiedAt: metadata.mtime,
         createdAt: metadata.birthtime,
         indexedAt,
-        childrenDirty: kind === 'directory',
+        childrenScannedAt:
+          kind === 'directory' && unchangedDirectory
+            ? previous.childrenScannedAt
+            : null,
+        childrenDirty:
+          kind === 'directory'
+            ? unchangedDirectory
+              ? previous.childrenDirty
+              : true
+            : false,
       })
     } catch {
       // Files may disappear or become inaccessible while a directory is read.
     }
   }
-
-  const previousChildren = await db
-    .select({ id: entries.id, name: entries.name })
-    .from(entries)
-    .where(eq(entries.parentId, directory.id))
 
   for (const child of previousChildren) {
     if (!visibleNames.has(child.name)) {

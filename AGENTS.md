@@ -1,3 +1,11 @@
+# Performance
+
+Filejam is a filesystem browser and indexer, so speed is a product requirement.
+Keep interactive filesystem reads responsive, stream large traversals instead of
+materializing whole trees, batch database work, bound concurrency, and avoid
+repeating metadata or IPC work. Profile realistic large volumes when changing a
+hot path, and do not trade responsiveness for background indexing throughput.
+
 # Source code style
 
 Write source code as a thoughtful human would: prioritize readability and make

@@ -37,6 +37,10 @@ test('folder contents are read directly from a mounted volume', async () => {
         { name: 'example.txt', kind: 'file' },
       ],
     )
+    assert.equal(
+      root.entries.find((entry) => entry.name === 'nested').size,
+      null,
+    )
 
     const nested = await api.entries.listChildren({
       volumeId: volume.id,
@@ -48,6 +52,16 @@ test('folder contents are read directly from a mounted volume', async () => {
       ['child.txt'],
     )
     assert.ok(nested.entries[0].id > 0)
+
+    const refreshedRoot = await api.entries.listChildren({
+      volumeId: volume.id,
+      relativePath: '',
+    })
+
+    assert.equal(
+      refreshedRoot.entries.find((entry) => entry.name === 'nested').size,
+      5,
+    )
   } finally {
     await connection?.close()
     await rm(directory, {

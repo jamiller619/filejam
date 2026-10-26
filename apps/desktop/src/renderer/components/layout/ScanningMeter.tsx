@@ -52,37 +52,42 @@ export default function ScanningMeter() {
   useEffect(() => {
     let mounted = true
 
-    const refresh = async () => {
-      const request = ++requestNumber.current
-
-      try {
-        const nextStatus = await window.scanner.status()
-
-        if (!mounted || request !== requestNumber.current) {
-          return
-        }
-
-        clearTimeout(hideTimer.current)
-
-        if (nextStatus.state === 'scanning') {
-          setStatus(nextStatus)
-          setVisible(true)
-          return
-        }
-
-        setVisible(false)
-        hideTimer.current = setTimeout(() => {
-          if (mounted) {
-            setStatus(null)
-          }
-        }, fadeDuration)
-      } catch {
-        // The footer should stay out of the way if the scanner is unavailable.
+    const update = (nextStatus: ScannerStatus) => {
+      if (!mounted) {
+        return
       }
+
+      requestNumber.current++
+      clearTimeout(hideTimer.current)
+
+      if (nextStatus.state === 'scanning') {
+        setStatus(nextStatus)
+        setVisible(true)
+        return
+      }
+
+      setVisible(false)
+      hideTimer.current = setTimeout(() => {
+        if (mounted) {
+          setStatus(null)
+        }
+      }, fadeDuration)
     }
 
-    void refresh()
-    const unsubscribe = window.scanner.onUpdated(() => void refresh())
+    const request = ++requestNumber.current
+
+    void window.scanner
+      .status()
+      .then((status) => {
+        if (request === requestNumber.current) {
+          update(status)
+        }
+      })
+      .catch(() => {
+        // The footer should stay out of the way if the scanner is unavailable.
+      })
+
+    const unsubscribe = window.scanner.onUpdated(update)
 
     return () => {
       mounted = false

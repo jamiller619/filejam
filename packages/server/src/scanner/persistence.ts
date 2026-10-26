@@ -11,6 +11,7 @@ export async function openScanDatabase(
   databasePath: string,
   root: string,
   runMigrations = true,
+  scanPath = root,
 ) {
   const connection = await initDatabase(databasePath, runMigrations)
   const api = createApi(connection.db)
@@ -18,13 +19,32 @@ export async function openScanDatabase(
   try {
     const volume = await api.volumes.ensure(root)
     const isTrash = await api.volumes.isTrashRoot(root)
-    const previous = await api.entries.listPaths(volume.id)
+    const pathKey = (path: string) => relative(root, path).split(sep).join('/')
+    const scopeKey = pathKey(scanPath)
     // Start with all stored paths; committed batches remove encountered paths.
     // Remaining rows are deletion candidates only if the entire scan succeeds.
-    const unseen = new Map(previous.map((entry) => [entry.path, entry.id]))
-    const persisted = new Set(unseen.keys())
+    const unseen = new Map(
+      (await api.entries.listScanEntries(volume.id, scopeKey)).map((entry) => [
+        entry.path,
+        entry,
+      ]),
+    )
     const directories = new Map<string, number>()
-    const pathKey = (path: string) => relative(root, path).split(sep).join('/')
+
+    for (const entry of unseen.values()) {
+      if (entry.kind === 'directory') {
+        directories.set(entry.path, entry.id)
+      }
+    }
+
+    for (const entry of await api.entries.listDirectoryAncestors(
+      volume.id,
+      scopeKey,
+    )) {
+      directories.set(entry.path, entry.id)
+    }
+    const scannedDirectories = new Set<number>()
+    let tracksScannedDirectories = false
 
     async function prepare(path: string, snapshot?: Stats) {
       // Filesystem reads finish before opening a write transaction. Parent IDs
@@ -119,7 +139,6 @@ export async function openScanDatabase(
 
         for (const { path, values } of prepared) {
           unseen.delete(values.relativePath)
-          persisted.add(values.relativePath)
           saved.push({ path, kind: values.kind })
         }
       }
@@ -127,22 +146,46 @@ export async function openScanDatabase(
       return saved
     }
 
+    function inspect(path: string, metadata: Stats) {
+      const key = pathKey(path)
+      const baseline = unseen.get(key)
+
+      if (!baseline) {
+        return { change: 'added' as const, save: true }
+      }
+
+      if (
+        metadata.isFile() &&
+        baseline.kind === 'file' &&
+        baseline.size === metadata.size &&
+        baseline.modifiedAt?.getTime() === metadata.mtime.getTime()
+      ) {
+        unseen.delete(key)
+
+        return { change: 'unchanged' as const, save: false }
+      }
+
+      return { change: 'changed' as const, save: true }
+    }
+
     return {
       async close() {
         connection.close()
       },
+      inspect,
       skipUnchanged(path: string, metadata: Stats) {
-        const key = pathKey(path)
-
-        const exists = persisted.has(key) && !metadata.isDirectory()
-
-        if (exists) {
-          unseen.delete(key)
-        }
-
-        return exists
+        return !inspect(path, metadata).save
       },
       saveBatch,
+      directoryScanned(path: string) {
+        tracksScannedDirectories = true
+
+        const id = directories.get(pathKey(path))
+
+        if (id !== undefined) {
+          scannedDirectories.add(id)
+        }
+      },
       async save(path: string, snapshot?: Stats) {
         const [saved] = await saveBatch(
           [path],
@@ -155,10 +198,35 @@ export async function openScanDatabase(
 
         return saved.kind
       },
-      // Never call this after cancellation or failure: an incomplete traversal
-      // cannot distinguish deleted entries from entries it has not reached.
-      async complete() {
-        await api.entries.completeScan(volume.id, unseen.values())
+      // An incomplete traversal cannot distinguish deleted entries from entries
+      // it has not reached, so callers disable deletion reconciliation.
+      async complete(reconcileDeletions = true, collectPaths = false) {
+        const removedPaths: string[] = []
+        let removedCount = 0
+
+        if (reconcileDeletions) {
+          for (const entry of unseen.values()) {
+            if (entry.kind !== 'file') {
+              continue
+            }
+
+            removedCount++
+
+            if (collectPaths) {
+              removedPaths.push(entry.path.split('/').join(sep))
+            }
+          }
+        }
+
+        await api.entries.completeScan(
+          volume.id,
+          reconcileDeletions
+            ? Array.from(unseen.values(), (entry) => entry.id)
+            : [],
+          tracksScannedDirectories ? scannedDirectories : undefined,
+        )
+
+        return { removedCount, removedPaths }
       },
     }
   } catch (error) {

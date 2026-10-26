@@ -32,6 +32,12 @@ const style = css`
       justify-self: start;
     }
 
+    .navigationControls {
+      display: flex;
+      align-items: center;
+      gap: var(--suzy-space-2);
+    }
+
     .breadcrumbs {
       display: flex;
       align-items: center;
@@ -176,28 +182,57 @@ export function Search2() {
 function NavButtons() {
   const navigate = useNavigate()
   const location = useLocation()
+  const folderMatch = useMatch('/browse/:volumeId')
+  const [searchParams] = useSearchParams()
   const canGoBack = location.key !== 'default' && window.history.state?.idx > 0
   const canGoForward = window.history.state?.idx < window.history.length - 1
+  const pathSegments = (searchParams.get('path') ?? '')
+    .split('/')
+    .filter(Boolean)
+  const canGoUp = folderMatch !== null && pathSegments.length > 0
+
+  function goUp() {
+    if (!folderMatch || !canGoUp) {
+      return
+    }
+
+    navigate(
+      folderUrl({
+        volumeId: Number(folderMatch.params.volumeId),
+        relativePath: pathSegments.slice(0, -1).join('/'),
+      }),
+    )
+  }
 
   return (
-    <ButtonGroup>
+    <div className={style.navigationControls}>
+      <ButtonGroup>
+        <Button
+          aria-label="Back"
+          title="Back"
+          disabled={!canGoBack}
+          onClick={() => navigate(-1)}
+        >
+          <Icon name="chevron-left" size={18} />
+        </Button>
+        <Button
+          aria-label="Forward"
+          title="Forward"
+          disabled={!canGoForward}
+          onClick={() => navigate(1)}
+        >
+          <Icon name="chevron-right" size={18} />
+        </Button>
+      </ButtonGroup>
       <Button
-        aria-label="Back"
-        title="Back"
-        disabled={!canGoBack}
-        onClick={() => navigate(-1)}
+        aria-label="Up one folder"
+        title="Up one folder"
+        disabled={!canGoUp}
+        onClick={goUp}
       >
-        <Icon name="chevron-left" size={18} />
+        <Icon name="chevron-up" size={18} />
       </Button>
-      <Button
-        aria-label="Forward"
-        title="Forward"
-        disabled={!canGoForward}
-        onClick={() => navigate(1)}
-      >
-        <Icon name="chevron-right" size={18} />
-      </Button>
-    </ButtonGroup>
+    </div>
   )
 }
 

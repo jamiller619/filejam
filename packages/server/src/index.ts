@@ -5,6 +5,7 @@ import { initConfig } from './config/index.js'
 import { initDatabase } from './db/index.js'
 import { closeLogger, createLogger, initLogger } from './logger.js'
 import { FileScanner } from './scanner/index.js'
+import { watchRoots } from './scanner/watch.js'
 
 // Keep the startup promise so callers also share initialization while it is in flight.
 let running: ReturnType<typeof start> | undefined
@@ -12,6 +13,10 @@ let running: ReturnType<typeof start> | undefined
 type BootOptions = {
   volumes?: VolumeInput[]
   trashRoots?: string[]
+  /** Network indexing is opt-in and always scheduled after local volumes. */
+  indexNetworkVolumes?: boolean
+  /** Retain individual changed paths for diagnostics; disabled in production. */
+  collectScannerChangePaths?: boolean
 }
 
 export type { ServerApi, Volume } from './api/index.js'
@@ -46,6 +51,7 @@ async function start(options: BootOptions) {
 
   let database: Awaited<ReturnType<typeof initDatabase>> | undefined
   let scanner: FileScanner | undefined
+  let stopWatching: (() => void) | undefined
 
   try {
     const databasePath = join(config.get('appdata.dbPath'), 'filejam.sqlite')
@@ -54,19 +60,50 @@ async function start(options: BootOptions) {
 
     const api = createApi(database.db)
     await api.volumes.sync(options.volumes ?? [])
-
     await api.volumes.ensureTrashRoots(options.trashRoots ?? [])
+
+    const volumes = await api.volumes.list()
+    const indexableVolumes = volumes
+      .filter(
+        (volume) =>
+          options.indexNetworkVolumes === true || volume.kind !== 'network',
+      )
+      .sort((a, b) => volumePriority(a.kind) - volumePriority(b.kind))
+    const roots = indexableVolumes.map((volume) => volume.rootPath)
+    const excludedPaths = [
+      ...volumes.map((volume) => volume.rootPath),
+      config.get('appdata.path'),
+      config.get('appdata.dbPath'),
+      config.get('appdata.cachePath'),
+      config.get('appdata.logsPath'),
+    ]
 
     // Keep background indexing bounded. Scans are dominated by filesystem and
     // SQLite I/O, so matching worker count to CPU cores only creates contention
     // with interactive reads such as file previews.
-    scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
+    scanner = new FileScanner(config.get('appdata.cachePath'), databasePath, {
+      excludedPaths,
+      collectChangePaths: options.collectScannerChangePaths === true,
+    })
 
     // A round trip confirms the worker loaded before exposing the server.
     await scanner.status()
 
+    stopWatching = watchRoots(roots, scanner, excludedPaths, (message, error) =>
+      logger.warn(message, error),
+    )
+
+    if (roots.length) {
+      await scanner.startAll(roots)
+    }
+
     logger.info('Server started', {
       mountedVolumes: options.volumes?.length ?? 0,
+      indexedVolumes: roots.length,
+      deferredNetworkVolumes: volumes.filter(
+        (volume) =>
+          volume.kind === 'network' && !roots.includes(volume.rootPath),
+      ).length,
     })
 
     let closing: Promise<void> | undefined
@@ -80,6 +117,9 @@ async function start(options: BootOptions) {
         // Share shutdown too: stop worker writes before closing the main DB,
         // then flush the logger after the final server message.
         closing ??= (async () => {
+          stopWatching?.()
+          stopWatching = undefined
+
           try {
             await scanner?.close()
           } finally {
@@ -98,6 +138,7 @@ async function start(options: BootOptions) {
     }
   } catch (error) {
     logger.error('Server startup failed', error)
+    stopWatching?.()
 
     try {
       await scanner?.close()
@@ -107,5 +148,22 @@ async function start(options: BootOptions) {
     }
 
     throw error
+  }
+}
+
+function volumePriority(kind: VolumeInput['kind']) {
+  switch (kind) {
+    case 'system':
+      return 0
+    case 'internal':
+      return 1
+    case 'external':
+      return 2
+    case 'removable':
+      return 3
+    case 'virtual':
+      return 4
+    case 'network':
+      return 5
   }
 }

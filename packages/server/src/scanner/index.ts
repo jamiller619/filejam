@@ -1,5 +1,5 @@
 import { realpath } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { createLogger } from '../logger.js'
 import { ScannerWorker } from './client.js'
 import { ScanProgressReporter } from './progress.js'
@@ -36,6 +36,9 @@ type Slot = { worker: ScannerWorker; root: string | undefined }
 
 export type FileScannerOptions = {
   maxConcurrentScans?: number
+  excludedPaths?: string[]
+  /** Retain per-file change paths for tests or diagnostics. Disabled by default. */
+  collectChangePaths?: boolean
 }
 
 /** Bounded pool. A canonical root has at most one active scan and one queued refresh. */
@@ -44,9 +47,11 @@ export class FileScanner implements ScannerApi {
   readonly #slots: Slot[] = []
   readonly #states = new Map<string, ScanStatus>()
   readonly #results = new Map<string, ScanResults>()
-  readonly #listeners = new Set<() => void>()
-  readonly #queue = new Set<string>()
+  readonly #listeners = new Set<(status: ScannerStatus) => void>()
+  readonly #queue = new Map<string, string>()
   readonly #ready: Promise<void>
+  readonly #excludedPaths: string[]
+  readonly #collectChangePaths: boolean
   readonly maxConcurrentScans: number
   #tail: Promise<unknown> = Promise.resolve()
   #closing: Promise<void> | undefined
@@ -58,13 +63,21 @@ export class FileScanner implements ScannerApi {
     readonly databasePath: string,
     options: FileScannerOptions = {},
   ) {
-    const { maxConcurrentScans = 1 } = options
+    const {
+      maxConcurrentScans = 1,
+      excludedPaths = [],
+      collectChangePaths = false,
+    } = options
 
     if (!Number.isSafeInteger(maxConcurrentScans) || maxConcurrentScans < 1) {
       throw new Error('Maximum concurrent scans must be a positive integer')
     }
 
     this.maxConcurrentScans = maxConcurrentScans
+    this.#collectChangePaths = collectChangePaths
+    this.#excludedPaths = [cacheDirectory, ...excludedPaths].map((path) =>
+      resolve(path),
+    )
     this.#ready = this.#makeSlot()
       .worker.initialize()
       .then(() => {})
@@ -101,10 +114,12 @@ export class FileScanner implements ScannerApi {
   }
 
   #notify() {
-    this.#progress.report(this.#snapshot())
+    const status = this.#snapshot()
+
+    this.#progress.report(status)
 
     for (const listener of this.#listeners) {
-      listener()
+      listener(status)
     }
   }
 
@@ -158,6 +173,8 @@ export class FileScanner implements ScannerApi {
           this.#notify()
         })
       },
+      this.#excludedPaths,
+      this.#collectChangePaths,
     )
 
     slot.worker.onUpdated((progress) => {
@@ -174,7 +191,12 @@ export class FileScanner implements ScannerApi {
         this.#progress.update(root, progress)
 
         if (status.state !== 'scanning') {
-          this.#results.set(root, await slot.worker.results())
+          if (this.#collectChangePaths) {
+            this.#results.set(root, await slot.worker.results())
+          } else {
+            this.#results.delete(root)
+          }
+
           slot.root = undefined
           await this.#pump()
         }
@@ -195,7 +217,7 @@ export class FileScanner implements ScannerApi {
 
     const starting: Promise<void>[] = []
 
-    for (const root of this.#queue) {
+    for (const [root, scanPath] of this.#queue) {
       if (this.#slots.some((slot) => slot.root === root)) {
         continue
       }
@@ -212,7 +234,10 @@ export class FileScanner implements ScannerApi {
 
       this.#queue.delete(root)
       slot.root = root
-      this.#results.set(root, emptyResults())
+
+      if (this.#collectChangePaths) {
+        this.#results.set(root, emptyResults())
+      }
 
       this.#states.set(root, {
         ...idle(),
@@ -223,7 +248,7 @@ export class FileScanner implements ScannerApi {
 
       starting.push(
         slot.worker
-          .start(root)
+          .start(root, scanPath)
           .then((status) => {
             this.#states.set(root, status)
           })
@@ -260,30 +285,42 @@ export class FileScanner implements ScannerApi {
       this.#results.clear()
 
       for (const root of canonicalRoots) {
-        this.#queue.add(root)
+        this.#queue.set(root, root)
         this.#states.set(root, { ...idle(), root, state: 'queued' })
       }
 
-      this.#lastRoot = [...this.#queue].at(-1)
+      this.#lastRoot = [...this.#queue.keys()].at(-1)
       await this.#pump()
       this.#notify()
     })
   }
 
-  enqueue(root: string) {
+  enqueue(root: string, scanPath?: string) {
     this.#background(async () => {
       if (this.#closed) {
         return
       }
 
       const canonical = await this.#canonical(root)
+      const requestedPath = resolve(scanPath ?? canonical)
+
+      if (!isInside(canonical, requestedPath)) {
+        throw new Error('Scan path is outside its root')
+      }
 
       if (!this.#queue.size && !this.#slots.some((slot) => slot.root)) {
         this.#progress.begin()
         this.#states.clear()
       }
 
-      this.#queue.add(canonical)
+      const queuedPath = this.#queue.get(canonical)
+
+      this.#queue.set(
+        canonical,
+        queuedPath
+          ? commonAncestor(canonical, queuedPath, requestedPath)
+          : requestedPath,
+      )
 
       if (!this.#slots.some((slot) => slot.root === canonical)) {
         this.#states.set(canonical, {
@@ -318,7 +355,7 @@ export class FileScanner implements ScannerApi {
       }
 
       this.#lastRoot = canonical
-      this.#queue.add(canonical)
+      this.#queue.set(canonical, canonical)
 
       this.#states.set(canonical, {
         ...idle(),
@@ -346,7 +383,7 @@ export class FileScanner implements ScannerApi {
   #snapshot(): ScannerStatus {
     const roots = structuredClone([...this.#states.values()])
     const active = this.#slots.flatMap((slot) => (slot.root ? [slot.root] : []))
-    const queued = [...this.#queue]
+    const queued = [...this.#queue.keys()]
 
     const state =
       active.length || queued.length
@@ -394,7 +431,7 @@ export class FileScanner implements ScannerApi {
     await this.#run(async () => {
       this.#checkOpen()
 
-      for (const root of this.#queue) {
+      for (const root of this.#queue.keys()) {
         if (!this.#slots.some((slot) => slot.root === root)) {
           this.#states.set(root, { ...idle(), root, state: 'cancelled' })
         }
@@ -414,7 +451,7 @@ export class FileScanner implements ScannerApi {
     return this.status()
   }
 
-  onUpdated(listener: () => void) {
+  onUpdated(listener: (status: ScannerStatus) => void) {
     this.#listeners.add(listener)
 
     return () => {
@@ -444,4 +481,23 @@ export class FileScanner implements ScannerApi {
 
     return this.#closing
   }
+}
+
+function commonAncestor(root: string, left: string, right: string) {
+  let candidate = left
+
+  while (!isInside(candidate, right) && candidate !== root) {
+    candidate = dirname(candidate)
+  }
+
+  return isInside(root, candidate) ? candidate : root
+}
+
+function isInside(parent: string, child: string) {
+  const path = relative(parent, child)
+
+  return (
+    path === '' ||
+    (path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+  )
 }

@@ -1,5 +1,5 @@
 import type { ServerApi } from '@filejam/server'
-import type { ScannerApi } from '@filejam/server/scanner'
+import type { ScannerApi, ScannerStatus } from '@filejam/server/scanner'
 import type {
   PresentedFolderListing,
   PresentedVolume,
@@ -85,9 +85,13 @@ const filejam: FilejamApi = {
 
 contextBridge.exposeInMainWorld('filejam', filejam)
 
-const scanner: ScannerApi & { onUpdated(listener: () => void): () => void } = {
+type ScannerBridge = ScannerApi & {
+  onUpdated(listener: (status: ScannerStatus) => void): () => void
+}
+
+const scanner: ScannerBridge = {
   onUpdated: (listener) => {
-    const handler = () => listener()
+    const handler = (_event: unknown, status: ScannerStatus) => listener(status)
 
     ipcRenderer.on('scanner:updated', handler)
 
@@ -106,6 +110,6 @@ contextBridge.exposeInMainWorld('scanner', scanner)
 declare global {
   interface Window {
     filejam: FilejamApi
-    scanner: ScannerApi & { onUpdated(listener: () => void): () => void }
+    scanner: ScannerBridge
   }
 }

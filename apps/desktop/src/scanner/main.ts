@@ -7,9 +7,9 @@ export function registerScannerIpc(
   scanner: FileScanner,
   renderer: WebContents,
 ) {
-  const unsubscribe = scanner.onUpdated(() => {
+  const unsubscribe = scanner.onUpdated((status) => {
     if (!renderer.isDestroyed()) {
-      renderer.send('scanner:updated')
+      renderer.send('scanner:updated', status)
     }
   })
 

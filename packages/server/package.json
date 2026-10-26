@@ -38,8 +38,6 @@
     "@libsql/client": "^0.18.0",
     "drizzle-orm": "^0.45.4",
     "env-paths": "^4.0.0",
-    "fdir": "^6.5.0",
-    "file-entry-cache": "^11.1.5",
     "find-up-simple": "^1.0.1",
     "mime": "^4.0.7",
     "json-schema-to-typescript": "^16.0.0",

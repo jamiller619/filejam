@@ -29,7 +29,11 @@ export default function QueryProvider({
     window.addEventListener('filejam:volumes-updated', invalidateVolumes)
     window.addEventListener('collections-changed', invalidateCollections)
     window.addEventListener('filejam:settings-updated', invalidateSettings)
-    const unsubscribeScanner = window.scanner.onUpdated(invalidateFiles)
+    const unsubscribeScanner = window.scanner.onUpdated((status) => {
+      if (status.state !== 'scanning') {
+        invalidateFiles()
+      }
+    })
     const volumeRefresh = window.setInterval(invalidateVolumes, 5_000)
 
     return () => {
