@@ -13,6 +13,8 @@ let running: ReturnType<typeof start> | undefined
 type BootOptions = {
   volumes?: VolumeInput[]
   trashRoots?: string[]
+  /** Native Windows helper used for full NTFS scans when available. */
+  mftHelperPath?: string
   /** Network indexing is opt-in and always scheduled after local volumes. */
   indexNetworkVolumes?: boolean
   /** Retain individual changed paths for diagnostics; disabled in production. */
@@ -83,6 +85,9 @@ async function start(options: BootOptions) {
     // with interactive reads such as file previews.
     scanner = new FileScanner(config.get('appdata.cachePath'), databasePath, {
       excludedPaths,
+      ...(options.mftHelperPath
+        ? { mftHelperPath: options.mftHelperPath }
+        : {}),
       collectChangePaths: options.collectScannerChangePaths === true,
     })
 

@@ -1,13 +1,14 @@
 import { spawn } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { relative, resolve, sep } from 'node:path'
-import electron from 'electron'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
+import electron from 'electron'
 import { inlineCssModules } from 'inline-css-modules/vite'
 import { createServer } from 'vite'
+import { buildMftHelper } from './build-mft-helper.mjs'
 import { copyPreviewAssets } from './copy-preview-assets.mjs'
 
-await copyPreviewAssets()
+await Promise.all([copyPreviewAssets(), buildMftHelper()])
 
 const server = await createServer({
   configFile: false,

@@ -9,6 +9,14 @@ import { initDatabase } from '../dist/db/index.js'
 import { entries } from '../dist/db/schemas/entry.js'
 import { FileScanner } from '../dist/scanner/index.js'
 
+function entryPath(entry) {
+  if (entry.parentId === null && entry.kind === 'directory') {
+    return ''
+  }
+
+  return entry.parentPath ? `${entry.parentPath}/${entry.name}` : entry.name
+}
+
 test('reads each entry metadata once on initial, unchanged, and changed scans', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'scanner-metadata-'))
   const root = join(dir, 'root')
@@ -156,8 +164,8 @@ test('persists metadata incrementally, repairs missing rows, and removes stale r
 
     assert.equal(rows.length, 303)
 
-    const parent = rows.find((row) => row.relativePath === 'nested')
-    const file = rows.find((row) => row.relativePath === 'nested/0.txt')
+    const parent = rows.find((row) => entryPath(row) === 'nested')
+    const file = rows.find((row) => entryPath(row) === 'nested/0.txt')
 
     assert.equal(file.parentId, parent.id)
     assert.equal(file.size, 5)
@@ -182,7 +190,7 @@ test('persists metadata incrementally, repairs missing rows, and removes stale r
     await scanner.start(root)
     await finish(scanner)
     rows = await connection.db.select().from(entries)
-    assert.deepEqual(rows.map((row) => row.relativePath).sort(), ['', 'empty'])
+    assert.deepEqual(rows.map(entryPath).sort(), ['', 'empty'])
   } finally {
     await scanner.close()
     await connection.close()

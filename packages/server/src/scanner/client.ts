@@ -32,11 +32,12 @@ export class ScannerWorker implements WorkerApi {
   >()
 
   constructor(
-    _cacheDirectory: string,
+    cacheDirectory: string,
     databasePath: string,
     onFailure: (error: Error) => void,
     excludedPaths: string[] = [],
     collectChangePaths = false,
+    mftHelperPath?: string,
   ) {
     this.#onFailure = onFailure
 
@@ -44,9 +45,11 @@ export class ScannerWorker implements WorkerApi {
       // The pool initializes migrations once before dispatching any scans.
       workerData: {
         databasePath,
+        cacheDirectory,
         databaseInitialized: true,
         excludedPaths,
         collectChangePaths,
+        mftHelperPath,
       },
     })
 

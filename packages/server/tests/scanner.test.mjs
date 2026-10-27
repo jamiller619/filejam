@@ -114,18 +114,8 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
       .filter((entry) => entry.component === 'scanner')
 
     assert.ok(
-      logs.some(
-        (entry) => entry.msg === 'Scan progress' && entry.phase === 'crawling',
-      ),
-    )
-
-    assert.ok(
-      logs.some(
-        (entry) =>
-          entry.msg === 'Scan progress' &&
-          entry.phase === 'checking' &&
-          entry.total === 2,
-      ),
+      logs.every((entry) => entry.msg !== 'Scan progress'),
+      'info logs should omit in-flight scan progress',
     )
 
     const completed = logs.find((entry) => entry.msg === 'Scan completed')

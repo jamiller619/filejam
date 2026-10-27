@@ -1,10 +1,18 @@
-import type { Stats } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import mime from 'mime'
 import { upsertEntry } from '../api/entries.js'
 import { createApi } from '../api/index.js'
 import { initDatabase } from '../db/index.js'
+
+export type EntryMetadata = {
+  size: number
+  mtime: Date
+  birthtime: Date
+  isDirectory(): boolean
+  isSymbolicLink(): boolean
+  isFile(): boolean
+}
 
 /** Open a worker-owned connection. Pools migrate once before dispatching scans. */
 export async function openScanDatabase(
@@ -46,7 +54,7 @@ export async function openScanDatabase(
     const scannedDirectories = new Set<number>()
     let tracksScannedDirectories = false
 
-    async function prepare(path: string, snapshot?: Stats) {
+    async function prepare(path: string, snapshot?: EntryMetadata) {
       // Filesystem reads finish before opening a write transaction. Parent IDs
       // are resolved later, in parent-first order.
       const metadata = snapshot ?? (await stat(path))
@@ -85,7 +93,7 @@ export async function openScanDatabase(
 
     async function saveBatch(
       paths: string[],
-      metadata?: ReadonlyMap<string, Stats>,
+      metadata?: ReadonlyMap<string, EntryMetadata>,
       isCancelled = () => false,
     ) {
       const saved: { path: string; kind: 'directory' | 'symlink' | 'file' }[] =
@@ -146,7 +154,7 @@ export async function openScanDatabase(
       return saved
     }
 
-    function inspect(path: string, metadata: Stats) {
+    function inspect(path: string, metadata: EntryMetadata) {
       const key = pathKey(path)
       const baseline = unseen.get(key)
 
@@ -169,14 +177,49 @@ export async function openScanDatabase(
     }
 
     return {
+      hasBaseline: unseen.size > 0,
       async close() {
         connection.close()
       },
       inspect,
-      skipUnchanged(path: string, metadata: Stats) {
+      skipUnchanged(path: string, metadata: EntryMetadata) {
         return !inspect(path, metadata).save
       },
       saveBatch,
+      async removePaths(paths: string[], collectPaths = false) {
+        const removedIds = new Set<number>()
+        const removedPaths: string[] = []
+        let removedCount = 0
+
+        for (const path of paths) {
+          const key = pathKey(path)
+          const descendantPrefix = `${key}/`
+
+          for (const [storedPath, entry] of unseen) {
+            if (
+              storedPath !== key &&
+              (!key || !storedPath.startsWith(descendantPrefix))
+            ) {
+              continue
+            }
+
+            removedIds.add(entry.id)
+            unseen.delete(storedPath)
+
+            if (entry.kind === 'file') {
+              removedCount++
+
+              if (collectPaths) {
+                removedPaths.push(storedPath.split('/').join(sep))
+              }
+            }
+          }
+        }
+
+        await api.entries.completeScan(volume.id, removedIds, [])
+
+        return { removedCount, removedPaths }
+      },
       directoryScanned(path: string) {
         tracksScannedDirectories = true
 
@@ -186,7 +229,7 @@ export async function openScanDatabase(
           scannedDirectories.add(id)
         }
       },
-      async save(path: string, snapshot?: Stats) {
+      async save(path: string, snapshot?: EntryMetadata) {
         const [saved] = await saveBatch(
           [path],
           snapshot ? new Map([[path, snapshot]]) : undefined,

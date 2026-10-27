@@ -85,6 +85,13 @@
       "when": 1792963000000,
       "tag": "0011_volumes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793050000000,
+      "tag": "0012_entry_parent_paths",
+      "breakpoints": true
     }
   ]
 }

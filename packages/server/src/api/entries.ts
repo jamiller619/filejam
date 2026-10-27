@@ -7,6 +7,7 @@ import {
   getTableColumns,
   gte,
   inArray,
+  isNull,
   lt,
   or,
   sql,
@@ -16,6 +17,24 @@ import type { Database } from '../db/index.js'
 import { entries, type NewEntry } from '../db/schemas/entry.js'
 import { volumes } from '../db/schemas/volume.js'
 import { entrySize } from './entrySize.js'
+
+const {
+  parentPath: _parentPath,
+  displayName: _displayName,
+  name: _name,
+  ...storedEntryColumns
+} = getTableColumns(entries)
+const entryName = sql<string>`coalesce(${entries.displayName}, ${entries.name})`
+const entryRelativePath = sql<string>`case
+  when ${entries.parentId} is null and ${entries.kind} = 'directory' then ''
+  when ${entries.parentPath} = '' then ${entries.name}
+  else ${entries.parentPath} || '/' || ${entries.name}
+end`
+const entryColumns = {
+  ...storedEntryColumns,
+  name: entryName,
+  relativePath: entryRelativePath,
+}
 
 export function createEntriesApi(db: Database) {
   return {
@@ -28,8 +47,8 @@ export function createEntriesApi(db: Database) {
       const [source] = await db
         .select({
           rootPath: volumes.rootPath,
-          relativePath: entries.relativePath,
-          name: entries.name,
+          relativePath: entryRelativePath,
+          name: entryName,
           kind: entries.kind,
         })
         .from(entries)
@@ -69,12 +88,12 @@ export function createEntriesApi(db: Database) {
       const includeDescendants = folder.recursive || search.length > 0
 
       const [directory] = await db
-        .select()
+        .select(entryColumns)
         .from(entries)
         .where(
           and(
             eq(entries.volumeId, folder.volumeId),
-            eq(entries.relativePath, folder.relativePath),
+            entryPathCondition(folder.volumeId, folder.relativePath),
             eq(entries.kind, 'directory'),
           ),
         )
@@ -89,7 +108,7 @@ export function createEntriesApi(db: Database) {
 
       const children = await db
         .select({
-          ...getTableColumns(entries),
+          ...entryColumns,
           size: search || !folder.recursive ? entrySize : entries.size,
         })
         .from(entries)
@@ -116,7 +135,7 @@ export function createEntriesApi(db: Database) {
         )
         .orderBy(
           sql`case when ${entries.kind} = 'directory' then 0 else 1 end`,
-          asc(entries.name),
+          asc(entryName),
           asc(entries.id),
         )
 
@@ -146,7 +165,7 @@ export function createEntriesApi(db: Database) {
     },
     async listPaths(volumeId: number, relativePrefix = '') {
       return db
-        .select({ id: entries.id, path: entries.relativePath })
+        .select({ id: entries.id, path: entryRelativePath })
         .from(entries)
         .where(volumePathCondition(volumeId, relativePrefix))
     },
@@ -154,7 +173,7 @@ export function createEntriesApi(db: Database) {
       return db
         .select({
           id: entries.id,
-          path: entries.relativePath,
+          path: entryRelativePath,
           kind: entries.kind,
           size: entries.size,
           modifiedAt: entries.modifiedAt,
@@ -170,13 +189,13 @@ export function createEntriesApi(db: Database) {
       }
 
       return db
-        .select({ id: entries.id, path: entries.relativePath })
+        .select({ id: entries.id, path: entryRelativePath })
         .from(entries)
         .where(
           and(
             eq(entries.volumeId, volumeId),
             eq(entries.kind, 'directory'),
-            inArray(entries.relativePath, ancestors),
+            inArray(entryRelativePath, ancestors),
           ),
         )
     },
@@ -249,13 +268,40 @@ function volumePathCondition(volumeId: number, relativePrefix: string) {
   return and(
     volume,
     or(
-      eq(entries.relativePath, relativePrefix),
+      entryPathCondition(volumeId, relativePrefix),
+      eq(entries.parentPath, relativePrefix),
       and(
-        gte(entries.relativePath, descendantPrefix),
-        lt(entries.relativePath, `${descendantPrefix}\uffff`),
+        gte(entries.parentPath, descendantPrefix),
+        lt(entries.parentPath, `${descendantPrefix}\uffff`),
       ),
     ),
   )
+}
+
+function entryPathCondition(volumeId: number, relativePath: string) {
+  if (!relativePath) {
+    return and(eq(entries.volumeId, volumeId), isNull(entries.parentId))
+  }
+
+  const { parentPath, name } = splitEntryPath(relativePath)
+
+  return and(
+    eq(entries.volumeId, volumeId),
+    eq(entries.parentPath, parentPath),
+    eq(entries.name, name),
+  )
+}
+
+function splitEntryPath(relativePath: string) {
+  const separatorIndex = relativePath.lastIndexOf('/')
+
+  return {
+    parentPath: separatorIndex < 0 ? '' : relativePath.slice(0, separatorIndex),
+    name:
+      separatorIndex < 0
+        ? relativePath
+        : relativePath.slice(separatorIndex + 1),
+  }
 }
 
 function ancestorPaths(relativePath: string) {
@@ -278,12 +324,27 @@ export async function upsertEntry(
   db: Pick<Database, 'insert'>,
   values: NewEntry,
 ) {
+  const { parentPath, name } = splitEntryPath(values.relativePath)
+  const physicalName = values.relativePath ? name : ''
+  const displayName = physicalName === values.name ? null : values.name
+  const { relativePath: _relativePath, ...entryValues } = values
+
   const [entry] = await db
     .insert(entries)
-    .values(values)
+    .values({
+      ...entryValues,
+      name: physicalName,
+      parentPath,
+      displayName,
+    })
     .onConflictDoUpdate({
-      target: [entries.volumeId, entries.relativePath],
-      set: values,
+      target: [entries.volumeId, entries.parentPath, entries.name],
+      set: {
+        ...entryValues,
+        name: physicalName,
+        parentPath,
+        displayName,
+      },
     })
     .returning({ id: entries.id })
 

@@ -28,6 +28,7 @@ const idle = (): ScanStatus => ({
   root: null,
   phase: 'idle',
   total: 0,
+  totalKnown: false,
   processed: 0,
   error: null,
 })
@@ -37,6 +38,8 @@ type Slot = { worker: ScannerWorker; root: string | undefined }
 export type FileScannerOptions = {
   maxConcurrentScans?: number
   excludedPaths?: string[]
+  /** Windows helper for full NTFS scans. Other scans use directory traversal. */
+  mftHelperPath?: string
   /** Retain per-file change paths for tests or diagnostics. Disabled by default. */
   collectChangePaths?: boolean
 }
@@ -52,6 +55,7 @@ export class FileScanner implements ScannerApi {
   readonly #ready: Promise<void>
   readonly #excludedPaths: string[]
   readonly #collectChangePaths: boolean
+  readonly #mftHelperPath: string | undefined
   readonly maxConcurrentScans: number
   #tail: Promise<unknown> = Promise.resolve()
   #closing: Promise<void> | undefined
@@ -66,6 +70,7 @@ export class FileScanner implements ScannerApi {
     const {
       maxConcurrentScans = 1,
       excludedPaths = [],
+      mftHelperPath,
       collectChangePaths = false,
     } = options
 
@@ -75,6 +80,7 @@ export class FileScanner implements ScannerApi {
 
     this.maxConcurrentScans = maxConcurrentScans
     this.#collectChangePaths = collectChangePaths
+    this.#mftHelperPath = mftHelperPath
     this.#excludedPaths = [cacheDirectory, ...excludedPaths].map((path) =>
       resolve(path),
     )
@@ -175,6 +181,7 @@ export class FileScanner implements ScannerApi {
       },
       this.#excludedPaths,
       this.#collectChangePaths,
+      this.#mftHelperPath,
     )
 
     slot.worker.onUpdated((progress) => {
@@ -244,6 +251,7 @@ export class FileScanner implements ScannerApi {
         state: 'scanning',
         root,
         phase: 'crawling',
+        totalKnown: false,
       })
 
       starting.push(
@@ -405,6 +413,12 @@ export class FileScanner implements ScannerApi {
           : 'crawling'
         : 'idle',
       total: roots.reduce((n, s) => n + s.total, 0),
+      totalKnown:
+        active.length > 0 &&
+        queued.length === 0 &&
+        roots
+          .filter((root) => root.state === 'scanning')
+          .every((root) => root.totalKnown),
       processed: roots.reduce((n, s) => n + s.processed, 0),
       error: roots.find((s) => s.error)?.error ?? null,
       roots,

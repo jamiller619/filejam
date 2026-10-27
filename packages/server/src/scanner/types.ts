@@ -4,8 +4,12 @@ export interface ScanStatus {
   phase: 'idle' | 'crawling' | 'checking'
   /** Entries discovered so far, including directories and the root. */
   total: number
+  /** Whether total is final and can drive determinate progress. */
+  totalKnown: boolean
   /** Discovered entries checked and saved or confirmed unchanged. */
   processed: number
+  /** Why the native fast path fell back to directory traversal, if applicable. */
+  fallbackReason?: string
   error: string | null
 }
 

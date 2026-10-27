@@ -24,8 +24,9 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     const entry = {
       volumeId: 1,
       name: 'example.txt',
-      relativePath: 'example.txt',
+      parentPath: '',
       kind: 'file',
+      createdAt: new Date(),
       indexedAt: new Date(),
     }
 
@@ -38,31 +39,42 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
         .values({ ...entry, volumeId: 999 })
         .run(),
     )
-
     await connection.close()
 
     connection = await initDatabase(path)
     assert.equal((await connection.db.select().from(volumes)).length, 1)
-    assert.equal((await connection.db.select().from(entries)).length, 1)
+    const storedEntries = await connection.db.select().from(entries)
+
+    assert.equal(storedEntries.length, 1)
+    assert.equal(storedEntries[0].parentPath, '')
+    assert.equal(storedEntries[0].name, 'example.txt')
 
     const migrations = await connection.db.all(
       'SELECT * FROM __drizzle_migrations',
     )
 
-    assert.equal(migrations.length, 3)
+    assert.equal(migrations.length, 13)
 
     const entryColumns = await connection.db.all(
       "SELECT name FROM pragma_table_info('entries')",
     )
 
     assert.ok(
-      ['app_tags', 'os_tags', 'embedded_tags', 'tag_read_error'].every(
-        (name) => !entryColumns.some((column) => column.name === name),
-      ),
+      [
+        'relative_path',
+        'app_tags',
+        'os_tags',
+        'embedded_tags',
+        'tag_read_error',
+      ].every((name) => !entryColumns.some((column) => column.name === name)),
     )
+    assert.ok(entryColumns.some((column) => column.name === 'parent_path'))
 
     await connection.db.delete(volumes)
-    assert.deepEqual(await connection.db.select().from(entries), [])
+    assert.deepEqual(
+      await connection.db.select({ id: entries.id }).from(entries),
+      [],
+    )
   } finally {
     await connection?.close()
     await rm(directory, {

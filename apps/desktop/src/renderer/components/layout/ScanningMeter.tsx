@@ -22,8 +22,25 @@ const styles = css`
   }
 
   .progress {
+    display: block;
+    flex-shrink: 0;
     width: 72px;
     height: 4px;
+
+    &:indeterminate,
+    &:indeterminate::-webkit-progress-bar {
+      background:
+        linear-gradient(
+          90deg,
+          transparent 25%,
+          var(--suzy-action) 45%,
+          var(--suzy-action) 55%,
+          transparent 75%
+        ),
+        var(--suzy-border-strong);
+      background-size: 200% 100%;
+      animation: scan-progress 1.2s linear infinite;
+    }
   }
 
   .percentage {
@@ -37,6 +54,21 @@ const styles = css`
     .meter {
       transform: none;
       transition-duration: 0ms;
+    }
+
+    .progress:indeterminate,
+    .progress:indeterminate::-webkit-progress-bar {
+      background-position: center;
+      animation: none;
+    }
+  }
+
+  @keyframes scan-progress {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
     }
   }
 `
@@ -101,20 +133,33 @@ export default function ScanningMeter() {
     return null
   }
 
-  const determinate = status.phase === 'checking' && status.total > 0
+  const activeStatus =
+    status.active.length === 1
+      ? status.roots.find((root) => root.root === status.active[0])
+      : undefined
+  const progress = activeStatus ?? status
+  const determinate =
+    status.active.length === 1 &&
+    progress.total > 0 &&
+    (progress.totalKnown || progress.phase === 'checking')
   const percentage = determinate
-    ? Math.min(100, Math.round((status.processed / status.total) * 100))
+    ? Math.min(100, Math.round((progress.processed / progress.total) * 100))
     : null
   const rootCount = status.active.length + status.queued.length
-  const label = rootCount === 1 ? 'Scanning folder' : 'Scanning folders'
+  const drive = activeStatus?.root?.match(/^([a-z]:)[\\/]/i)?.[1]
+  const label = drive
+    ? `Scanning ${drive.toUpperCase()}`
+    : rootCount === 1
+      ? 'Scanning folder'
+      : 'Scanning folders'
 
   return (
     <div className={styles.meter} data-visible={visible} role="status">
       <span>{label}</span>
       <progress
         className={styles.progress}
-        max={determinate ? status.total : undefined}
-        value={determinate ? status.processed : undefined}
+        max={determinate ? progress.total : undefined}
+        value={determinate ? progress.processed : undefined}
         aria-label="Scan progress"
       />
       {percentage !== null && (

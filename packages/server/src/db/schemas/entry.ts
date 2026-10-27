@@ -25,11 +25,17 @@ export const entries = sqliteTable(
       { onDelete: 'cascade' },
     ),
 
+    // Physical filesystem name. The volume root uses ""; most other entries
+    // expose this directly.
     name: text('name').notNull(),
 
-    // Relative to volumes.rootPath, using "/" separators.
-    // The volume root itself uses "".
-    relativePath: text('relative_path').notNull(),
+    // The containing directory relative to volumes.rootPath, using "/"
+    // separators. Entries directly inside the volume use "".
+    parentPath: text('parent_path').notNull().default(''),
+
+    // Only set when a virtual filesystem has a different user-facing name.
+    // Windows Trash entries are the common example.
+    displayName: text('display_name'),
 
     kind: text('kind', {
       enum: ['directory', 'file', 'symlink'],
@@ -61,9 +67,10 @@ export const entries = sqliteTable(
       .default(true),
   },
   (table) => [
-    uniqueIndex('entries_volume_path_unique').on(
+    uniqueIndex('entries_volume_parent_name_unique').on(
       table.volumeId,
-      table.relativePath,
+      table.parentPath,
+      table.name,
     ),
 
     // Supports listing a folder's children alphabetically.
@@ -78,4 +85,14 @@ export const entries = sqliteTable(
 
 export type Entry = typeof entries.$inferSelect
 
-export type NewEntry = typeof entries.$inferInsert
+type StoredNewEntry = typeof entries.$inferInsert
+
+// Callers work with complete relative paths; upsertEntry normalizes them into
+// the non-redundant name + parentPath representation used by the database.
+export type NewEntry = Omit<
+  StoredNewEntry,
+  'name' | 'parentPath' | 'displayName'
+> & {
+  name: string
+  relativePath: string
+}

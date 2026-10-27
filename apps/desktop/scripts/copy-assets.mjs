@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { inlineCssModules } from 'inline-css-modules/vite'
 import { build } from 'vite'
+import { buildMftHelper } from './build-mft-helper.mjs'
 import { copyMediaBinaries } from './copy-media-binaries.mjs'
 import { copyPreviewAssets } from './copy-preview-assets.mjs'
 
@@ -8,6 +9,7 @@ await import('../../../packages/ui/scripts/copy-assets.mjs')
 
 await copyPreviewAssets()
 await copyMediaBinaries()
+await buildMftHelper()
 
 await build({
   configFile: false,

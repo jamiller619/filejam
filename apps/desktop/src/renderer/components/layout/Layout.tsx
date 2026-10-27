@@ -118,7 +118,7 @@ const styles = css`
         }
 
         .pageFooter {
-          :empty {
+          &:empty {
             display: none;
           }
         }

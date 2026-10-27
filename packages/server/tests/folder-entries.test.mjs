@@ -14,6 +14,7 @@ test('folder contents are read directly from a mounted volume', async () => {
   try {
     await mkdir(join(rootPath, 'nested'), { recursive: true })
     await writeFile(join(rootPath, 'example.txt'), 'hello')
+    await writeFile(join(rootPath, 'volume'), 'root names may repeat')
     await writeFile(join(rootPath, 'nested', 'child.txt'), 'world')
 
     connection = await initDatabase(join(directory, 'filejam.sqlite'))
@@ -35,6 +36,7 @@ test('folder contents are read directly from a mounted volume', async () => {
       [
         { name: 'nested', kind: 'directory' },
         { name: 'example.txt', kind: 'file' },
+        { name: 'volume', kind: 'file' },
       ],
     )
     assert.equal(

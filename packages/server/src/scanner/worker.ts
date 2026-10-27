@@ -1,11 +1,19 @@
+import { createHash } from 'node:crypto'
 import type { Stats } from 'node:fs'
-import { opendir, realpath, stat } from 'node:fs/promises'
-import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
+import { mkdir, opendir, readFile, realpath, stat } from 'node:fs/promises'
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
+import writeAtomic from 'write-file-atomic'
 import { initDatabase } from '../db/index.js'
 import { isIgnoredScanPath } from './ignore.js'
-import { openScanDatabase } from './persistence.js'
+import {
+  canEnumerateMft,
+  enumerateMft,
+  type MftCheckpoint,
+  type MftEntry,
+} from './mft.js'
+import { type EntryMetadata, openScanDatabase } from './persistence.js'
 import type {
   ScannerRequest,
   ScannerResponse,
@@ -21,6 +29,8 @@ if (!port) {
 }
 
 const collectChangePaths = workerData.collectChangePaths === true
+const mftHelperPath = workerData.mftHelperPath as string | undefined
+const cacheDirectory = resolve(workerData.cacheDirectory as string)
 const excludedPaths =
   (workerData.excludedPaths as string[] | undefined)?.map((path) =>
     resolve(path),
@@ -31,6 +41,7 @@ let status: ScanStatus = {
   root: null,
   phase: 'idle',
   total: 0,
+  totalKnown: false,
   processed: 0,
   error: null,
 }
@@ -41,9 +52,54 @@ let activeScan: Promise<void> | undefined
 
 type PendingEntry = {
   path: string
-  metadata: Stats
+  metadata: EntryMetadata
   change: 'added' | 'changed' | 'unchanged'
   save: boolean
+}
+
+function checkpointPath(root: string) {
+  const key = createHash('sha256').update(root.toLowerCase()).digest('hex')
+
+  return join(cacheDirectory, 'mft', `${key}.json`)
+}
+
+async function readMftCheckpoint(root: string) {
+  try {
+    const value = JSON.parse(
+      await readFile(checkpointPath(root), { encoding: 'utf8' }),
+    ) as Partial<MftCheckpoint>
+
+    if (
+      typeof value.journalId === 'string' &&
+      /^\d+$/.test(value.journalId) &&
+      typeof value.nextUsn === 'string' &&
+      /^\d+$/.test(value.nextUsn)
+    ) {
+      return value as MftCheckpoint
+    }
+  } catch {
+    // A missing or invalid checkpoint simply requires a full MFT pass.
+  }
+
+  return undefined
+}
+
+async function writeMftCheckpoint(root: string, checkpoint: MftCheckpoint) {
+  const path = checkpointPath(root)
+
+  await mkdir(join(cacheDirectory, 'mft'), { recursive: true })
+  await writeAtomic(path, `${JSON.stringify(checkpoint)}\n`)
+}
+
+function metadataFromMft(entry: MftEntry): EntryMetadata {
+  return {
+    size: entry.size,
+    mtime: new Date(entry.modifiedAt),
+    birthtime: new Date(entry.createdAt),
+    isDirectory: () => entry.directory,
+    isSymbolicLink: () => false,
+    isFile: () => !entry.directory,
+  }
 }
 
 // SQLite is both the browsable tree and the change-detection baseline. Traversal
@@ -118,10 +174,7 @@ async function scan(input: string, requestedScanPath = input) {
       scanPath,
     )
     const scanDatabase = database
-    const directoryStack = [scanPath]
-    const visitedDirectories = new Set([directoryIdentity(scanMetadata)])
     let traversalComplete = true
-    let operations = 0
 
     const shouldExclude = (path: string) => {
       const resolvedPath = resolve(path)
@@ -145,7 +198,7 @@ async function scan(input: string, requestedScanPath = input) {
       )
     }
 
-    const describe = (path: string, metadata: Stats): PendingEntry => {
+    const describe = (path: string, metadata: EntryMetadata): PendingEntry => {
       const { change, save } = scanDatabase.inspect(path, metadata)
 
       return { path, metadata, change, save }
@@ -203,92 +256,214 @@ async function scan(input: string, requestedScanPath = input) {
     status.total = 1
     await save([describe(scanPath, scanMetadata)])
 
-    while (directoryStack.length && !cancelled) {
-      const directory = directoryStack.pop()
+    let usedMft = false
+    let mftProducedEntries = false
+    let incrementalMft = false
+    let nextMftCheckpoint: MftCheckpoint | undefined
 
-      if (!directory) {
-        break
-      }
-
-      const batch: PendingEntry[] = []
-      const completedAliases: string[] = []
-      let directoryReadable = true
-
+    if (mftHelperPath && canEnumerateMft(root, scanPath, mftHelperPath)) {
       try {
-        const handle = await opendir(directory)
+        const checkpoint = scanDatabase.hasBaseline
+          ? await readMftCheckpoint(root)
+          : undefined
+        const mftResult = await enumerateMft(
+          root,
+          mftHelperPath,
+          async (entries) => {
+            mftProducedEntries ||= entries.length > 0
 
-        for await (const child of handle) {
-          if (cancelled) {
-            break
-          }
+            for (let index = 0; index < entries.length; index += 64) {
+              if (cancelled) {
+                break
+              }
 
-          if (++operations % 100 === 0) {
-            await setImmediate()
-          }
+              const entryBatch = entries.slice(index, index + 64)
+              const batch: PendingEntry[] = []
+              const completedDirectories: string[] = []
+              const deletedPaths: string[] = []
+              let skipped = 0
 
-          const path = resolve(directory, child.name)
+              for (const entry of entryBatch) {
+                if (
+                  isIgnoredMftPath(root, entry.path) ||
+                  isTrashMetadata(root, entry.path) ||
+                  shouldExclude(entry.path)
+                ) {
+                  skipped++
+                  continue
+                }
 
-          if (
-            isIgnoredScanPath(child.name) ||
-            isTrashMetadata(root, path) ||
-            shouldExclude(path)
-          ) {
-            continue
-          }
+                if (entry.deleted) {
+                  deletedPaths.push(entry.path)
+                  continue
+                }
 
-          let metadata: Stats
+                if (entry.metadataError) {
+                  if (!entry.missing) {
+                    traversalComplete = false
+                  }
+                  skipped++
+                  continue
+                }
 
-          try {
-            metadata = await stat(path)
-          } catch (error) {
-            // Entries may disappear or become inaccessible between enumeration
-            // and metadata lookup. A later watcher pass will revisit the parent.
-            if (!isMissingPath(error)) {
-              traversalComplete = false
+                const metadata = metadataFromMft(entry)
+
+                batch.push(describe(entry.path, metadata))
+
+                if (entry.directory) {
+                  completedDirectories.push(entry.path)
+                }
+              }
+
+              status.processed += skipped
+
+              if (deletedPaths.length) {
+                const removed = await scanDatabase.removePaths(
+                  deletedPaths,
+                  collectChangePaths,
+                )
+
+                removedCount += removed.removedCount
+                next.removed.push(...removed.removedPaths)
+                status.processed += deletedPaths.length
+              }
+
+              await save(batch)
+
+              if (!cancelled) {
+                for (const path of completedDirectories) {
+                  scanDatabase.directoryScanned(path)
+                }
+              }
+
+              reportProgress()
             }
+          },
+          () => cancelled,
+          (total) => {
+            status.total = total
+            status.totalKnown = true
+            reportProgress(true)
+          },
+          checkpoint,
+        )
 
-            continue
-          }
+        incrementalMft = mftResult.mode === 'incremental'
+        nextMftCheckpoint = mftResult.checkpoint
 
-          status.total++
-          batch.push(describe(path, metadata))
-
-          if (metadata.isDirectory()) {
-            const identity = directoryIdentity(metadata)
-
-            if (!visitedDirectories.has(identity)) {
-              visitedDirectories.add(identity)
-              directoryStack.push(path)
-            } else {
-              // Persist aliases but do not follow a directory identity twice.
-              // This prevents junction and symlink cycles from growing forever.
-              completedAliases.push(path)
-            }
-          }
-
-          if (batch.length === 64) {
-            await save(batch.splice(0))
-          }
+        if (!cancelled && !incrementalMft) {
+          scanDatabase.directoryScanned(root)
         }
+
+        usedMft = true
       } catch (error) {
-        directoryReadable = false
-
-        if (!isMissingPath(error)) {
-          traversalComplete = false
+        // Setup failures (unsupported volume, denied UAC, missing helper) fall
+        // back before touching the baseline. A mid-stream failure must fail the
+        // pass so already-seen entries are not counted twice by a second walk.
+        if (mftProducedEntries) {
+          throw error
         }
+
+        status.fallbackReason =
+          error instanceof Error ? error.message : String(error)
+        status.total = 1
+        status.totalKnown = false
+        reportProgress(true)
       }
+    }
 
-      await save(batch)
+    if (!usedMft) {
+      const directoryStack = [scanPath]
+      const visitedDirectories = new Set([directoryIdentity(scanMetadata)])
+      let operations = 0
 
-      for (const path of completedAliases) {
-        scanDatabase.directoryScanned(path)
+      while (directoryStack.length && !cancelled) {
+        const directory = directoryStack.pop()
+
+        if (!directory) {
+          break
+        }
+
+        const batch: PendingEntry[] = []
+        const completedAliases: string[] = []
+        let directoryReadable = true
+
+        try {
+          const handle = await opendir(directory)
+
+          for await (const child of handle) {
+            if (cancelled) {
+              break
+            }
+
+            if (++operations % 100 === 0) {
+              await setImmediate()
+            }
+
+            const path = resolve(directory, child.name)
+
+            if (
+              isIgnoredScanPath(child.name) ||
+              isTrashMetadata(root, path) ||
+              shouldExclude(path)
+            ) {
+              continue
+            }
+
+            let metadata: Stats
+
+            try {
+              metadata = await stat(path)
+            } catch (error) {
+              // Entries may disappear or become inaccessible between enumeration
+              // and metadata lookup. A later watcher pass will revisit the parent.
+              if (!isMissingPath(error)) {
+                traversalComplete = false
+              }
+
+              continue
+            }
+
+            status.total++
+            batch.push(describe(path, metadata))
+
+            if (metadata.isDirectory()) {
+              const identity = directoryIdentity(metadata)
+
+              if (!visitedDirectories.has(identity)) {
+                visitedDirectories.add(identity)
+                directoryStack.push(path)
+              } else {
+                // Persist aliases but do not follow a directory identity twice.
+                // This prevents junction and symlink cycles from growing forever.
+                completedAliases.push(path)
+              }
+            }
+
+            if (batch.length === 64) {
+              await save(batch.splice(0))
+            }
+          }
+        } catch (error) {
+          directoryReadable = false
+
+          if (!isMissingPath(error)) {
+            traversalComplete = false
+          }
+        }
+
+        await save(batch)
+
+        for (const path of completedAliases) {
+          scanDatabase.directoryScanned(path)
+        }
+
+        if (directoryReadable && !cancelled) {
+          scanDatabase.directoryScanned(directory)
+        }
+
+        reportProgress()
       }
-
-      if (directoryReadable && !cancelled) {
-        scanDatabase.directoryScanned(directory)
-      }
-
-      reportProgress()
     }
 
     if (!cancelled) {
@@ -301,14 +476,21 @@ async function scan(input: string, requestedScanPath = input) {
       // the cache baseline after an incomplete pass.
       finalState = 'cancelled'
     } else {
-      // Only a complete traversal can establish that an unseen entry was removed.
-      const removed = await scanDatabase.complete(
-        traversalComplete,
-        collectChangePaths,
-      )
+      if (!incrementalMft) {
+        // Only a complete traversal can establish that an unseen entry was removed.
+        const removed = await scanDatabase.complete(
+          traversalComplete,
+          collectChangePaths,
+        )
 
-      removedCount = removed.removedCount
-      next.removed = removed.removedPaths
+        removedCount = removed.removedCount
+        next.removed = removed.removedPaths
+      }
+
+      if (nextMftCheckpoint && traversalComplete) {
+        await writeMftCheckpoint(root, nextMftCheckpoint)
+      }
+
       results = collectChangePaths
         ? next
         : { added: [], changed: [], removed: [] }
@@ -354,6 +536,10 @@ function isMissingPath(error: unknown) {
   )
 }
 
+function isIgnoredMftPath(root: string, path: string) {
+  return relative(root, path).split(sep).some(isIgnoredScanPath)
+}
+
 function isTrashMetadata(root: string, path: string) {
   if (
     process.platform !== 'win32' ||
@@ -396,6 +582,7 @@ port.on('message', async (request: ScannerRequest) => {
           root: request.root,
           phase: 'crawling',
           total: 0,
+          totalKnown: false,
           processed: 0,
           error: null,
         }

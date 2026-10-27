@@ -266,7 +266,16 @@ if (!app.requestSingleInstanceLock()) {
       getOsTrashRoots(),
     ])
 
-    server = await boot({ volumes, trashRoots })
+    const mftHelperPath =
+      process.platform === 'win32'
+        ? fileURLToPath(new URL('./bin/filejam-mft.exe', import.meta.url))
+        : undefined
+
+    server = await boot({
+      volumes,
+      trashRoots,
+      ...(mftHelperPath ? { mftHelperPath } : {}),
+    })
 
     const legacyConfig = server.config.getStore() as unknown as Record<
       string,
