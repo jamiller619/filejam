@@ -1,4 +1,5 @@
 import { Worker } from 'node:worker_threads'
+import type { MftHelperSession, MftLaunchMessage } from './mftSession.js'
 import type {
   ScannerRequest,
   ScannerResponse,
@@ -38,6 +39,7 @@ export class ScannerWorker implements WorkerApi {
     excludedPaths: string[] = [],
     collectChangePaths = false,
     mftHelperPath?: string,
+    mftSession?: MftHelperSession,
   ) {
     this.#onFailure = onFailure
 
@@ -53,7 +55,27 @@ export class ScannerWorker implements WorkerApi {
       },
     })
 
-    this.#worker.on('message', (message: ScannerResponse | ScanProgress) => {
+    this.#worker.on('message', (message: ScannerResponse | ScanProgress | MftLaunchMessage) => {
+      if ('type' in message && message.type === 'mft-scan') {
+        const launch = mftSession
+          ? mftSession.request(message.request)
+          : Promise.reject(new Error('MFT helper session is unavailable'))
+
+        void launch.then(
+          () => {
+            message.reply.postMessage({})
+            message.reply.close()
+          },
+          (error: unknown) => {
+            message.reply.postMessage({
+              error: error instanceof Error ? error.message : String(error),
+            })
+            message.reply.close()
+          },
+        )
+        return
+      }
+
       if ('type' in message) {
         for (const listener of this.#listeners) {
           listener(message)

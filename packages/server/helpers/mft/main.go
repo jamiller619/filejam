@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -126,12 +127,24 @@ type batchWriter struct {
 }
 
 func main() {
+	session := flag.String("session", "", "app-session control pipe")
+	token := flag.String("token", "", "app-session handshake token")
+	workers := flag.Int("workers", 1, "maximum simultaneous session scans")
 	root := flag.String("root", "", "directory root to enumerate")
 	pipe := flag.String("pipe", "", "named pipe used for output")
 	elevate := flag.Bool("elevate", false, "request elevation if volume access is denied")
 	journalID := flag.Uint64("journal-id", 0, "previous NTFS journal identifier")
 	nextUsn := flag.Int64("next-usn", 0, "previous NTFS journal position")
 	flag.Parse()
+
+	if *session != "" {
+		if err := serveSession(*session, *token, *workers); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+
+		return
+	}
 
 	if *root == "" || *pipe == "" {
 		fmt.Fprintln(os.Stderr, "root and pipe are required")
@@ -148,12 +161,111 @@ func main() {
 	}
 
 	if err != nil {
-		writeError(*pipe, err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 func run(root, pipe string, previousJournalID uint64, previousNextUsn int64) error {
+	output, err := os.OpenFile(pipe, os.O_WRONLY, 0)
+	if err != nil {
+		return fmt.Errorf("connect output pipe: %w", err)
+	}
+	defer output.Close()
+
+	encoder := json.NewEncoder(output)
+	err = scanVolume(root, encoder, previousJournalID, previousNextUsn)
+	if err != nil {
+		// Report failures before closing this scan's connection. The app must
+		// not need a second connection to learn why enumeration stopped.
+		_ = encoder.Encode(message{Type: "error", Error: err.Error()})
+	}
+
+	return err
+}
+
+type scanRequest struct {
+	Root      string `json:"root"`
+	Pipe      string `json:"pipe"`
+	JournalID string `json:"journalId"`
+	NextUsn   string `json:"nextUsn"`
+}
+
+func serveSession(pipe, token string, workers int) error {
+	if !strings.HasPrefix(pipe, `\\.\pipe\filejam-mft-session-`) || token == "" || workers < 1 || workers > 32 {
+		return errors.New("invalid MFT session arguments")
+	}
+
+	control, err := os.OpenFile(pipe, os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("connect session pipe: %w", err)
+	}
+	defer control.Close()
+
+	if err := json.NewEncoder(control).Encode(map[string]string{
+		"type":  "session-ready",
+		"token": token,
+	}); err != nil {
+		return err
+	}
+
+	slots := make(chan struct{}, workers)
+	commands := bufio.NewScanner(control)
+	for commands.Scan() {
+		var request scanRequest
+		if err := json.Unmarshal(commands.Bytes(), &request); err != nil {
+			return fmt.Errorf("decode scan request: %w", err)
+		}
+
+		// Session requests can only write scan output to our named pipes, never
+		// to arbitrary filesystem paths with the helper's elevated privileges.
+		if !strings.HasPrefix(request.Pipe, `\\.\pipe\filejam-mft-`) ||
+			strings.HasPrefix(request.Pipe, `\\.\pipe\filejam-mft-session-`) {
+			return errors.New("invalid scan output pipe")
+		}
+
+		if !filepath.IsAbs(request.Root) {
+			writeError(request.Pipe, errors.New("scan root must be absolute"))
+			continue
+		}
+
+		var journalID uint64
+		var nextUsn int64
+		if request.JournalID != "" {
+			journalID, err = strconv.ParseUint(request.JournalID, 10, 64)
+			if err != nil {
+				writeError(request.Pipe, err)
+				continue
+			}
+		}
+
+		if request.NextUsn != "" {
+			nextUsn, err = strconv.ParseInt(request.NextUsn, 10, 64)
+			if err != nil || nextUsn < 0 {
+				writeError(request.Pipe, errors.New("invalid journal position"))
+				continue
+			}
+		}
+
+		select {
+		case slots <- struct{}{}:
+			go func(request scanRequest, journalID uint64, nextUsn int64) {
+				defer func() { <-slots }()
+				_ = run(request.Root, request.Pipe, journalID, nextUsn)
+			}(request, journalID, nextUsn)
+		default:
+			// A cancelled scan can still be unwinding its native enumeration.
+			// Bound work rather than launching more scans or elevating again.
+			writeError(request.Pipe, errors.New("MFT helper is finishing another scan"))
+		}
+	}
+
+	// The control reader stays active during scans. Returning from main on
+	// disconnect also stops scan goroutines if the app exits or crashes.
+	return commands.Err()
+}
+
+func scanVolume(root string, encoder *json.Encoder, previousJournalID uint64, previousNextUsn int64) error {
 	volumeRoot, volumePath, err := volumePaths(root)
 	if err != nil {
 		return err
@@ -179,13 +291,7 @@ func run(root, pipe string, previousJournalID uint64, previousNextUsn int64) err
 		return err
 	}
 
-	output, err := os.OpenFile(pipe, os.O_WRONLY, 0)
-	if err != nil {
-		return fmt.Errorf("connect output pipe: %w", err)
-	}
-	defer output.Close()
-
-	writer := &batchWriter{encoder: json.NewEncoder(output), root: root}
+	writer := &batchWriter{encoder: encoder, root: root}
 	checkpoint := message{
 		JournalID: strconv.FormatUint(journal.JournalID, 10),
 		NextUsn:   strconv.FormatInt(journal.NextUsn, 10),

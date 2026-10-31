@@ -2,6 +2,7 @@ import { realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { createLogger } from '../logger.js'
 import { ScannerWorker } from './client.js'
+import { MftHelperSession } from './mftSession.js'
 import { addPendingPath } from './pendingPaths.js'
 import { ScanProgressReporter } from './progress.js'
 import type {
@@ -57,6 +58,7 @@ export class FileScanner implements ScannerApi {
   readonly #excludedPaths: string[]
   readonly #collectChangePaths: boolean
   readonly #mftHelperPath: string | undefined
+  readonly #mftSession: MftHelperSession | undefined
   readonly maxConcurrentScans: number
   #tail: Promise<unknown> = Promise.resolve()
   #closing: Promise<void> | undefined
@@ -82,6 +84,10 @@ export class FileScanner implements ScannerApi {
     this.maxConcurrentScans = maxConcurrentScans
     this.#collectChangePaths = collectChangePaths
     this.#mftHelperPath = mftHelperPath
+    this.#mftSession =
+      mftHelperPath && process.platform === 'win32'
+        ? new MftHelperSession(mftHelperPath, maxConcurrentScans)
+        : undefined
     this.#excludedPaths = [cacheDirectory, ...excludedPaths].map((path) =>
       resolve(path),
     )
@@ -183,6 +189,7 @@ export class FileScanner implements ScannerApi {
       this.#excludedPaths,
       this.#collectChangePaths,
       this.#mftHelperPath,
+      this.#mftSession,
     )
 
     slot.worker.onUpdated((progress) => {
@@ -505,6 +512,7 @@ export class FileScanner implements ScannerApi {
   close(): Promise<void> {
     this.#closed = true
     this.#queue.clear()
+    this.#mftSession?.close()
 
     this.#closing ??= this.#tail.then(async () => {
       await this.#ready.catch(() => {})

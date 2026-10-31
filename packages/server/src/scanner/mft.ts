@@ -1,8 +1,9 @@
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createServer, type Server, type Socket } from 'node:net'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { createInterface } from 'node:readline'
+import { MessageChannel, parentPort } from 'node:worker_threads'
+import type { MftLaunchMessage, MftScanRequest } from './mftSession.js'
 
 export type MftEntry = {
   path: string
@@ -37,30 +38,7 @@ export type MftMessage =
   | { type: 'complete' }
   | { type: 'error'; error: string }
 
-const helperConnectionTimeoutMs = 10_000
-const elevatedHelperConnectionTimeoutMs = 60_000
-
-function powershellLiteral(value: string) {
-  return `'${value.replaceAll("'", "''")}'`
-}
-
-function windowsArgument(value: string) {
-  // Escape embedded quotes and double trailing backslashes before closing quotes.
-  return `"${value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1')}"`
-}
-
-function elevatedHelperCommand(helperPath: string, args: string[]) {
-  // Start-Process joins argument arrays into a command line, so preserve the
-  // quotes needed for paths containing spaces and drive roots ending in a slash.
-  const argumentList = args.map(windowsArgument).join(' ')
-
-  return [
-    `Start-Process -FilePath ${powershellLiteral(helperPath)}`,
-    `-ArgumentList ${powershellLiteral(argumentList)}`,
-    '-Verb RunAs',
-    '-WindowStyle Hidden',
-  ].join(' ')
-}
+const helperConnectionTimeoutMs = 120_000
 
 export function canEnumerateMft(
   root: string,
@@ -90,62 +68,27 @@ export async function enumerateMft(
 ): Promise<MftResult> {
   const pipePath = `\\\\.\\pipe\\filejam-mft-${process.pid}-${randomUUID()}`
   let socket: Socket | undefined
-  let helper: ReturnType<typeof spawn> | undefined
 
   const server = createServer()
+  const connection = waitForConnection(server, isCancelled)
 
   try {
-    const connection = waitForConnection(server, isCancelled)
+    if (!helperPath) {
+      throw new Error('MFT helper is unavailable')
+    }
 
     await new Promise<void>((resolveListening, rejectListening) => {
       server.once('error', rejectListening)
       server.listen(pipePath, resolveListening)
     })
 
-    const helperArgs = [
-      '--root',
-      root,
-      '--pipe',
-      pipePath,
-      ...(checkpoint
-        ? [
-            '--journal-id',
-            checkpoint.journalId,
-            '--next-usn',
-            checkpoint.nextUsn,
-          ]
-        : []),
-    ]
-
-    helper = spawn(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-WindowStyle',
-        'Hidden',
-        '-Command',
-        elevatedHelperCommand(helperPath, helperArgs),
-      ],
-      {
-        stdio: 'ignore',
-        windowsHide: true,
-      },
+    const launch = requestMftScan(
+      { root, pipe: pipePath, ...checkpoint },
+      isCancelled,
     )
+    const [connectedSocket] = await Promise.all([connection.socket, launch])
 
-    const launchError = new Promise<never>((_, reject) => {
-      helper?.once('error', reject)
-    })
-
-    // PowerShell exits once Windows accepts the RunAs request. Allow time for
-    // the user to approve UAC and for the elevated helper to connect.
-    helper.once('exit', (code) => {
-      if (code === 0) {
-        connection.waitForElevation()
-      }
-    })
-
-    socket = await Promise.race([connection.socket, launchError])
+    socket = connectedSocket
 
     const lines = createInterface({ input: socket, crlfDelay: Infinity })
     let ready = false
@@ -201,69 +144,109 @@ export async function enumerateMft(
 
     return result
   } finally {
+    connection.dispose()
     socket?.destroy()
-    helper?.kill()
     await closeServer(server)
   }
 }
 
-function waitForConnection(server: Server, isCancelled: () => boolean) {
-  let settled = false
-  let waitingForElevation = false
-  let timeout: ReturnType<typeof setTimeout>
-  let waitForElevation = () => {}
-
-  const socket = new Promise<Socket>((resolveConnection, rejectConnection) => {
-    const rejectAfter = (duration: number, message: string) => {
-      clearTimeout(timeout)
-      timeout = setTimeout(() => {
-        settled = true
-        clearInterval(cancelPoll)
-        rejectConnection(new Error(message))
-      }, duration)
+function requestMftScan(request: MftScanRequest, isCancelled: () => boolean) {
+  return new Promise<void>((resolveLaunch, rejectLaunch) => {
+    if (!parentPort) {
+      rejectLaunch(new Error('MFT scans require the scanner session owner'))
+      return
     }
+
+    const { port1, port2 } = new MessageChannel()
     const cancelPoll = setInterval(() => {
       if (isCancelled()) {
-        settled = true
-        clearTimeout(timeout)
-        clearInterval(cancelPoll)
+        finish(new Error('MFT enumeration was cancelled'))
+      }
+    }, 100)
+    const timeout = setTimeout(() => {
+      finish(new Error('Timed out requesting the MFT helper'))
+    }, helperConnectionTimeoutMs)
+    const finish = (error?: Error) => {
+      clearInterval(cancelPoll)
+      clearTimeout(timeout)
+      port1.close()
+
+      if (error) {
+        rejectLaunch(error)
+      } else {
+        resolveLaunch()
+      }
+    }
+
+    port1.once('message', (message: { error?: string }) => {
+      finish(message.error ? new Error(message.error) : undefined)
+    })
+
+    try {
+      parentPort.postMessage(
+        { type: 'mft-scan', request, reply: port2 } satisfies MftLaunchMessage,
+        [port2],
+      )
+    } catch (error) {
+      port2.close()
+      finish(error instanceof Error ? error : new Error(String(error)))
+    }
+  })
+}
+
+function waitForConnection(server: Server, isCancelled: () => boolean) {
+  let settled = false
+  let timeout: ReturnType<typeof setTimeout>
+  let cancelPoll: ReturnType<typeof setInterval>
+  let connected: Socket | undefined
+  const dispose = () => {
+    settled = true
+    clearTimeout(timeout)
+    clearInterval(cancelPoll)
+    connected?.destroy()
+  }
+
+  const socket = new Promise<Socket>((resolveConnection, rejectConnection) => {
+    cancelPoll = setInterval(() => {
+      if (isCancelled()) {
+        dispose()
         rejectConnection(new Error('MFT enumeration was cancelled'))
       }
     }, 100)
 
-    rejectAfter(
-      helperConnectionTimeoutMs,
-      'Timed out waiting for the MFT helper',
-    )
+    timeout = setTimeout(() => {
+      dispose()
+      rejectConnection(new Error('Timed out waiting for the MFT helper'))
+    }, helperConnectionTimeoutMs)
 
     server.once('error', (error) => {
-      settled = true
-      clearTimeout(timeout)
-      clearInterval(cancelPoll)
+      dispose()
       rejectConnection(error)
     })
 
     server.once('connection', (connection) => {
-      settled = true
-      clearTimeout(timeout)
-      clearInterval(cancelPoll)
-      resolveConnection(connection)
-    })
-
-    waitForElevation = () => {
-      if (settled || waitingForElevation) {
+      if (settled) {
+        connection.destroy()
         return
       }
 
-      waitingForElevation = true
-      rejectAfter(
-        elevatedHelperConnectionTimeoutMs,
-        'Timed out waiting for the elevated MFT helper',
-      )
-    }
+      settled = true
+      connected = connection
+      connection.once('error', (error) => {
+        dispose()
+        rejectConnection(error)
+      })
+      clearTimeout(timeout)
+      // Keep polling cancellation while the helper enumerates before its first
+      // batch. Closing this scan pipe leaves the shared elevated session alive.
+      resolveConnection(connection)
+    })
   })
 
-  return { socket, waitForElevation: () => waitForElevation() }
+  // Listening itself can fail before the caller reaches Promise.all.
+  void socket.catch(() => {})
+
+  return { socket, dispose }
 }
 
 function closeServer(server: Server) {
