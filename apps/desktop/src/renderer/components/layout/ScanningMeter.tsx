@@ -74,6 +74,7 @@ const styles = css`
 `
 
 const fadeDuration = 200
+const completionDuration = 750
 
 export default function ScanningMeter() {
   const [status, setStatus] = useState<ScannerStatus | null>(null)
@@ -83,13 +84,10 @@ export default function ScanningMeter() {
 
   useEffect(() => {
     let mounted = true
+    let completionTimer: ReturnType<typeof setTimeout> | undefined
+    let pendingStatus: ScannerStatus | undefined
 
-    const update = (nextStatus: ScannerStatus) => {
-      if (!mounted) {
-        return
-      }
-
-      requestNumber.current++
+    const display = (nextStatus: ScannerStatus) => {
       clearTimeout(hideTimer.current)
 
       if (nextStatus.state === 'scanning') {
@@ -104,6 +102,45 @@ export default function ScanningMeter() {
           setStatus(null)
         }
       }, fadeDuration)
+    }
+
+    const update = (nextStatus: ScannerStatus) => {
+      if (!mounted) {
+        return
+      }
+
+      requestNumber.current++
+
+      if (completionTimer !== undefined) {
+        pendingStatus = nextStatus
+        return
+      }
+
+      display(nextStatus)
+
+      const activeRoot =
+        nextStatus.active.length === 1
+          ? nextStatus.roots.find(
+              (root) => root.root === nextStatus.active[0],
+            )
+          : undefined
+      const finishedRoot =
+        activeRoot?.state === 'completed' || activeRoot?.state === 'failed'
+
+      if (finishedRoot) {
+        // Keep the actual final counters visible when the next drive starts
+        // immediately, without delaying scanner work or inventing progress.
+        completionTimer = setTimeout(() => {
+          completionTimer = undefined
+
+          if (mounted && pendingStatus) {
+            const latest = pendingStatus
+
+            pendingStatus = undefined
+            update(latest)
+          }
+        }, completionDuration)
+      }
     }
 
     const request = ++requestNumber.current
@@ -125,6 +162,7 @@ export default function ScanningMeter() {
       mounted = false
       requestNumber.current++
       clearTimeout(hideTimer.current)
+      clearTimeout(completionTimer)
       unsubscribe()
     }
   }, [])
@@ -141,14 +179,16 @@ export default function ScanningMeter() {
   const determinate =
     status.active.length === 1 &&
     progress.total > 0 &&
-    (progress.totalKnown || progress.phase === 'checking')
+    (progress.totalKnown ||
+      progress.phase === 'checking' ||
+      progress.state === 'completed')
   const percentage = determinate
     ? Math.min(100, Math.round((progress.processed / progress.total) * 100))
     : null
   const rootCount = status.active.length + status.queued.length
   const drive = activeStatus?.root?.match(/^([a-z]:)[\\/]/i)?.[1]
   const label = drive
-    ? `Scanning ${drive.toUpperCase()}`
+    ? `${progress.state === 'failed' ? 'Scan failed on' : progress.state === 'completed' ? 'Scanned' : 'Scanning'} ${drive.toUpperCase()}`
     : rootCount === 1
       ? 'Scanning folder'
       : 'Scanning folders'

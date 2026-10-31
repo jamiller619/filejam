@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Stats } from 'node:fs'
 import { mkdir, opendir, readFile, realpath, stat } from 'node:fs/promises'
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
 import writeAtomic from 'write-file-atomic'
@@ -157,11 +157,16 @@ async function scan(input: string, requestedScanPath = input) {
       throw new Error('Scan path is outside its root')
     }
 
-    const scanMetadata = scanPath === root ? rootMetadata : await stat(scanPath)
+    const scanMetadata =
+      scanPath === root
+        ? rootMetadata
+        : await stat(scanPath).catch((error: unknown) => {
+            if (isMissingPath(error)) {
+              return undefined
+            }
 
-    if (!scanMetadata.isDirectory()) {
-      throw new Error('Scan path must be a directory')
-    }
+            throw error
+          })
 
     status.root = root
 
@@ -175,6 +180,24 @@ async function scan(input: string, requestedScanPath = input) {
     )
     const scanDatabase = database
     let traversalComplete = true
+
+    // Watcher events include removed files and directories. Only reconcile the
+    // missing path's scoped baseline; unrelated branches remain untouched.
+    if (!scanMetadata) {
+      if (cancelled) {
+        finalState = 'cancelled'
+        return
+      }
+
+      status.phase = 'checking'
+      reportProgress(true)
+
+      const removed = await scanDatabase.complete(true, collectChangePaths)
+
+      removedCount = removed.removedCount
+      results = { added: [], changed: [], removed: removed.removedPaths }
+      return
+    }
 
     const shouldExclude = (path: string) => {
       const resolvedPath = resolve(path)
@@ -260,6 +283,27 @@ async function scan(input: string, requestedScanPath = input) {
     let mftProducedEntries = false
     let incrementalMft = false
     let nextMftCheckpoint: MftCheckpoint | undefined
+    const unreadableMftDirectories = new Set<string>()
+
+    const hasUnreadableMftAncestor = (path: string) => {
+      let ancestor = path
+
+      while (ancestor !== root) {
+        if (unreadableMftDirectories.has(ancestor.toLowerCase())) {
+          return true
+        }
+
+        const parent = dirname(ancestor)
+
+        if (parent === ancestor) {
+          break
+        }
+
+        ancestor = parent
+      }
+
+      return false
+    }
 
     if (mftHelperPath && canEnumerateMft(root, scanPath, mftHelperPath)) {
       try {
@@ -287,7 +331,9 @@ async function scan(input: string, requestedScanPath = input) {
                 if (
                   isIgnoredMftPath(root, entry.path) ||
                   isTrashMetadata(root, entry.path) ||
-                  shouldExclude(entry.path)
+                  shouldExclude(entry.path) ||
+                  (unreadableMftDirectories.size > 0 &&
+                    hasUnreadableMftAncestor(entry.path))
                 ) {
                   skipped++
                   continue
@@ -299,9 +345,17 @@ async function scan(input: string, requestedScanPath = input) {
                 }
 
                 if (entry.metadataError) {
-                  if (!entry.missing) {
+                  // MFT enumeration is parent-first but still includes children
+                  // of directories whose metadata could not be read. Keep those
+                  // branches out of this pass instead of saving orphaned entries.
+                  if (entry.directory) {
+                    unreadableMftDirectories.add(entry.path.toLowerCase())
+                  }
+
+                  if (!entry.missing || entry.directory) {
                     traversalComplete = false
                   }
+
                   skipped++
                   continue
                 }
@@ -372,7 +426,7 @@ async function scan(input: string, requestedScanPath = input) {
       }
     }
 
-    if (!usedMft) {
+    if (!usedMft && scanMetadata.isDirectory()) {
       const directoryStack = [scanPath]
       const visitedDirectories = new Set([directoryIdentity(scanMetadata)])
       let operations = 0

@@ -44,12 +44,19 @@ function powershellLiteral(value: string) {
   return `'${value.replaceAll("'", "''")}'`
 }
 
+function windowsArgument(value: string) {
+  // Escape embedded quotes and double trailing backslashes before closing quotes.
+  return `"${value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1')}"`
+}
+
 function elevatedHelperCommand(helperPath: string, args: string[]) {
-  const argumentList = args.map(powershellLiteral).join(', ')
+  // Start-Process joins argument arrays into a command line, so preserve the
+  // quotes needed for paths containing spaces and drive roots ending in a slash.
+  const argumentList = args.map(windowsArgument).join(' ')
 
   return [
     `Start-Process -FilePath ${powershellLiteral(helperPath)}`,
-    `-ArgumentList @(${argumentList})`,
+    `-ArgumentList ${powershellLiteral(argumentList)}`,
     '-Verb RunAs',
     '-WindowStyle Hidden',
   ].join(' ')
@@ -84,6 +91,7 @@ export async function enumerateMft(
   const pipePath = `\\\\.\\pipe\\filejam-mft-${process.pid}-${randomUUID()}`
   let socket: Socket | undefined
   let helper: ReturnType<typeof spawn> | undefined
+
   const server = createServer()
 
   try {
@@ -125,7 +133,7 @@ export async function enumerateMft(
       },
     )
 
-    const launchError = new Promise<never>((_resolve, reject) => {
+    const launchError = new Promise<never>((_, reject) => {
       helper?.once('error', reject)
     })
 

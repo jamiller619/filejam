@@ -1,7 +1,8 @@
 import { type FSWatcher, watch } from 'node:fs'
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { isIgnoredScanPath } from './ignore.js'
 import type { FileScanner } from './index.js'
+import { addPendingPath } from './pendingPaths.js'
 
 /** Watch before the initial scan so edits during indexing receive another pass. */
 export function watchRoots(
@@ -12,7 +13,7 @@ export function watchRoots(
 ) {
   const watchers: FSWatcher[] = []
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
-  const dirtyPaths = new Map<string, string>()
+  const dirtyPaths = new Map<string, Set<string>>()
   const excluded = excludedPaths.map((path) => resolve(path))
 
   for (const root of new Set(roots)) {
@@ -38,17 +39,15 @@ export function watchRoots(
             return
           }
 
-          scanPath = dirname(path)
+          // Refresh the changed entry itself. A file at the drive root must
+          // never turn ordinary writes into repeated whole-volume scans.
+          scanPath = path
         }
 
-        const previous = dirtyPaths.get(root)
+        const pending = dirtyPaths.get(root) ?? new Set<string>()
 
-        dirtyPaths.set(
-          root,
-          previous
-            ? commonAncestor(resolvedRoot, previous, scanPath)
-            : scanPath,
-        )
+        addPendingPath(pending, resolvedRoot, scanPath)
+        dirtyPaths.set(root, pending)
 
         // Bound the delay even while a writer produces a continuous event stream.
         if (timers.has(root)) {
@@ -59,7 +58,10 @@ export function watchRoots(
           root,
           setTimeout(() => {
             timers.delete(root)
-            scanner.enqueue(root, dirtyPaths.get(root))
+            for (const path of dirtyPaths.get(root) ?? []) {
+              scanner.enqueue(root, path)
+            }
+
             dirtyPaths.delete(root)
           }, 100),
         )
@@ -87,16 +89,6 @@ export function watchRoots(
     timers.clear()
     dirtyPaths.clear()
   }
-}
-
-function commonAncestor(root: string, left: string, right: string) {
-  let candidate = left
-
-  while (!isInside(candidate, right) && candidate !== root) {
-    candidate = dirname(candidate)
-  }
-
-  return isInside(root, candidate) ? candidate : root
 }
 
 function isInside(parent: string, child: string) {

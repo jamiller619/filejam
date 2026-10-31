@@ -1,7 +1,8 @@
 import { realpath } from 'node:fs/promises'
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { createLogger } from '../logger.js'
 import { ScannerWorker } from './client.js'
+import { addPendingPath } from './pendingPaths.js'
 import { ScanProgressReporter } from './progress.js'
 import type {
   ScannerApi,
@@ -44,14 +45,14 @@ export type FileScannerOptions = {
   collectChangePaths?: boolean
 }
 
-/** Bounded pool. A canonical root has at most one active scan and one queued refresh. */
+/** Bounded pool with one active scan and bounded pending paths per canonical root. */
 export class FileScanner implements ScannerApi {
   readonly #progress = new ScanProgressReporter()
   readonly #slots: Slot[] = []
   readonly #states = new Map<string, ScanStatus>()
   readonly #results = new Map<string, ScanResults>()
   readonly #listeners = new Set<(status: ScannerStatus) => void>()
-  readonly #queue = new Map<string, string>()
+  readonly #queue = new Map<string, Set<string>>()
   readonly #ready: Promise<void>
   readonly #excludedPaths: string[]
   readonly #collectChangePaths: boolean
@@ -198,6 +199,20 @@ export class FileScanner implements ScannerApi {
         this.#progress.update(root, progress)
 
         if (status.state !== 'scanning') {
+          createLogger('scanner').info('Scan finished', {
+            root,
+            state: status.state,
+            processed: status.processed,
+            total: status.total,
+            totalKnown: status.totalKnown,
+            elapsedMs: progress.elapsedMs,
+            error: status.error,
+          })
+
+          // Publish this root's final counters before assigning the slot to the
+          // next drive. Otherwise the footer only sees the next scan starting.
+          this.#notify()
+
           if (this.#collectChangePaths) {
             this.#results.set(root, await slot.worker.results())
           } else {
@@ -224,7 +239,7 @@ export class FileScanner implements ScannerApi {
 
     const starting: Promise<void>[] = []
 
-    for (const [root, scanPath] of this.#queue) {
+    for (const [root, pendingPaths] of this.#queue) {
       if (this.#slots.some((slot) => slot.root === root)) {
         continue
       }
@@ -239,8 +254,26 @@ export class FileScanner implements ScannerApi {
         break
       }
 
-      this.#queue.delete(root)
+      const scanPath = pendingPaths.values().next().value
+
+      if (scanPath === undefined) {
+        this.#queue.delete(root)
+        continue
+      }
+
+      pendingPaths.delete(scanPath)
+
+      if (!pendingPaths.size) {
+        this.#queue.delete(root)
+      }
+
       slot.root = root
+
+      createLogger('scanner').info('Scan started', {
+        root,
+        scanPath,
+        scope: scanPath === root ? 'volume' : 'entry',
+      })
 
       if (this.#collectChangePaths) {
         this.#results.set(root, emptyResults())
@@ -293,7 +326,7 @@ export class FileScanner implements ScannerApi {
       this.#results.clear()
 
       for (const root of canonicalRoots) {
-        this.#queue.set(root, root)
+        this.#queue.set(root, new Set([root]))
         this.#states.set(root, { ...idle(), root, state: 'queued' })
       }
 
@@ -321,14 +354,10 @@ export class FileScanner implements ScannerApi {
         this.#states.clear()
       }
 
-      const queuedPath = this.#queue.get(canonical)
+      const pendingPaths = this.#queue.get(canonical) ?? new Set<string>()
 
-      this.#queue.set(
-        canonical,
-        queuedPath
-          ? commonAncestor(canonical, queuedPath, requestedPath)
-          : requestedPath,
-      )
+      addPendingPath(pendingPaths, canonical, requestedPath)
+      this.#queue.set(canonical, pendingPaths)
 
       if (!this.#slots.some((slot) => slot.root === canonical)) {
         this.#states.set(canonical, {
@@ -363,7 +392,7 @@ export class FileScanner implements ScannerApi {
       }
 
       this.#lastRoot = canonical
-      this.#queue.set(canonical, canonical)
+      this.#queue.set(canonical, new Set([canonical]))
 
       this.#states.set(canonical, {
         ...idle(),
@@ -495,16 +524,6 @@ export class FileScanner implements ScannerApi {
 
     return this.#closing
   }
-}
-
-function commonAncestor(root: string, left: string, right: string) {
-  let candidate = left
-
-  while (!isInside(candidate, right) && candidate !== root) {
-    candidate = dirname(candidate)
-  }
-
-  return isInside(root, candidate) ? candidate : root
 }
 
 function isInside(parent: string, child: string) {

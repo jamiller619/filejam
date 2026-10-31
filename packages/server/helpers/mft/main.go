@@ -559,7 +559,12 @@ func directoryTree(rootID fileID, directories map[fileID]directory) ([]directory
 
 	root, found := directories[rootID]
 	if !found {
-		return nil, map[fileID]string{}
+		// The volume root may be absent from the USN enumeration. Its ID was
+		// already read from the scan-root handle, so use it to anchor descendants.
+		root = directory{record: record{
+			ID:         rootID,
+			Attributes: fileAttributeDirectory,
+		}}
 	}
 
 	root.relativePath = ""
