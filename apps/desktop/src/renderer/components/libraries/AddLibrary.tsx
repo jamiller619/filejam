@@ -37,7 +37,7 @@ export default function AddLibrary() {
     <div className={styles.container}>
       <Button
         className={styles.button}
-        color="primary"
+        variant="primary"
         aria-busy={addingLibrary}
         disabled={addingLibrary}
         onClick={() => void addLibrary()}

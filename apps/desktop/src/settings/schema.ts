@@ -22,7 +22,7 @@ export type FavoriteFolders = string[]
  */
 export type DateFormat = 'relative' | 'absolute'
 /**
- * Color coding for files based on some common data type.
+ * Color coding for files based on metadata.
  */
 export type FileColorCoding = boolean
 /**

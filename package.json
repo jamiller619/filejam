@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "build": "tsc -b && pnpm --filter @filejam/server copy:migrations && pnpm --filter @filejam/desktop copy:assets",
-    "typecheck": "tsc -b --noEmit",
+    "build": "node apps/desktop/scripts/generate-settings.mjs && tsc -b && pnpm --filter @filejam/server copy:migrations && pnpm --filter @filejam/desktop copy:assets",
+    "typecheck": "node apps/desktop/scripts/generate-settings.mjs && tsc -b --noEmit",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "format": "biome format --write .",
     "clean": "tsc -b --clean",
     "start": "pnpm --filter @filejam/desktop start",
-    "dev": "pnpm --filter @filejam/desktop dev"
+    "dev": "node apps/desktop/scripts/generate-settings.mjs && pnpm --filter @filejam/desktop dev"
   },
   "keywords": [],
   "author": "",

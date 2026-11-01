@@ -1,3 +1,4 @@
+import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import type { DragEventHandler, MouseEventHandler, ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -12,18 +13,18 @@ const styles = css`
   }
 
   .card {
-    min-width: 0;
-    border-radius: var(--suzy-radius-4);
-    background: var(--suzy-gray-3);
-    &:hover, &:focus-within { background: var(--suzy-gray-4); }
-    &[data-selected='true'] {
+    /* min-width: 0; */
+    /* border-radius: var(--suzy-radius-4); */
+    /* background: var(--suzy-gray-3); */
+    /* &:hover, &:focus-within { background: var(--suzy-gray-4); } */
+    /* &[data-selected='true'] {
       background: var(--suzy-accent-9);
       color: var(--suzy-accent-1);
 
       [data-extension-color] {
         --file-name-color: var(--suzy-accent-1);
       }
-    }
+    } */
     &[data-folder-dragging='true'] {
       opacity: 0.45;
       animation: folder-drag-lift var(--suzy-duration-normal) cubic-bezier(0.2, 1.4, 0.4, 1) both;
@@ -50,10 +51,10 @@ const styles = css`
         outline-offset: -2px;
       }
 
-      .cardAction {
+      /* .cardAction {
         gap: 0;
         padding: 0;
-      }
+      } */
     }
   }
   .cardAction {
@@ -70,7 +71,6 @@ const styles = css`
     font: inherit;
     text-decoration: none;
     cursor: pointer;
-    &:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
   }
 `
 
@@ -117,9 +117,10 @@ export default function GridCard(props: GridCardProps) {
   )
 
   return (
-    <CardContainer
+    <Surface
+      as={CardContainer}
       {...folderDropProps}
-      className={styles.card}
+      // className={styles.card}
       data-preview-only={props.previewOnly || undefined}
       data-selected={props.selected ?? false}
       data-file-id={props.fileId}
@@ -150,6 +151,6 @@ export default function GridCard(props: GridCardProps) {
           {content}
         </button>
       )}
-    </CardContainer>
+    </Surface>
   )
 }

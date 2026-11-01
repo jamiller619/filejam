@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Filejam Desktop Settings Schema",
   "type": "object",
   "additionalProperties": false,
@@ -27,58 +27,79 @@
   ],
   "properties": {
     "window.navbarWidth": {
-      "title": "Navigation Width",
+      "title": "Navigation width",
       "type": "integer",
       "minimum": 120,
       "maximum": 250,
       "default": 160,
-      "description": "The width of the navigation pane in pixels."
+      "description": "The width of the navigation pane in pixels.",
+      "x-ui": {
+        "hidden": true
+      }
     },
     "window.detailsWidth": {
-      "title": "Details Width",
+      "title": "Details width",
       "type": "integer",
       "minimum": 280,
       "maximum": 600,
       "default": 380,
-      "description": "The width of the details pane in pixels."
+      "description": "The width of the details pane in pixels.",
+      "x-ui": {
+        "hidden": true
+      }
     },
     "window.main": {
       "$ref": "#/$defs/windowState",
-      "title": "Main Window State",
+      "title": "Main window state",
       "default": {},
-      "description": "The last position, size, and display mode of the main window."
+      "description": "The last position, size, and display mode of the main window.",
+      "x-ui": {
+        "hidden": true
+      }
     },
     "window.imageViewer": {
       "$ref": "#/$defs/windowState",
-      "title": "Image Viewer Window State",
+      "title": "Image viewer window state",
       "default": {},
-      "description": "The last position, size, and display mode of an image viewer window."
+      "description": "The last position, size, and display mode of an image viewer window.",
+      "x-ui": {
+        "hidden": true
+      }
     },
     "user.favoriteFolders": {
-      "title": "Favorite Folders",
+      "title": "Favorite folders",
       "type": "array",
       "items": {
         "type": "string"
       },
       "default": [],
       "uniqueItems": true,
-      "description": "The absolute paths of the user's favorite folders."
+      "description": "The absolute paths of the user's favorite folders.",
+      "x-ui": {
+        "hidden": true
+      }
     },
     "user.dateformat": {
-      "title": "Date Format",
+      "title": "Date format",
       "type": "string",
       "enum": ["relative", "absolute"],
       "default": "relative",
-      "description": "Whether dates are displayed relative to the current time or as absolute dates and times."
+      "description": "Whether dates are displayed relative to the current time or as absolute dates and times.",
+      "x-ui": {
+        "optionLabels": {
+          "relative": "Relative",
+          "absolute": "Absolute"
+        }
+      }
     },
     "user.files.colorCoding": {
-      "title": "File Color Coding",
+      "title": "File color coding",
       "type": "boolean",
       "default": true,
-      "description": "Color coding for files based on some common data type."
+      "description": "Color coding for files based on metadata."
     },
     "user.files.showExtensions": {
-      "title": "Show File Extensions",
+      "title": "Show file extensions",
       "type": "boolean",
       "default": false,
       "description": "Whether file extensions are shown in file names."
@@ -89,12 +110,26 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "x": { "type": "integer" },
-        "y": { "type": "integer" },
-        "width": { "type": "integer", "minimum": 1 },
-        "height": { "type": "integer", "minimum": 1 },
-        "maximized": { "type": "boolean" },
-        "fullscreen": { "type": "boolean" }
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maximized": {
+          "type": "boolean"
+        },
+        "fullscreen": {
+          "type": "boolean"
+        }
       }
     }
   }

@@ -47,7 +47,7 @@ export async function initSettings(
     throw new Error('Settings contain an unknown key')
   }
 
-  const data = { ...defaultSettings }
+  const data = structuredClone(defaultSettings)
   const migratedKeys: SettingsKey[] = []
   const legacyKeys = settingsKeys.filter((key) =>
     Object.hasOwn(legacyConfig, key),

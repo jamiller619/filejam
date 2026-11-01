@@ -1,4 +1,3 @@
-import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import {
   type Positioner,
@@ -18,10 +17,6 @@ import {
 const masonryGap = 8
 
 const styles = css`
-  .surface {
-    padding-block-end: var(--suzy-space-2);
-    border-radius: var(--suzy-radius-4);
-  }
   .section + .section {
     margin-block-start: var(--suzy-space-2);
   }
@@ -144,7 +139,7 @@ export default function MasonryContainer({
   cardSize = 150,
 }: MasonryContainerProps) {
   return (
-    <Surface className={styles.surface}>
+    <>
       {sections.map((section) => (
         <div className={styles.section} key={section.key}>
           {section.heading}
@@ -157,6 +152,6 @@ export default function MasonryContainer({
           )}
         </div>
       ))}
-    </Surface>
+    </>
   )
 }

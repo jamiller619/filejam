@@ -113,6 +113,7 @@ const styles = css`
           display: grid;
           flex: 1;
           grid-row: auto;
+          grid-template-columns: minmax(0, 1fr);
           grid-template-rows: minmax(0, 1fr) auto;
           view-transition-name: page-content;
         }

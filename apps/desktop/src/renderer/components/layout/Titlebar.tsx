@@ -10,7 +10,7 @@ const styles = css`
     user-select: none;
     position: relative;
     box-sizing: border-box;
-    padding-block-start: var(--suzy-space-3);
+    padding-block: var(--suzy-space-2);
   }
 
   .safeArea {

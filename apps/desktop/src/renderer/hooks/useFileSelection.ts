@@ -28,6 +28,70 @@ export function useFileSelection({
   }
 
   useEffect(() => {
+    if (selection.activeId === null) {
+      return
+    }
+
+    function clearSelection() {
+      setSelection({ activeId: null, anchorId: null, ids: new Set() })
+    }
+
+    function isSelectionArea(target: EventTarget | null) {
+      return (
+        target instanceof Node &&
+        (containerRef.current?.contains(target) ||
+          detailsHost?.contains(target))
+      )
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target
+
+      // Details controls operate on the selected file, so keep it selected.
+      if (target instanceof Node && detailsHost?.contains(target)) {
+        return
+      }
+
+      if (
+        target instanceof Element &&
+        containerRef.current?.contains(target) &&
+        target.closest('[data-file-id]')
+      ) {
+        return
+      }
+
+      clearSelection()
+    }
+
+    function handleFocusIn(event: FocusEvent) {
+      if (!isSelectionArea(event.target)) {
+        clearSelection()
+      }
+    }
+
+    function handleFocusOut(event: FocusEvent) {
+      if (
+        isSelectionArea(event.target) &&
+        !isSelectionArea(event.relatedTarget)
+      ) {
+        clearSelection()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    document.addEventListener('focusin', handleFocusIn)
+    document.addEventListener('focusout', handleFocusOut)
+    window.addEventListener('blur', clearSelection)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true)
+      document.removeEventListener('focusin', handleFocusIn)
+      document.removeEventListener('focusout', handleFocusOut)
+      window.removeEventListener('blur', clearSelection)
+    }
+  }, [detailsHost, selection.activeId])
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       const target = event.target
 

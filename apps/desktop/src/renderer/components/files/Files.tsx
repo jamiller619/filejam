@@ -3,6 +3,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
+import { css } from 'inline-css-modules'
 import {
   useCallback,
   useEffect,
@@ -41,6 +42,16 @@ import { useFilesTablePreferences } from './useFilesTablePreferences.js'
 
 export type { FileColumn } from '../../utils/fileColumns.js'
 export type { Folder } from './Files.types.js'
+
+const styles = css`
+  .filesContainer {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-block: var(--suzy-space-2);
+    /* gap: var(--suzy-space-2); */
+  }
+`
 
 const emptyEntries: Listing['entries'] = []
 
@@ -401,7 +412,7 @@ function FolderContents({
   const ariaLabel = collectionId ? 'Collection files' : 'Folder contents'
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} className={styles.filesContainer}>
       {viewError && <p role="alert">{viewError}</p>}
       {librariesFailed && <p role="status">Unable to load full file paths.</p>}
       <FilesToolbar

@@ -4,7 +4,7 @@ import type {
   CollectionOperator,
   CollectionRule,
 } from '@filejam/server'
-import { Button, Input, Select } from '@filejam/ui'
+import { Button, Input, NativeSelect } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { useEffect, useState } from 'react'
 import { useApi } from '../../hooks/useApi.js'
@@ -172,7 +172,7 @@ export default function CollectionEditor({
       </label>
       <label htmlFor="collection-match">
         Match
-        <Select
+        <NativeSelect
           id="collection-match"
           aria-label="Rule matching"
           value={definition.match}
@@ -188,7 +188,7 @@ export default function CollectionEditor({
         >
           <option value="all">All rules</option>
           <option value="any">Any rule</option>
-        </Select>
+        </NativeSelect>
       </label>
       <fieldset>
         <legend>Rules</legend>
@@ -226,7 +226,7 @@ export default function CollectionEditor({
         <legend>Order</legend>
         <label htmlFor="collection-sort-field">
           Sort by
-          <Select
+          <NativeSelect
             id="collection-sort-field"
             aria-label="Sort field"
             value={definition.sort[0]?.field ?? 'name'}
@@ -247,11 +247,11 @@ export default function CollectionEditor({
                 {field.label}
               </option>
             ))}
-          </Select>
+          </NativeSelect>
         </label>
         <label htmlFor="collection-sort-direction">
           Direction
-          <Select
+          <NativeSelect
             id="collection-sort-direction"
             aria-label="Sort direction"
             value={definition.sort[0]?.direction ?? 'asc'}
@@ -269,7 +269,7 @@ export default function CollectionEditor({
           >
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>
-          </Select>
+          </NativeSelect>
         </label>
       </fieldset>
       <label htmlFor="collection-result-limit">
@@ -332,7 +332,7 @@ function RuleEditor({
 
   return (
     <div className={styles.rule}>
-      <Select
+      <NativeSelect
         aria-label="Rule field"
         value={rule.field}
         onChange={(event) => {
@@ -359,8 +359,8 @@ function RuleEditor({
             {item.label}
           </option>
         ))}
-      </Select>
-      <Select
+      </NativeSelect>
+      <NativeSelect
         aria-label="Rule operator"
         value={rule.operator}
         onChange={(event) => {
@@ -380,7 +380,7 @@ function RuleEditor({
             {operatorLabels[operator]}
           </option>
         ))}
-      </Select>
+      </NativeSelect>
       {needsValue && (
         <Input
           aria-label="Rule value"

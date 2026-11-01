@@ -3,13 +3,13 @@ import {
   ButtonGroup,
   Icon,
   Menu,
-  MenuItem,
-  MenuSubmenu,
+  OverflowToolbar,
+  Select,
   Switch,
 } from '@filejam/ui'
 import type { Table } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
-import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 import { useSettings } from '../../hooks/useSettings.js'
 import {
   type FileColumn,
@@ -21,13 +21,12 @@ import type { FileViewMode } from '../../utils/tablePreferences.js'
 const styles = css`
   .toolbar {
     position: sticky;
-    top: var(--files-sticky-offset, 0px);
+    top: 0;
     z-index: 2;
     display: flex;
     align-items: center;
-    gap: var(--suzy-space-3);
+    gap: var(--suzy-space-2);
     padding-block: var(--suzy-space-2);
-    padding-inline-end: calc(var(--scrollbar-size, 10px) + var(--suzy-space-2));
     background: var(--suzy-gray-2);
   }
   .controlGroup {
@@ -35,24 +34,6 @@ const styles = css`
     flex: 0 0 auto;
     align-items: center;
     gap: var(--suzy-space-3);
-  }
-  .trailingControls {
-    margin-inline-start: auto;
-  }
-  .overflowedControls {
-    position: absolute;
-    visibility: hidden;
-    pointer-events: none;
-  }
-  .sortSetting {
-    display: flex;
-    align-items: center;
-    gap: var(--suzy-space-2);
-    white-space: nowrap;
-  }
-  .dropdownIcon {
-    margin-inline-start: var(--suzy-space-1);
-    transform: rotate(180deg);
   }
   .menuSetting {
     display: flex;
@@ -169,36 +150,6 @@ type FilesToolbarProps<TData> = {
   table: Table<TData>
 }
 
-type ToolbarMenuProps = {
-  label: string
-  value: string
-  children: ReactNode
-}
-
-function DropdownIcon() {
-  return <Icon className={styles.dropdownIcon} name="chevron-up" size={12} />
-}
-
-function ToolbarMenu({ label, value, children }: ToolbarMenuProps) {
-  return (
-    <div className={styles.sortSetting}>
-      <span>{label}</span>
-      <Menu
-        label={label}
-        triggerVariant="text"
-        trigger={
-          <>
-            {value}
-            <DropdownIcon />
-          </>
-        }
-      >
-        {children}
-      </Menu>
-    </div>
-  )
-}
-
 type FavoriteSettingProps = {
   busy: boolean
   isFavorite: boolean
@@ -248,7 +199,7 @@ function FavoriteSetting({ busy, isFavorite, onChange }: FavoriteSettingProps) {
             </span>
           )}
         </span>
-        <span className={styles.favoriteLabel}>Favorite</span>
+        {/* <span className={styles.favoriteLabel}>Favorite</span> */}
       </Button>
     </div>
   )
@@ -315,20 +266,14 @@ export default function FilesToolbar<TData>({
 
   const favoritePaths = Array.isArray(settingsValues?.['user.favoriteFolders'])
     ? settingsValues['user.favoriteFolders'].filter(
-        (path): path is string => typeof path === 'string',
-      )
+      (path): path is string => typeof path === 'string',
+    )
     : []
 
   const [favoriteError, setFavoriteError] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
-  const [showMore, setShowMore] = useState(false)
   const flattenSwitchId = useId()
-  const toolbarRef = useRef<HTMLDivElement>(null)
-  const viewControlsRef = useRef<HTMLDivElement>(null)
-  const sortControlsRef = useRef<HTMLDivElement>(null)
-  const primaryControlsRef = useRef<HTMLDivElement>(null)
-  const overflowControlsRef = useRef<HTMLDivElement>(null)
-  const detailsControlsRef = useRef<HTMLDivElement>(null)
+  const fileExtensionsSwitchId = useId()
   const currentSort = table.getState().sorting[0]
   const currentSortLabel = currentSort
     ? fileColumnLabels[currentSort.id as FileColumn]
@@ -343,58 +288,6 @@ export default function FilesToolbar<TData>({
     currentFolderPath && !collectionId && !settingsLoading,
   )
   const isFavorite = favoritePaths.includes(currentFolderPath ?? '')
-  const hasOverflowControls = canFavorite || viewMode === 'list'
-
-  useLayoutEffect(() => {
-    const toolbar = toolbarRef.current
-    const viewControls = viewControlsRef.current
-    const sortControls = sortControlsRef.current
-    const primaryControls = primaryControlsRef.current
-    const overflowControls = overflowControlsRef.current
-    const detailsControls = detailsControlsRef.current
-
-    if (
-      !toolbar ||
-      !viewControls ||
-      !sortControls ||
-      !primaryControls ||
-      !overflowControls ||
-      !detailsControls
-    ) {
-      return
-    }
-
-    const updateOverflow = () => {
-      const toolbarStyle = getComputedStyle(toolbar)
-      const availableWidth =
-        toolbar.clientWidth -
-        Number.parseFloat(toolbarStyle.paddingInlineStart) -
-        Number.parseFloat(toolbarStyle.paddingInlineEnd)
-      const gap = Number.parseFloat(toolbarStyle.columnGap)
-      const visibleControlGroups = hasOverflowControls ? 5 : 4
-      const controlsWidth =
-        viewControls.offsetWidth +
-        sortControls.offsetWidth +
-        primaryControls.offsetWidth +
-        overflowControls.offsetWidth +
-        detailsControls.offsetWidth +
-        gap * (visibleControlGroups - 1)
-
-      setShowMore(hasOverflowControls && controlsWidth > availableWidth)
-    }
-
-    updateOverflow()
-
-    const observer = new ResizeObserver(updateOverflow)
-    observer.observe(toolbar)
-    observer.observe(viewControls)
-    observer.observe(sortControls)
-    observer.observe(primaryControls)
-    observer.observe(overflowControls)
-    observer.observe(detailsControls)
-
-    return () => observer.disconnect()
-  }, [hasOverflowControls])
 
   function updateFavorite(checked: boolean) {
     if (favoriteBusy || !currentFolderPath) {
@@ -416,13 +309,12 @@ export default function FilesToolbar<TData>({
   return (
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
-      <div ref={toolbarRef} className={styles.toolbar} role="toolbar">
-        <div ref={viewControlsRef} className={styles.controlGroup}>
+      <OverflowToolbar className={styles.toolbar} trailingFrom={3}>
+        <div key="view" className={styles.controlGroup}>
           <ButtonGroup role="group" aria-label="File view">
             {(['list', 'grid', 'masonry'] as const).map((mode) => (
               <Button
                 key={mode}
-                className={styles.viewButton}
                 aria-label={`${viewLabels[mode]} view`}
                 title={`${viewLabels[mode]} view`}
                 aria-pressed={viewMode === mode}
@@ -433,111 +325,101 @@ export default function FilesToolbar<TData>({
             ))}
           </ButtonGroup>
         </div>
-        <div ref={sortControlsRef} className={styles.controlGroup}>
-          <ToolbarMenu
+        <div key="sort" className={styles.controlGroup}>
+          <Select
             label="Sort by"
-            value={`${currentSortLabel}${
-              currentSortDirection ? ` (${currentSortDirection})` : ''
-            }`}
-          >
-            <MenuItem
-              selected={!currentSort}
-              onClick={() => table.setSorting([])}
-            >
-              Default order
-            </MenuItem>
-            {table.getAllLeafColumns().map((column) => (
-              <MenuItem
-                key={column.id}
-                selected={currentSort?.id === column.id}
-                onClick={() => {
-                  const isCurrentSort = currentSort?.id === column.id
+            value={currentSort?.id ?? null}
+            onValueChange={(id) => {
+              if (id === null) {
+                table.setSorting([])
+                return
+              }
 
-                  table.setSorting([
-                    {
-                      id: column.id,
-                      desc: isCurrentSort ? !currentSort.desc : false,
-                    },
-                  ])
-                }}
-              >
+              const isCurrentSort = currentSort?.id === id
+
+              table.setSorting([
+                { id, desc: isCurrentSort ? !currentSort.desc : false },
+              ])
+            }}
+            displayValue={`${currentSortLabel}${currentSortDirection ? ` (${currentSortDirection})` : ''
+              }`}
+          >
+            <Select.MenuItem value={null}>Default order</Select.MenuItem>
+            {table.getAllLeafColumns().map((column) => (
+              <Select.MenuItem key={column.id} value={column.id}>
                 {fileColumnLabels[column.id as FileColumn]}
                 {currentSort?.id === column.id
                   ? ` (${currentSortDirection})`
                   : ''}
-              </MenuItem>
+              </Select.MenuItem>
             ))}
-          </ToolbarMenu>
-          <ToolbarMenu label="Group by" value={currentGroupLabel}>
-            <MenuItem selected={!groupBy} onClick={() => onGroupByChange(null)}>
-              None
-            </MenuItem>
-            {table.getAllLeafColumns().map((column) => (
-              <MenuItem
-                key={column.id}
-                selected={groupBy === column.id}
-                onClick={() => onGroupByChange(column.id as FileColumn)}
-              >
-                {fileColumnLabels[column.id as FileColumn]}
-              </MenuItem>
-            ))}
-          </ToolbarMenu>
+          </Select>
         </div>
-        <div
-          ref={primaryControlsRef}
-          className={`${styles.controlGroup} ${styles.trailingControls}`}
-        >
-          {currentFolderPath && !collectionId && !flattenLocked && (
-            <label className={styles.menuSetting} htmlFor={flattenSwitchId}>
-              <span>Flatten view</span>
-              <Switch
-                id={flattenSwitchId}
-                title="Show files from all subfolders and hide folders"
-                checked={flatten}
-                onCheckedChange={onFlattenChange}
-              />
-            </label>
-          )}
-        </div>
-        <div
-          ref={overflowControlsRef}
-          className={`${styles.controlGroup} ${showMore ? styles.overflowedControls : ''}`}
-        >
-          {canFavorite && (
-            <FavoriteSetting
-              busy={favoriteBusy}
-              isFavorite={isFavorite}
-              onChange={updateFavorite}
-            />
-          )}
-          {viewMode === 'list' && (
-            <Menu label="Columns" trigger={<Icon name="columns" size={18} />}>
-              <ColumnSettings table={table} />
-            </Menu>
-          )}
-        </div>
-        {showMore && (
-          <Menu
-            label="More options"
-            trigger={<Icon name="ellipsis" size={20} />}
+        <div key="group" className={styles.controlGroup}>
+          <Select
+            label="Group by"
+            value={groupBy}
+            onValueChange={(value) =>
+              onGroupByChange(value as FileColumn | null)
+            }
+            displayValue={currentGroupLabel}
           >
-            {canFavorite && (
-              <FavoriteSetting
-                busy={favoriteBusy}
-                isFavorite={isFavorite}
-                onChange={updateFavorite}
-              />
-            )}
-            {viewMode === 'list' && (
-              <MenuSubmenu label="Columns">
-                <ColumnSettings table={table} />
-              </MenuSubmenu>
-            )}
+            <Select.MenuItem value={null}>None</Select.MenuItem>
+            {table.getAllLeafColumns().map((column) => (
+              <Select.MenuItem key={column.id} value={column.id}>
+                {fileColumnLabels[column.id as FileColumn]}
+              </Select.MenuItem>
+            ))}
+          </Select>
+        </div>
+        {canFavorite && (
+          <FavoriteSetting
+            key="favorite"
+            busy={favoriteBusy}
+            isFavorite={isFavorite}
+            onChange={updateFavorite}
+          />
+        )}
+        {viewMode === 'list' && (
+          <Menu
+            key="columns"
+            label="Columns"
+            trigger={<Icon name="columns" size={18} />}
+          >
+            <ColumnSettings table={table} />
           </Menu>
         )}
-        <div ref={detailsControlsRef} className={styles.controlGroup}>
+        {currentFolderPath && !collectionId && !flattenLocked && (
+          <label
+            key="flatten"
+            className={styles.menuSetting}
+            htmlFor={flattenSwitchId}
+          >
+            <span>Flatten view</span>
+            <Switch
+              id={flattenSwitchId}
+              title="Show files from all subfolders and hide folders"
+              checked={flatten}
+              onCheckedChange={onFlattenChange}
+            />
+          </label>
+        )}
+        <label
+          htmlFor={fileExtensionsSwitchId}
+          key="fileextensions"
+          className={styles.menuSetting}
+        >
+          <span>Show file extensions</span>
+          <Switch
+            id={fileExtensionsSwitchId}
+            title="Show file extensions"
+            checked={false}
+            onCheckedChange={() => { }}
+          />
+        </label>
+        <div key="details" className={styles.controlGroup}>
           <Button
-            className={styles.detailsButton}
+            variant="ghost"
             aria-label={detailsOpen ? 'Hide details' : 'Show details'}
             title={detailsOpen ? 'Hide details' : 'Show details'}
             aria-pressed={detailsOpen}
@@ -546,7 +428,7 @@ export default function FilesToolbar<TData>({
             <Icon name="hide-details" size={18} />
           </Button>
         </div>
-      </div>
+      </OverflowToolbar>
     </>
   )
 }

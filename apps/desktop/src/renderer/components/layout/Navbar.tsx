@@ -1,5 +1,5 @@
 import type { Library } from '@filejam/server'
-import { Eyebrow, Icon } from '@filejam/ui'
+import { Button, Eyebrow, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { HTMLAttributes } from 'react'
@@ -37,6 +37,17 @@ const styles = css`
       padding: 0;
 
       a {
+        padding: var(--suzy-space-1) var(--suzy-space-2);
+        width: stretch;
+        justify-content: start;
+
+        &[aria-current='page'] {
+          background: var(--suzy-accent-9);
+          color: var(--suzy-accent-1);
+        }
+      }
+
+      /* a {
         display: flex;
         align-items: center;
         text-decoration: none;
@@ -56,7 +67,7 @@ const styles = css`
           background: var(--suzy-accent-9);
           color: var(--suzy-accent-1);
         }
-      }
+      } */
     }
 
     .favorites {
@@ -71,6 +82,18 @@ const styles = css`
     .dropHint { padding: var(--suzy-space-2); color: var(--suzy-gray-11); font-size: 0.85em; }
     .settings {
       margin-block-start: auto;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--suzy-space-2);
+      padding-block: var(--suzy-space-2);
+
+      button {
+        padding: var(--suzy-space-4) 0;
+        flex-direction: column;
+      }
     }
   }
 `
@@ -104,10 +127,17 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
     <nav {...props} className={clsx(styles.navbar, props.className)}>
       <ol>
         <li>
-          <NavLink to="/" end title="Home" viewTransition>
+          <Button
+            as={NavLink}
+            variant="link"
+            to="/"
+            end
+            title="Home"
+            viewTransition
+          >
             <Icon name="home" size="20" />
             <span>Home</span>
-          </NavLink>
+          </Button>
         </li>
         <li className={styles.favorites} {...dropTargetProps}>
           <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
@@ -117,7 +147,9 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           <ol aria-label="Favorite folders">
             {favoriteFolders.map(({ path, library, relativePath }) => (
               <li key={path}>
-                <Link
+                <Button
+                  as={Link}
+                  variant="link"
                   to={folderUrl({ libraryId: library.id, relativePath })}
                   title={path}
                   viewTransition
@@ -136,18 +168,20 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
                     {relativePath.split('/').filter(Boolean).at(-1) ??
                       library.name}
                   </span>
-                </Link>
+                </Button>
               </li>
             ))}
           </ol>
           {dropError && <p role="alert">{dropError}</p>}
         </li>
         <li>
-          <Eyebrow className={styles.eyebrow}>Locations</Eyebrow>
+          <Eyebrow className={styles.eyebrow}>Libraries</Eyebrow>
         </li>
         {otherLibraries.map((library) => (
           <li key={library.id}>
-            <Link
+            <Button
+              as={Link}
+              variant="link"
               to={`/libraries/${library.id}`}
               title={library.rootPath}
               viewTransition
@@ -156,10 +190,10 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             >
               <Icon name={getLibraryIcon(library.name)} size="20" />
               <span>{library.name}</span>
-            </Link>
+            </Button>
           </li>
         ))}
-        {loadFailed && <li role="status">Unable to load folders.</li>}
+        {loadFailed && <li role="status">Unable to load libraries</li>}
         {trashLibraries.map((library) => {
           const drive = library.rootPath.match(/^[a-z]:/i)?.[0].toUpperCase()
 
@@ -170,7 +204,9 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
 
           return (
             <li key={library.id}>
-              <Link
+              <Button
+                as={Link}
+                variant="link"
                 to={`/libraries/${library.id}`}
                 title={library.rootPath}
                 viewTransition
@@ -178,7 +214,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
               >
                 <Icon name="trash" size="20" />
                 <span>{label}</span>
-              </Link>
+              </Button>
             </li>
           )
         })}
@@ -187,20 +223,41 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
         </li>
         {collections.map((collection) => (
           <li key={collection.id}>
-            <NavLink to={`/collections/${collection.id}`} viewTransition>
+            <Button
+              as={Link}
+              variant="link"
+              to={`/collections/${collection.id}`}
+              viewTransition
+            >
               <Icon name="folder" size="20" />
               <span>{collection.name}</span>
-            </NavLink>
+            </Button>
           </li>
         ))}
         {collectionsFailed && (
           <li role="status">Unable to load collections.</li>
         )}
+        <li className={styles.actions}>
+          <Button block size="sm">
+            <Icon size={22} name="folder" />
+            <span>Add library</span>
+          </Button>
+          <Button block size="sm">
+            <Icon size={22} name="list" />
+            <span>Add collection</span>
+          </Button>
+        </li>
         <li className={styles.settings}>
-          <NavLink to="/settings" title="Settings" viewTransition>
+          <Button
+            as={NavLink}
+            variant="link"
+            to="/settings"
+            title="Settings"
+            viewTransition
+          >
             <Icon name="settings" size="20" />
             <span>Settings</span>
-          </NavLink>
+          </Button>
         </li>
       </ol>
     </nav>

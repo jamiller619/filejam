@@ -18,7 +18,7 @@ const styles = css`
   }
 
   .content {
-    min-width: 100%;
+    width: 100%;
   }
 
   .scrollBar {
@@ -67,7 +67,11 @@ export default function ScrollArea({
   return (
     <BaseScrollArea.Root className={styles.scrollArea}>
       <BaseScrollArea.Viewport className={styles.viewport}>
-        <BaseScrollArea.Content className={styles.content}>
+        {/* Base UI's fit-content minimum prevents responsive children from shrinking. */}
+        <BaseScrollArea.Content
+          className={styles.content}
+          style={{ minWidth: 0 }}
+        >
           {children}
         </BaseScrollArea.Content>
       </BaseScrollArea.Viewport>

@@ -2,11 +2,18 @@ import { Menu as BaseMenu } from '@base-ui/react/menu'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { motion } from 'motion/react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { pressed } from '../interactions.js'
+import controlStyles from './Control.module.js'
 import Icon from './Icon.js'
 
 const styles = css`
+  .triggerAnchor {
+    display: inline-flex;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .submenuAnchor { display: flex; }
   .trigger {
     display: grid;
     width: 32px;
@@ -19,7 +26,7 @@ const styles = css`
     background: transparent;
     cursor: pointer;
     &:hover, &[data-popup-open] { background: var(--suzy-gray-3); }
-    &:focus-visible { outline: 2px solid var(--suzy-accent-8); }
+    /* &:focus-visible { outline: 2px solid var(--suzy-accent-8); } */
   }
   .textTrigger {
     display: inline-flex;
@@ -109,7 +116,7 @@ const MotionMenuSubmenuTrigger = motion.create(BaseMenu.SubmenuTrigger)
 const MotionMenuCheckboxItem = motion.create(BaseMenu.CheckboxItem)
 const MotionMenuItem = motion.create(BaseMenu.Item)
 
-export function Menu({
+export default function Menu({
   label,
   trigger,
   triggerVariant = 'icon',
@@ -120,21 +127,30 @@ export function Menu({
   triggerVariant?: 'icon' | 'text'
   children: ReactNode
 }) {
+  const anchorRef = useRef<HTMLSpanElement>(null)
+
   return (
     <BaseMenu.Root>
-      <MotionMenuTrigger
-        whileTap={pressed}
-        className={clsx(
-          styles.trigger,
-          triggerVariant === 'text' && styles.textTrigger,
-        )}
-        aria-label={label}
-        title={label}
+      {/* Keep popup measurements independent of the trigger's press animation. */}
+      <span
+        ref={anchorRef}
+        className={clsx(styles.triggerAnchor, controlStyles.control)}
       >
-        {trigger}
-      </MotionMenuTrigger>
+        <MotionMenuTrigger
+          whileTap={pressed}
+          className={clsx(
+            styles.trigger,
+            triggerVariant === 'text' && styles.textTrigger,
+          )}
+          aria-label={label}
+          title={label}
+        >
+          {trigger}
+        </MotionMenuTrigger>
+      </span>
       <BaseMenu.Portal>
         <BaseMenu.Positioner
+          anchor={anchorRef}
           className={styles.positioner}
           side="bottom"
           align="start"
@@ -154,17 +170,21 @@ export function MenuSubmenu({
   label: string
   children: ReactNode
 }) {
+  const anchorRef = useRef<HTMLDivElement>(null)
+
   return (
     <BaseMenu.SubmenuRoot>
-      <MotionMenuSubmenuTrigger
-        className={styles.submenuTrigger}
-        whileTap={pressed}
-      >
-        {label}
-        <span aria-hidden="true">›</span>
-      </MotionMenuSubmenuTrigger>
+      <div ref={anchorRef} className={styles.submenuAnchor}>
+        <MotionMenuSubmenuTrigger
+          className={styles.submenuTrigger}
+          whileTap={pressed}
+        >
+          {label}
+          <span aria-hidden="true">›</span>
+        </MotionMenuSubmenuTrigger>
+      </div>
       <BaseMenu.Portal>
-        <BaseMenu.Positioner>
+        <BaseMenu.Positioner anchor={anchorRef}>
           <BaseMenu.Popup className={styles.submenuPopup}>
             {children}
           </BaseMenu.Popup>

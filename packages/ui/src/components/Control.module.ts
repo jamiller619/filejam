@@ -1,18 +1,26 @@
 import { css } from 'inline-css-modules'
 
-const styles = css<'control' | 'primary'>`
+const styles = css<'control' | 'primary' | 'ghost'>`
+  --surface: var(--suzy-gray-10);
+  --surface-opacity: 20%;
+  --surface-hover-opacity: 30%;
+
   .control {
     color: var(--suzy-text);
-    background: lch(from var(--suzy-gray-10) l c h / 10%);
-    transition: background var(--suzy-duration-normal) var(--suzy-ease-standard);
+    background: lch(from var(--surface) l c h / var(--surface-opacity));
+    transition: background var(--suzy-duration-fast) var(--suzy-ease-enter);
 
     &:hover,
     &:focus {
-      background: var(--suzy-gray-5);
+      background: lch(from var(--surface) l c h / var(--surface-hover-opacity));
     }
 
-    &:active:not([data-disabled]) {
-      background: var(--suzy-gray-6);
+    &:active:not([data-disabled]):not(.ghost) {
+      background: var(--suzy-gray-4);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--suzy-accent-8);
     }
 
     &[data-disabled] {
@@ -30,6 +38,15 @@ const styles = css<'control' | 'primary'>`
       }
       &:active:not([data-disabled]) {
         background: var(--suzy-accent-11);
+      }
+    }
+
+    &.ghost {
+      background: transparent;
+      border: none;
+
+      &:hover {
+        background: var(--suzy-gray-4);
       }
     }
   }

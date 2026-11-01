@@ -1,15 +1,29 @@
-import { Button, Icon, type IconName, Select, Switch } from '@filejam/ui'
+import { Button, Icon, type IconName } from '@filejam/ui'
 import { css } from 'inline-css-modules'
-import { type HTMLAttributes, type ReactNode, useEffect, useState } from 'react'
+import {
+  type HTMLAttributes,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 import {
-  type Settings as DesktopSettings,
-  schema as settingsSchema,
+  formatSettingValue,
+  getSettingDefinition,
+  getSettingGroups,
+  type SettingValue,
+  settingDefinitions,
+} from '../../settings/definitions.js'
+import type {
+  Settings as DesktopSettings,
+  SettingsKey,
 } from '../../settings/settings.js'
 import CollectionEditor from '../components/collections/CollectionEditor.js'
 import DetailsPane from '../components/layout/DetailsPane.js'
 import { useDetailsPane } from '../components/layout/DetailsPaneContext.js'
 import AddLibrary from '../components/libraries/AddLibrary.js'
+import SettingControl from '../components/settings/SettingControl.js'
 import { useApi } from '../hooks/useApi.js'
 import {
   notifyCollectionsChanged,
@@ -104,9 +118,6 @@ const styles = css`
     display: flex;
     align-items: center;
     justify-self: end;
-  }
-  .dateFormatSelect {
-    width: 160px;
   }
   .details {
     min-width: 0;
@@ -211,20 +222,13 @@ const styles = css`
 `
 
 type SettingsSelection =
-  | { type: 'date-format' }
-  | { type: 'show-file-extensions' }
-  | { type: 'color-coding' }
+  | { type: 'setting'; key: SettingsKey }
   | { type: 'library'; id: number }
   | { type: 'collection-new' }
   | { type: 'collection'; id: string }
 
-const settingsKeys = [
-  'user.dateformat',
-  'user.files.showExtensions',
-  'user.files.colorCoding',
-] as const
-
-type SettingsKey = (typeof settingsKeys)[number]
+const settingsGroups = getSettingGroups()
+const settingsKeys = settingDefinitions.map((setting) => setting.key)
 
 export default function Settings() {
   const api = useApi()
@@ -235,6 +239,7 @@ export default function Settings() {
   const [saveFailed, setSaveFailed] = useState(false)
   const [collectionError, setCollectionError] = useState(false)
   const [selection, setSelection] = useState<SettingsSelection | null>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const {
     libraries,
     loading: librariesLoading,
@@ -246,22 +251,62 @@ export default function Settings() {
     loadFailed: collectionsLoadFailed,
     refresh: refreshCollections,
   } = useCollections()
-  const dateFormat = values?.['user.dateformat'] ?? 'relative'
   const userLibraries = libraries.filter((library) => !library.isTrash)
 
   useEffect(() => {
     detailsPane.setVisible(true)
   }, [detailsPane])
 
-  async function saveSettings<Key extends SettingsKey>(
-    key: Key,
-    value: DesktopSettings[Key],
-  ) {
+  useEffect(() => {
+    if (!selection) {
+      return
+    }
+
+    function clearSelection() {
+      setSelection(null)
+    }
+
+    function handleOutsideInteraction(event: PointerEvent | FocusEvent) {
+      const target = event.target
+
+      // The details pane contains editors for the selected row.
+      if (target instanceof Node && detailsPane.host?.contains(target)) {
+        return
+      }
+
+      if (
+        target instanceof Element &&
+        contentRef.current?.contains(target) &&
+        target.closest('[data-settings-row]')
+      ) {
+        return
+      }
+
+      clearSelection()
+    }
+
+    document.addEventListener('pointerdown', handleOutsideInteraction, true)
+    document.addEventListener('focusin', handleOutsideInteraction)
+    window.addEventListener('blur', clearSelection)
+
+    return () => {
+      document.removeEventListener(
+        'pointerdown',
+        handleOutsideInteraction,
+        true,
+      )
+      document.removeEventListener('focusin', handleOutsideInteraction)
+      window.removeEventListener('blur', clearSelection)
+    }
+  }, [detailsPane.host, selection])
+
+  async function saveSettings(key: SettingsKey, value: SettingValue) {
     setSaving(true)
     setSaveFailed(false)
 
     try {
-      await updateSettings(key, value)
+      // Dynamic controls use schema validation in the main process as their boundary.
+      await updateSettings(key, value as DesktopSettings[SettingsKey])
     } catch {
       setSaveFailed(true)
     } finally {
@@ -271,98 +316,40 @@ export default function Settings() {
 
   return (
     <Page title="Settings">
-      <div className={styles.content}>
-        {settingsSchema['x-ui'].categories.map((category) => {
-          if (category.namespace !== 'user') {
-            return null
-          }
-
-          const headingId = `${category.namespace}-settings-heading`
-
-          return (
-            <Section
-              key={category.namespace}
-              title={`${category.title} settings`}
-              headingId={headingId}
-            >
+      <div ref={contentRef} className={styles.content}>
+        {settingsGroups.map((category) => (
+          <Section
+            key={category.namespace}
+            title={`${category.title} settings`}
+            headingId={`${category.namespace}-settings-heading`}
+          >
+            {category.settings.map((setting) => (
               <SettingRow
-                title="Date format"
-                subtitle={
-                  settingsSchema.properties['user.dateformat'].description
+                key={setting.key}
+                title={setting.title}
+                subtitle={setting.description}
+                selected={
+                  selection?.type === 'setting' && selection.key === setting.key
                 }
-                selected={selection?.type === 'date-format'}
-                onSelect={() => setSelection({ type: 'date-format' })}
+                onSelect={() =>
+                  setSelection({ type: 'setting', key: setting.key })
+                }
               >
-                <Select
-                  className={styles.dateFormatSelect}
-                  id="date-format"
-                  aria-describedby="date-format-description"
-                  value={dateFormat}
+                <SettingControl
+                  setting={setting}
+                  value={values?.[setting.key]}
                   disabled={loading || loadFailed || saving}
-                  onFocus={() => setSelection({ type: 'date-format' })}
-                  onChange={(event) => {
-                    void saveSettings(
-                      'user.dateformat',
-                      event.currentTarget.value as 'relative' | 'absolute',
-                    )
-                  }}
-                >
-                  <option value="relative">Relative</option>
-                  <option value="absolute">Absolute</option>
-                </Select>
-              </SettingRow>
-              <SettingRow
-                title={
-                  settingsSchema.properties['user.files.showExtensions'].title
-                }
-                subtitle={
-                  settingsSchema.properties['user.files.showExtensions']
-                    .description
-                }
-                selected={selection?.type === 'show-file-extensions'}
-                onSelect={() => setSelection({ type: 'show-file-extensions' })}
-              >
-                <Switch
-                  id="show-file-extensions"
-                  aria-describedby="show-file-extensions-description"
-                  checked={
-                    values?.['user.files.showExtensions'] ??
-                    settingsSchema.properties['user.files.showExtensions']
-                      .default
+                  onFocus={() =>
+                    setSelection({ type: 'setting', key: setting.key })
                   }
-                  disabled={loading || loadFailed || saving}
-                  onCheckedChange={(checked) => {
-                    void saveSettings('user.files.showExtensions', checked)
+                  onChange={(value) => {
+                    void saveSettings(setting.key, value)
                   }}
                 />
               </SettingRow>
-              <SettingRow
-                title={
-                  settingsSchema.properties['user.files.colorCoding'].title
-                }
-                subtitle={
-                  settingsSchema.properties['user.files.colorCoding']
-                    .description
-                }
-                selected={selection?.type === 'color-coding'}
-                onSelect={() => setSelection({ type: 'color-coding' })}
-              >
-                <Switch
-                  id="color-coding"
-                  aria-describedby="color-coding-description"
-                  checked={
-                    values?.['user.files.colorCoding'] ??
-                    settingsSchema.properties['user.files.colorCoding'].default
-                  }
-                  disabled={loading || loadFailed || saving}
-                  onCheckedChange={(checked) => {
-                    void saveSettings('user.files.colorCoding', checked)
-                  }}
-                />
-              </SettingRow>
-            </Section>
-          )
-        })}
+            ))}
+          </Section>
+        ))}
         <Section
           title="Libraries"
           headingId="libraries-heading"
@@ -395,26 +382,7 @@ export default function Settings() {
                   setSelection({ type: 'library', id: library.id })
                 }
               >
-                <Button
-                  variant="ghost"
-                  className={styles.editIcon}
-                  aria-label={`Edit ${library.name}`}
-                  onClick={() =>
-                    setSelection({ type: 'library', id: library.id })
-                  }
-                >
-                  <Icon name="edit" size={20} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  className={styles.deleteIcon}
-                  aria-label={`Delete ${library.name}`}
-                  onClick={() =>
-                    setSelection({ type: 'library', id: library.id })
-                  }
-                >
-                  <Icon name="trash" size={20} />
-                </Button>
+                <Icon name="chevron-right" size={12} />
               </SettingRow>
             ))
           )}
@@ -461,40 +429,7 @@ export default function Settings() {
                   setSelection({ type: 'collection', id: collection.id })
                 }
               >
-                <Button
-                  variant="ghost"
-                  className={styles.editIcon}
-                  aria-label={`Edit ${collection.name}`}
-                  onClick={() =>
-                    setSelection({ type: 'collection', id: collection.id })
-                  }
-                >
-                  <Icon name="edit" size={20} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  className={styles.deleteIcon}
-                  aria-label={`Delete ${collection.name}`}
-                  onClick={async () => {
-                    setCollectionError(false)
-
-                    try {
-                      await api.collections.delete(collection.id)
-                      setSelection((current) =>
-                        current?.type === 'collection' &&
-                        current.id === collection.id
-                          ? null
-                          : current,
-                      )
-                      notifyCollectionsChanged()
-                      refreshCollections()
-                    } catch {
-                      setCollectionError(true)
-                    }
-                  }}
-                >
-                  <Icon name="trash" size={20} />
-                </Button>
+                <Icon name="chevron-right" size={12} />
               </SettingRow>
             ))
           )}
@@ -524,7 +459,7 @@ export default function Settings() {
         createPortal(
           <SettingsDetails
             selection={selection}
-            dateFormat={dateFormat}
+            values={values}
             libraries={userLibraries}
             collections={collections}
             onCollectionSaved={(collection) => {
@@ -557,7 +492,7 @@ function SettingRow({
   onSelect,
 }: SettingRowProps) {
   return (
-    <div className={styles.row} data-selected={selected}>
+    <div className={styles.row} data-settings-row data-selected={selected}>
       <button
         type="button"
         className={styles.rowSelect}
@@ -581,7 +516,7 @@ function SettingRow({
 
 type SettingsDetailsProps = {
   selection: SettingsSelection | null
-  dateFormat: string
+  values: Partial<DesktopSettings> | undefined
   libraries: ReturnType<typeof useLibraries>['libraries']
   collections: ReturnType<typeof useCollections>['collections']
   onCollectionSaved: (
@@ -591,11 +526,15 @@ type SettingsDetailsProps = {
 
 function SettingsDetails({
   selection,
-  dateFormat,
+  values,
   libraries,
   collections,
   onCollectionSaved,
 }: SettingsDetailsProps) {
+  const setting =
+    selection?.type === 'setting'
+      ? getSettingDefinition(selection.key)
+      : undefined
   const library =
     selection?.type === 'library'
       ? libraries.find((item) => item.id === selection.id)
@@ -616,11 +555,21 @@ function SettingsDetails({
           Select a setting, library, or collection to view its details.
         </p>
       )}
-      {selection?.type === 'date-format' && (
+      {setting && (
         <SettingsDetailsContent
           type="Setting"
-          title="Date format"
-          metadata={[['Current value', dateFormat]]}
+          title={setting.title}
+          metadata={[
+            ['Description', setting.description],
+            [
+              'Current value',
+              formatSettingValue(setting, values?.[setting.key]),
+            ],
+            [
+              'Default value',
+              formatSettingValue(setting, setting.defaultValue),
+            ],
+          ]}
         />
       )}
       {library && (
@@ -643,7 +592,7 @@ function SettingsDetails({
         !library &&
         !collection &&
         selection.type !== 'collection-new' &&
-        selection.type !== 'date-format' && (
+        !setting && (
           <p className={styles.detailsEmpty}>
             This item is no longer available.
           </p>

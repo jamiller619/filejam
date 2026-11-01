@@ -1,5 +1,7 @@
 import { type FSWatcher, watch } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
+import type { Database } from '../db/index.js'
+import { hasIndexedPathChanged } from './changes.js'
 import { isIgnoredScanPath } from './ignore.js'
 import type { FileScanner } from './index.js'
 
@@ -9,10 +11,13 @@ export function watchLibraries(
   scanner: FileScanner,
   excludedPaths: string[],
   warn: (message: string, error: unknown) => void,
+  db: Database,
 ) {
   const watchers: FSWatcher[] = []
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
   const excluded = excludedPaths.map((path) => resolve(path))
+  const pending = new Map<string, Set<string | null>>()
+  let closed = false
 
   const inside = (parent: string, child: string) => {
     const path = relative(parent, child)
@@ -25,7 +30,7 @@ export function watchLibraries(
 
   for (const root of new Set(roots)) {
     try {
-      const watcher = watch(root, { recursive: true }, (_event, filename) => {
+      const watcher = watch(root, { recursive: true }, (event, filename) => {
         if (filename) {
           if (filename.split(/[\\/]/).some(isIgnoredScanPath)) {
             return
@@ -38,6 +43,12 @@ export function watchLibraries(
           }
         }
 
+        const paths = pending.get(root) ?? new Set<string | null>()
+
+        // Renames include creation and deletion, which always need reconciliation.
+        paths.add(event === 'rename' || !filename ? null : filename)
+        pending.set(root, paths)
+
         // Bound the delay even while a writer produces a continuous event stream.
         if (timers.has(root)) {
           return
@@ -47,7 +58,30 @@ export function watchLibraries(
           root,
           setTimeout(() => {
             timers.delete(root)
-            scanner.enqueue(root)
+            pending.delete(root)
+
+            void (async () => {
+              let changed = paths.has(null)
+
+              try {
+                for (const path of paths) {
+                  if (changed || closed) {
+                    break
+                  }
+
+                  if (path !== null) {
+                    changed = await hasIndexedPathChanged(db, root, path)
+                  }
+                }
+              } catch {
+                // A disappearing or unreadable path still needs reconciliation.
+                changed = true
+              }
+
+              if (changed && !closed) {
+                scanner.enqueue(root)
+              }
+            })()
           }, 100),
         )
       })
@@ -63,6 +97,8 @@ export function watchLibraries(
   }
 
   return () => {
+    closed = true
+
     for (const watcher of watchers) {
       watcher.close()
     }
@@ -72,5 +108,6 @@ export function watchLibraries(
     }
 
     timers.clear()
+    pending.clear()
   }
 }

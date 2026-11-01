@@ -9,7 +9,6 @@ const styles = css`
     border-radius: var(--suzy-radius-4);
     overflow: hidden;
     outline: 2px solid var(--suzy-gray-4);
-    background: var(--suzy-gray-3);
 
     button {
       width: 32px;
@@ -17,15 +16,15 @@ const styles = css`
       border-radius: 100px;
       corner-shape: round;
       background: transparent;
-      margin: 1px;
+      margin: 2px;
 
-      &[data-disabled] {
+      /* &[data-disabled] {
         background: transparent;
-      }
+      } */
 
-      &[aria-pressed='true'] {
+      /* &[aria-pressed='true'] {
         background: var(--suzy-gray-6);
-      }
+      } */
     }
   }
 `

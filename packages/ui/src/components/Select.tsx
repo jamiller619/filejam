@@ -1,57 +1,86 @@
-import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
-import { motion } from 'motion/react'
-import type { ComponentProps } from 'react'
-import { pressed } from '../interactions.js'
+import { createContext, type ReactNode, useContext } from 'react'
 import Icon from './Icon.js'
+import Menu, { MenuItem } from './Menu.js'
 
 const styles = css`
-  .wrapper {
-    position: relative;
-    display: inline-grid;
-    max-width: 100%;
+  .setting {
+    display: flex;
+    align-items: center;
+    gap: var(--suzy-space-2);
+    white-space: nowrap;
   }
-  .select {
-    appearance: none;
-    font: inherit;
-    color: var(--suzy-text);
-    background: var(--suzy-gray-4);
-    border: 0;
-    border-radius: var(--suzy-radius-3);
-    min-height: 32px;
-    max-width: 100%;
-    padding: var(--suzy-space-1) calc(var(--suzy-space-2) + 14px)
-      var(--suzy-space-1) var(--suzy-space-2);
-    &:hover { background: var(--suzy-gray-5); }
-    &:focus-visible { outline: 2px solid var(--suzy-accent-8); outline-offset: 2px; }
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
-  }
-  .icon {
-    position: absolute;
-    top: 50%;
-    right: var(--suzy-space-2);
-    pointer-events: none;
-    transform: translateY(-50%) rotate(180deg);
-  }
-  .select:disabled + .icon {
-    opacity: 0.5;
+  .dropdownIcon {
+    margin-inline-start: var(--suzy-space-1);
+    transform: rotate(180deg);
   }
 `
 
-const MotionSelect = motion.select
+export type SelectProps = {
+  label: string
+  value: string | null
+  displayValue: ReactNode
+  onValueChange: (value: string | null) => void
+  children: ReactNode
+}
 
-export type SelectProps = ComponentProps<typeof MotionSelect>
+export type SelectMenuItemProps = {
+  value: string | null
+  children: ReactNode
+}
 
-/** A native select with shared styling and platform keyboard behavior. */
-export default function Select({ className, ...props }: SelectProps) {
+const SelectContext = createContext<Pick<
+  SelectProps,
+  'value' | 'onValueChange'
+> | null>(null)
+
+function SelectMenuItem({ value, children }: SelectMenuItemProps) {
+  const select = useContext(SelectContext)
+
+  if (!select) {
+    throw new Error('Select.MenuItem must be rendered inside Select.')
+  }
+
   return (
-    <span className={styles.wrapper}>
-      <MotionSelect
-        {...props}
-        className={clsx(styles.select, className)}
-        whileTap={pressed}
-      />
-      <Icon className={styles.icon} name="chevron-up" size={10} />
-    </span>
+    <MenuItem
+      selected={select.value === value}
+      onClick={() => select.onValueChange(value)}
+    >
+      {children}
+    </MenuItem>
   )
 }
+
+function DropdownIcon() {
+  return <Icon className={styles.dropdownIcon} name="chevron-up" size={12} />
+}
+
+export default function Select({
+  label,
+  value,
+  displayValue,
+  onValueChange,
+  children,
+}: SelectProps) {
+  return (
+    <SelectContext.Provider value={{ value, onValueChange }}>
+      <div className={styles.setting}>
+        <span>{label}</span>
+        <Menu
+          label={label}
+          triggerVariant="text"
+          trigger={
+            <>
+              {displayValue}
+              <DropdownIcon />
+            </>
+          }
+        >
+          {children}
+        </Menu>
+      </div>
+    </SelectContext.Provider>
+  )
+}
+
+Select.MenuItem = SelectMenuItem

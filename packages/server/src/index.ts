@@ -86,6 +86,7 @@ async function start(options: BootOptions) {
         config.get('appdata.logsPath'),
       ],
       (message, error) => logger.warn(message, error),
+      database.db,
     )
 
     await scanner.startAll(libraries.map((library) => library.rootPath))

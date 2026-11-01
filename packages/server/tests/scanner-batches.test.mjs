@@ -33,6 +33,71 @@ async function inDatabaseProcess(directory, source) {
   )
 }
 
+test('watchers ignore preview reads and access metadata but detect file edits', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'scanner-watch-'))
+  const root = join(directory, 'root')
+
+  await mkdir(root)
+  await writeFile(join(root, 'preview.txt'), 'preview')
+
+  try {
+    await inDatabaseProcess(
+      directory,
+      `
+      const { readFile, utimes, writeFile } = await import('node:fs/promises')
+      const { setTimeout: delay } = await import('node:timers/promises')
+      const { hasIndexedPathChanged } = await import(${moduleUrl('../dist/scanner/changes.js')})
+      const { watchLibraries } = await import(${moduleUrl('../dist/scanner/watch.js')})
+      const scan = await openScanDatabase(databasePath, root)
+      const connection = await initDatabase(databasePath)
+      const file = join(root, 'preview.txt')
+      const enqueued = []
+      let stopWatching
+
+      try {
+        await scan.saveBatch([root, file])
+        assert.equal(await hasIndexedPathChanged(connection.db, root, 'preview.txt'), false)
+        stopWatching = watchLibraries(
+          [root],
+          { enqueue: (root) => enqueued.push(root) },
+          [],
+          (message, error) => { throw error },
+          connection.db,
+        )
+
+        const metadata = await lstat(file)
+        await readFile(file)
+        await utimes(file, new Date(), metadata.mtime)
+        assert.equal(await hasIndexedPathChanged(connection.db, root, 'preview.txt'), false)
+        await delay(350)
+        assert.deepEqual(enqueued, [])
+
+        await writeFile(file, 'edited preview contents')
+        assert.equal(await hasIndexedPathChanged(connection.db, root, 'preview.txt'), true)
+
+        for (let attempt = 0; attempt < 100 && !enqueued.length; attempt++) {
+          await delay(10)
+        }
+
+        assert.deepEqual(enqueued, [root])
+        assert.equal(await hasIndexedPathChanged(connection.db, root, 'new.txt'), true)
+      } finally {
+        stopWatching?.()
+        connection.close()
+        scan.close()
+      }
+      `,
+    )
+  } finally {
+    await rm(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    })
+  }
+})
+
 test('scan batches roll back parents and bookkeeping, preserve IDs, and respect cancellation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-batch-'))
   const root = join(directory, 'root')

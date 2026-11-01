@@ -6,7 +6,24 @@ type FileEntry = Awaited<
 >['entries'][number]
 
 export type FileColumn = Exclude<keyof FileEntry, 'presentation'>
+export type FileColumnType = 'text' | 'number' | 'date' | 'boolean'
 export type DateFormat = Settings['user.dateformat']
+
+export const fileColumnTypes: Record<FileColumn, FileColumnType> = {
+  id: 'number',
+  libraryId: 'number',
+  parentId: 'number',
+  name: 'text',
+  relativePath: 'text',
+  kind: 'text',
+  size: 'number',
+  mimeType: 'text',
+  createdAt: 'date',
+  modifiedAt: 'date',
+  indexedAt: 'date',
+  childrenScannedAt: 'date',
+  childrenDirty: 'boolean',
+}
 
 export const fileColumnLabels: Record<FileColumn, string> = {
   id: 'ID',

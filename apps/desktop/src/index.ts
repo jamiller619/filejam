@@ -9,6 +9,10 @@ import {
   screen,
   shell,
 } from 'electron'
+import {
+  installExtension,
+  REACT_DEVELOPER_TOOLS,
+} from 'electron-devtools-installer'
 import { registerApiIpc } from './api/main.js'
 import { resolveDefaultFolder } from './defaultFolders.js'
 import { createEntryRegistry } from './entries/create-registry.js'
@@ -44,6 +48,18 @@ if (!app.isPackaged && process.env.FILEJAM_RENDERER_URL) {
     }
   })
 }
+
+app.whenReady().then(async () => {
+  try {
+    await installExtension(REACT_DEVELOPER_TOOLS)
+
+    console.log(
+      `++++++++++++++++ React DevTools install success ++++++++++++++++`,
+    )
+  } catch (error) {
+    console.error(`Failed to install React Developer Tools extension:`, error)
+  }
+})
 
 let server: Awaited<ReturnType<typeof boot>> | undefined
 let window: BrowserWindow | undefined
