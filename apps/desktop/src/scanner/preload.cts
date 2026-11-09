@@ -1,4 +1,5 @@
 import type { ServerApi } from '@filejam/server'
+import type { CustomIcon } from '@filejam/server/icons'
 import type { ScannerApi } from '@filejam/server/scanner'
 import type {
   PresentedFolderListing,
@@ -20,6 +21,9 @@ type FilejamApi = {
     path: string,
   ) => Promise<{ original: boolean }>
   setControlsColor: (color: string) => Promise<void>
+  appearance: Pick<ServerApi['appearance'], 'list' | 'set'> & {
+    import: () => Promise<CustomIcon | null>
+  }
   collections: ServerApi['collections']
   settings: SettingsApi
   libraries: {
@@ -48,6 +52,11 @@ const filejam: FilejamApi = {
     ipcRenderer.invoke('preview:capabilities', libraryId, path),
   setControlsColor: (color) =>
     ipcRenderer.invoke('window:setControlsColor', color),
+  appearance: {
+    list: () => ipcRenderer.invoke('appearance:list'),
+    set: (target, icon) => ipcRenderer.invoke('appearance:set', target, icon),
+    import: () => ipcRenderer.invoke('appearance:import'),
+  },
   collections: {
     list: () => ipcRenderer.invoke('collections:list'),
     create: (input) => ipcRenderer.invoke('collections:create', input),

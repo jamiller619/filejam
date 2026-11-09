@@ -1,5 +1,6 @@
-export { default as Button, type ButtonProps } from './components/Button.js'
+export { type ButtonProps, default as Button } from './components/Button.js'
 export { default as ButtonGroup } from './components/ButtonGroup.js'
+export { type DialogProps, default as Dialog } from './components/Dialog.js'
 export { default as Eyebrow, type EyebrowProps } from './components/Eyebrow.js'
 export {
   default as Icon,
@@ -14,10 +15,6 @@ export {
   MenuSubmenu,
 } from './components/Menu.js'
 
-export {
-  default as NativeSelect,
-  type NativeSelectProps,
-} from './components/NativeSelect.js'
 export { default as OverflowToolbar } from './components/OverflowToolbar.js'
 export { default as Pill, type PillProps } from './components/Pill.js'
 export { default as ScrollArea } from './components/ScrollArea.js'
@@ -30,8 +27,6 @@ export { default as Surface } from './components/Surface.js'
 export { default as Switch, type SwitchProps } from './components/Switch.js'
 export { default as Textbox } from './components/Textbox.js'
 export { default as Theme } from './components/Theme.js'
-export type { PolymorphicProps } from './polymorphic.js'
-
 export {
   Toast,
   type ToastProps,
@@ -39,3 +34,4 @@ export {
   ToastViewport,
   useToastManager,
 } from './components/Toast.js'
+export type { PolymorphicProps } from './polymorphic.js'

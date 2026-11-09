@@ -4,6 +4,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
@@ -24,7 +25,6 @@ import DetailsPane from '../components/layout/DetailsPane.js'
 import { useDetailsPane } from '../components/layout/DetailsPaneContext.js'
 import AddLibrary from '../components/libraries/AddLibrary.js'
 import SettingControl from '../components/settings/SettingControl.js'
-import { useApi } from '../hooks/useApi.js'
 import {
   notifyCollectionsChanged,
   useCollections,
@@ -231,7 +231,6 @@ const settingsGroups = getSettingGroups()
 const settingsKeys = settingDefinitions.map((setting) => setting.key)
 
 export default function Settings() {
-  const api = useApi()
   const detailsPane = useDetailsPane()
   const { values, updateSettings, loading, loadFailed } =
     useSettings(settingsKeys)
@@ -253,8 +252,8 @@ export default function Settings() {
   } = useCollections()
   const userLibraries = libraries.filter((library) => !library.isTrash)
 
-  useEffect(() => {
-    detailsPane.setVisible(true)
+  useLayoutEffect(() => {
+    void detailsPane.setVisible(true)
   }, [detailsPane])
 
   useEffect(() => {

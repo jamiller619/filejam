@@ -1,8 +1,11 @@
+import type { IconTarget } from '@filejam/server/icons'
 import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import type { DragEventHandler, MouseEventHandler, ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useFolderDrop } from '../../hooks/useFolderDrop.js'
+import { useAppearance } from '../icons/AppearanceProvider.js'
+import ItemIcon from '../icons/ItemIcon.js'
 import FileName from './FileName.js'
 
 const styles = css`
@@ -75,6 +78,7 @@ const styles = css`
 `
 
 type GridCardProps = {
+  iconTarget?: IconTarget
   as?: 'div' | 'li'
   fileId?: number
   draggable?: boolean
@@ -100,18 +104,31 @@ type GridCardProps = {
 )
 
 export default function GridCard(props: GridCardProps) {
+  const { edit } = useAppearance()
   const folderDropProps = useFolderDrop(props.folderPath)
   const CardContainer = props.as ?? 'li'
   const content = (
     <>
       {props.children}
       {!props.previewOnly && (
-        <FileName
-          name={props.name}
-          isDirectory={props.isDirectory}
-          highlight={props.highlight}
-          showExtension={props.showExtension}
-        />
+        <span
+          style={{
+            display: 'inline-flex',
+            gap: 6,
+            alignItems: 'center',
+            maxWidth: '100%',
+          }}
+        >
+          {props.iconTarget && (
+            <ItemIcon target={props.iconTarget} size={16} fallback={null} />
+          )}
+          <FileName
+            name={props.name}
+            isDirectory={props.isDirectory}
+            highlight={props.highlight}
+            showExtension={props.showExtension}
+          />
+        </span>
       )}
     </>
   )
@@ -119,6 +136,12 @@ export default function GridCard(props: GridCardProps) {
   return (
     <Surface
       as={CardContainer}
+      onContextMenu={(event: React.MouseEvent<HTMLElement>) => {
+        if (props.iconTarget) {
+          event.preventDefault()
+          edit(props.iconTarget, props.name)
+        }
+      }}
       {...folderDropProps}
       // className={styles.card}
       data-preview-only={props.previewOnly || undefined}

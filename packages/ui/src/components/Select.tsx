@@ -1,10 +1,15 @@
 import { css } from 'inline-css-modules'
-import { createContext, type ReactNode, useContext } from 'react'
+import {
+  createContext,
+  type FocusEventHandler,
+  type ReactNode,
+  useContext,
+} from 'react'
 import Icon from './Icon.js'
 import Menu, { MenuItem } from './Menu.js'
 
 const styles = css`
-  .setting {
+  .root {
     display: flex;
     align-items: center;
     gap: var(--suzy-space-2);
@@ -21,6 +26,9 @@ export type SelectProps = {
   value: string | null
   displayValue: ReactNode
   onValueChange: (value: string | null) => void
+  disabled?: boolean | undefined
+  title?: string | undefined
+  onFocus?: FocusEventHandler<HTMLButtonElement> | undefined
   children: ReactNode
 }
 
@@ -60,15 +68,21 @@ export default function Select({
   value,
   displayValue,
   onValueChange,
+  disabled,
+  title,
+  onFocus,
   children,
 }: SelectProps) {
   return (
     <SelectContext.Provider value={{ value, onValueChange }}>
-      <div className={styles.setting}>
+      <div className={styles.root}>
         <span>{label}</span>
         <Menu
           label={label}
           triggerVariant="text"
+          disabled={disabled}
+          title={title}
+          onFocus={onFocus}
           trigger={
             <>
               {displayValue}

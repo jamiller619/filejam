@@ -2,9 +2,8 @@ import { Menu as BaseMenu } from '@base-ui/react/menu'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { motion } from 'motion/react'
-import { type ReactNode, useRef } from 'react'
+import { type FocusEventHandler, type ReactNode, useRef } from 'react'
 import { pressed } from '../interactions.js'
-import controlStyles from './Control.module.js'
 import Icon from './Icon.js'
 
 const styles = css`
@@ -22,7 +21,7 @@ const styles = css`
     place-items: center;
     border: 0;
     border-radius: var(--suzy-radius-3);
-    color: inherit;
+    /* color: inherit; */
     background: transparent;
     cursor: pointer;
     &:hover, &[data-popup-open] { background: var(--suzy-gray-3); }
@@ -120,11 +119,17 @@ export default function Menu({
   label,
   trigger,
   triggerVariant = 'icon',
+  disabled,
+  title = label,
+  onFocus,
   children,
 }: {
   label: string
   trigger: ReactNode
   triggerVariant?: 'icon' | 'text'
+  disabled?: boolean | undefined
+  title?: string | undefined
+  onFocus?: FocusEventHandler<HTMLButtonElement> | undefined
   children: ReactNode
 }) {
   const anchorRef = useRef<HTMLSpanElement>(null)
@@ -132,10 +137,7 @@ export default function Menu({
   return (
     <BaseMenu.Root>
       {/* Keep popup measurements independent of the trigger's press animation. */}
-      <span
-        ref={anchorRef}
-        className={clsx(styles.triggerAnchor, controlStyles.control)}
-      >
+      <span ref={anchorRef} className={styles.triggerAnchor}>
         <MotionMenuTrigger
           whileTap={pressed}
           className={clsx(
@@ -143,7 +145,9 @@ export default function Menu({
             triggerVariant === 'text' && styles.textTrigger,
           )}
           aria-label={label}
-          title={label}
+          title={title}
+          disabled={disabled}
+          onFocus={onFocus}
         >
           {trigger}
         </MotionMenuTrigger>

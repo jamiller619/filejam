@@ -4,10 +4,11 @@ import type {
   CollectionOperator,
   CollectionRule,
 } from '@filejam/server'
-import { Button, Input, NativeSelect } from '@filejam/ui'
+import { Button, Input, Select } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { useEffect, useState } from 'react'
 import { useApi } from '../../hooks/useApi.js'
+import { IconButton } from '../icons/ItemIcon.js'
 
 const styles = css`
   .form {
@@ -159,6 +160,13 @@ export default function CollectionEditor({
         }
       }}
     >
+      {collection && (
+        <IconButton
+          target={{ kind: 'collection', id: collection.id }}
+          name={collection.name}
+          label
+        />
+      )}
       <label htmlFor="collection-name">
         Name
         <Input
@@ -170,26 +178,24 @@ export default function CollectionEditor({
           onChange={(event) => setName(event.currentTarget.value)}
         />
       </label>
-      <label htmlFor="collection-match">
-        Match
-        <NativeSelect
-          id="collection-match"
-          aria-label="Rule matching"
-          value={definition.match}
-          onChange={(event) => {
-            const match = event.currentTarget
-              .value as CollectionDefinition['match']
+      <Select
+        label="Match"
+        value={definition.match}
+        displayValue={definition.match === 'all' ? 'All rules' : 'Any rule'}
+        onValueChange={(match) => {
+          if (match !== 'all' && match !== 'any') {
+            return
+          }
 
-            setDefinition((current) => ({
-              ...current,
-              match,
-            }))
-          }}
-        >
-          <option value="all">All rules</option>
-          <option value="any">Any rule</option>
-        </NativeSelect>
-      </label>
+          setDefinition((current) => ({
+            ...current,
+            match,
+          }))
+        }}
+      >
+        <Select.MenuItem value="all">All rules</Select.MenuItem>
+        <Select.MenuItem value="any">Any rule</Select.MenuItem>
+      </Select>
       <fieldset>
         <legend>Rules</legend>
         {definition.rules.map((rule, index) => (
@@ -224,53 +230,63 @@ export default function CollectionEditor({
       </fieldset>
       <fieldset>
         <legend>Order</legend>
-        <label htmlFor="collection-sort-field">
-          Sort by
-          <NativeSelect
-            id="collection-sort-field"
-            aria-label="Sort field"
-            value={definition.sort[0]?.field ?? 'name'}
-            onChange={(event) =>
-              setDefinition((current) => ({
-                ...current,
-                sort: [
-                  {
-                    field: event.currentTarget.value as CollectionField,
-                    direction: current.sort[0]?.direction ?? 'asc',
-                  },
-                ],
-              }))
+        <Select
+          label="Sort by"
+          value={definition.sort[0]?.field ?? 'name'}
+          displayValue={
+            fields.find(
+              (field) => field.value === (definition.sort[0]?.field ?? 'name'),
+            )?.label ?? 'Name'
+          }
+          onValueChange={(value) => {
+            if (!fields.some((field) => field.value === value)) {
+              return
             }
-          >
-            {fields.map((field) => (
-              <option key={field.value} value={field.value}>
-                {field.label}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <label htmlFor="collection-sort-direction">
-          Direction
-          <NativeSelect
-            id="collection-sort-direction"
-            aria-label="Sort direction"
-            value={definition.sort[0]?.direction ?? 'asc'}
-            onChange={(event) =>
-              setDefinition((current) => ({
-                ...current,
-                sort: [
-                  {
-                    field: current.sort[0]?.field ?? 'name',
-                    direction: event.currentTarget.value as 'asc' | 'desc',
-                  },
-                ],
-              }))
+
+            setDefinition((current) => ({
+              ...current,
+              sort: [
+                {
+                  field: value as CollectionField,
+                  direction: current.sort[0]?.direction ?? 'asc',
+                },
+              ],
+            }))
+          }}
+        >
+          {fields.map((field) => (
+            <Select.MenuItem key={field.value} value={field.value}>
+              {field.label}
+            </Select.MenuItem>
+          ))}
+        </Select>
+        <Select
+          label="Direction"
+          value={definition.sort[0]?.direction ?? 'asc'}
+          displayValue={
+            definition.sort[0]?.direction === 'desc'
+              ? 'Descending'
+              : 'Ascending'
+          }
+          onValueChange={(direction) => {
+            if (direction !== 'asc' && direction !== 'desc') {
+              return
             }
-          >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </NativeSelect>
-        </label>
+
+            setDefinition((current) => ({
+              ...current,
+              sort: [
+                {
+                  field: current.sort[0]?.field ?? 'name',
+                  direction,
+                },
+              ],
+            }))
+          }}
+        >
+          <Select.MenuItem value="asc">Ascending</Select.MenuItem>
+          <Select.MenuItem value="desc">Descending</Select.MenuItem>
+        </Select>
       </fieldset>
       <label htmlFor="collection-result-limit">
         Result limit (optional)
@@ -332,13 +348,12 @@ function RuleEditor({
 
   return (
     <div className={styles.rule}>
-      <NativeSelect
-        aria-label="Rule field"
+      <Select
+        label="Rule field"
         value={rule.field}
-        onChange={(event) => {
-          const nextField = fields.find(
-            (item) => item.value === event.currentTarget.value,
-          )
+        displayValue={field.label}
+        onValueChange={(value) => {
+          const nextField = fields.find((item) => item.value === value)
 
           if (!nextField) {
             return
@@ -355,16 +370,21 @@ function RuleEditor({
         }}
       >
         {fields.map((item) => (
-          <option key={item.value} value={item.value}>
+          <Select.MenuItem key={item.value} value={item.value}>
             {item.label}
-          </option>
+          </Select.MenuItem>
         ))}
-      </NativeSelect>
-      <NativeSelect
-        aria-label="Rule operator"
+      </Select>
+      <Select
+        label="Rule operator"
         value={rule.operator}
-        onChange={(event) => {
-          const operator = event.currentTarget.value as CollectionOperator
+        displayValue={operatorLabels[rule.operator]}
+        onValueChange={(value) => {
+          if (!operators.some((operator) => operator === value)) {
+            return
+          }
+
+          const operator = value as CollectionOperator
 
           onChange({
             field: rule.field,
@@ -376,11 +396,11 @@ function RuleEditor({
         }}
       >
         {operators.map((operator) => (
-          <option key={operator} value={operator}>
+          <Select.MenuItem key={operator} value={operator}>
             {operatorLabels[operator]}
-          </option>
+          </Select.MenuItem>
         ))}
-      </NativeSelect>
+      </Select>
       {needsValue && (
         <Input
           aria-label="Rule value"

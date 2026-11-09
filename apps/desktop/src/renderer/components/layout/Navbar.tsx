@@ -12,8 +12,27 @@ import { useLibraries } from '../../hooks/useLibraries.js'
 import { folderUrl, isCurrentFolderUrl } from '../../utils/folderUrl.js'
 import { getLibraryIcon } from '../../utils/libraryIcon.js'
 import { normalizePath } from '../../utils/normalizePath.js'
+import { IconButton } from '../icons/ItemIcon.js'
 
 const styles = css`
+  .item {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border-radius: var(--suzy-radius-3);
+
+    > a {
+      flex: 1;
+      min-width: 0;
+      width: 0;
+    }
+
+    > a > span:last-child {
+      /* overflow: hidden; */
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
   .navbar {
     box-sizing: border-box;
     display: flex;
@@ -40,34 +59,42 @@ const styles = css`
         padding: var(--suzy-space-1) var(--suzy-space-2);
         width: stretch;
         justify-content: start;
+      }
 
-        &[aria-current='page'] {
+      .item {
+        corner-shape: var(--suzy-corner-shape);
+        transition: background var(--suzy-duration-fast) var(--suzy-ease-enter);
+
+        &:hover,
+        &:focus-within {
+          background: lch(from var(--suzy-gray-12) l c h / 12%);
+        }
+
+        &:has(> a[aria-current='page']) {
           background: var(--suzy-accent-9);
           color: var(--suzy-accent-1);
+        }
+
+        > a,
+        > a:hover,
+        > a:focus,
+        > button,
+        > button:hover {
+          background: transparent;
         }
       }
 
-      /* a {
-        display: flex;
-        align-items: center;
-        text-decoration: none;
-        gap: var(--suzy-space-2);
-        color: var(--suzy-gray-12);
-        line-height: 0;
+      .item > button {
+        align-self: stretch;
+        min-height: 0;
         padding: var(--suzy-space-1) var(--suzy-space-2);
-        border-radius: var(--suzy-radius-3);
-        corner-shape: var(--suzy-corner-shape);
+        line-height: 1;
+        background: transparent;
+      }
 
-        &:hover {
-          background: lch(from var(--suzy-gray-11) l c h / 20%);
-          color: var(--suzy-gray-12);
-        }
-
-        &[aria-current='page'] {
-          background: var(--suzy-accent-9);
-          color: var(--suzy-accent-1);
-        }
-      } */
+      .item:has(> button) > a {
+        padding-inline-start: 0;
+      }
     }
 
     .favorites {
@@ -126,7 +153,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   return (
     <nav {...props} className={clsx(styles.navbar, props.className)}>
       <ol>
-        <li>
+        <li className={styles.item}>
           <Button
             as={NavLink}
             variant="link"
@@ -146,7 +173,26 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           )}
           <ol aria-label="Favorite folders">
             {favoriteFolders.map(({ path, library, relativePath }) => (
-              <li key={path}>
+              <li key={path} className={styles.item}>
+                <IconButton
+                  name={
+                    relativePath.split('/').filter(Boolean).at(-1) ??
+                    library.name
+                  }
+                  target={{
+                    kind: 'entry',
+                    libraryId: library.id,
+                    relativePath,
+                  }}
+                  fallback={
+                    <Icon
+                      name={
+                        relativePath ? 'folder' : getLibraryIcon(library.name)
+                      }
+                      size={20}
+                    />
+                  }
+                />
                 <Button
                   as={Link}
                   variant="link"
@@ -158,12 +204,6 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
                   }
                   {...folderDragProps(path)}
                 >
-                  <Icon
-                    name={
-                      relativePath ? 'folder' : getLibraryIcon(library.name)
-                    }
-                    size="20"
-                  />
                   <span>
                     {relativePath.split('/').filter(Boolean).at(-1) ??
                       library.name}
@@ -178,7 +218,16 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           <Eyebrow className={styles.eyebrow}>Libraries</Eyebrow>
         </li>
         {otherLibraries.map((library) => (
-          <li key={library.id}>
+          <li key={library.id} className={styles.item}>
+            <IconButton
+              name={library.name}
+              target={{
+                kind: 'entry',
+                libraryId: library.id,
+                relativePath: '',
+              }}
+              fallback={<Icon name={getLibraryIcon(library.name)} size={20} />}
+            />
             <Button
               as={Link}
               variant="link"
@@ -188,7 +237,6 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
               aria-current={currentFolder(library.id) ? 'page' : undefined}
               {...folderDragProps(library.rootPath)}
             >
-              <Icon name={getLibraryIcon(library.name)} size="20" />
               <span>{library.name}</span>
             </Button>
           </li>
@@ -203,7 +251,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
               : library.name
 
           return (
-            <li key={library.id}>
+            <li key={library.id} className={styles.item}>
               <Button
                 as={Link}
                 variant="link"
@@ -222,14 +270,17 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>
         {collections.map((collection) => (
-          <li key={collection.id}>
+          <li key={collection.id} className={styles.item}>
+            <IconButton
+              target={{ kind: 'collection', id: collection.id }}
+              name={collection.name}
+            />
             <Button
               as={Link}
               variant="link"
               to={`/collections/${collection.id}`}
               viewTransition
             >
-              <Icon name="folder" size="20" />
               <span>{collection.name}</span>
             </Button>
           </li>
@@ -247,7 +298,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             <span>Add collection</span>
           </Button>
         </li>
-        <li className={styles.settings}>
+        <li className={clsx(styles.item, styles.settings)}>
           <Button
             as={NavLink}
             variant="link"

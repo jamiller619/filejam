@@ -1,4 +1,4 @@
-import { Input, NativeSelect, Switch } from '@filejam/ui'
+import { Input, Select, Switch } from '@filejam/ui'
 import { useEffect, useId, useState } from 'react'
 import type {
   SettingDefinition,
@@ -50,14 +50,21 @@ export default function SettingControl({
   }
 
   if (setting.control === 'select') {
+    const selectedIndex = setting.options.findIndex(
+      (option) => option.value === current,
+    )
+    const selectedOption = setting.options[selectedIndex]
+
     return (
-      <NativeSelect
-        {...common}
-        value={String(
-          setting.options.findIndex((option) => option.value === current),
-        )}
-        onChange={(event) => {
-          const option = setting.options[Number(event.currentTarget.value)]
+      <Select
+        label={setting.title}
+        title={setting.description}
+        disabled={disabled}
+        onFocus={onFocus}
+        value={String(selectedIndex)}
+        displayValue={selectedOption?.label ?? String(current)}
+        onValueChange={(nextIndex) => {
+          const option = setting.options[Number(nextIndex)]
 
           if (option) {
             onChange(option.value)
@@ -65,11 +72,11 @@ export default function SettingControl({
         }}
       >
         {setting.options.map((option, index) => (
-          <option key={String(option.value)} value={index}>
+          <Select.MenuItem key={String(option.value)} value={String(index)}>
             {option.label}
-          </option>
+          </Select.MenuItem>
         ))}
-      </NativeSelect>
+      </Select>
     )
   }
 

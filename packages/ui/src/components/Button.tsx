@@ -5,9 +5,10 @@ import { motion } from 'motion/react'
 import type { ComponentProps, ElementType } from 'react'
 import { pressed } from '../interactions.js'
 import type { PolymorphicProps } from '../polymorphic.js'
-import Surface, { type Size, type SurfaceOwnProps } from './Surface.js'
+import type { Size, Variant } from './@types.js'
+import Surface, { type SurfaceOwnProps } from './Surface.js'
 
-export type Variant = 'default' | 'ghost' | 'primary' | 'link'
+export type ButtonVariant = Variant | 'link' | 'ghost'
 
 const styles = css`
   .button {
@@ -73,7 +74,7 @@ export type ButtonProps<T extends ElementType = typeof MotionButton> =
       color?: string
       size?: Size
       block?: boolean
-      variant?: Variant
+      variant?: ButtonVariant
     }
   >
 

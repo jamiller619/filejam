@@ -20,7 +20,8 @@
     "copy:assets": "node scripts/copy-assets.mjs",
     "test": "pnpm build && node --test tests/*.test.mjs && node tests/run-smoke.mjs",
     "dev": "node scripts/generate-settings.mjs && tsc -b && pnpm --filter @filejam/server copy:migrations && node scripts/dev.mjs",
-    "build:settings": "node scripts/generate-settings.mjs"
+    "build:settings": "node scripts/generate-settings.mjs",
+    "test:icons": "pnpm build && node tests/run-icons-ui.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
@@ -39,6 +40,8 @@
     "@filejam/preview-video": "workspace:*",
     "@filejam/server": "workspace:*",
     "@filejam/ui": "workspace:*",
+    "@iconify-json/lucide": "1.2.149",
+    "@iconify/react": "6.0.3",
     "@tanstack/react-query": "^5.104.5",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.22",
@@ -53,7 +56,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-resizable-panels": "^4.14.5",
-    "react-router": "^8.4.0"
+    "react-router": "^8.4.0",
+    "sharp": "0.35.5"
   },
   "main": "dist/index.js"
 }

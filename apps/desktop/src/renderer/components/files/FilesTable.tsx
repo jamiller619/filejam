@@ -16,6 +16,7 @@ import {
 } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl } from '../../utils/folderUrl.js'
+import { useAppearance } from '../icons/AppearanceProvider.js'
 import FileName, { fileColorForName } from './FileName.js'
 import FilePreview from './FilePreview.js'
 import { minimumNameColumnWidth, selectedFileColor } from './Files.constants.js'
@@ -82,7 +83,7 @@ const styles = css`
       font-weight: 400;
       white-space: nowrap;
       position: sticky;
-      top: 48px;
+      top: 36px;
       z-index: 1;
       background: var(--suzy-gray-2);
     }
@@ -273,6 +274,7 @@ export default function FilesTable({
   onToggleGroup,
   onWidthChange,
 }: FilesTableProps) {
+  const { edit } = useAppearance()
   const containerRef = useRef<HTMLDivElement>(null)
   const [tableElement, setTableElement] = useState<HTMLTableElement | null>(
     null,
@@ -503,6 +505,17 @@ export default function FilesTable({
                   aria-rowindex={virtualItem.index + 2}
                   data-selected={selectedIds.has(entry.id)}
                   data-file-id={entry.id}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    edit(
+                      {
+                        kind: 'entry',
+                        libraryId: entry.libraryId,
+                        relativePath: entry.relativePath,
+                      },
+                      entry.name,
+                    )
+                  }}
                   data-folder-drag-preview={entryPath ? true : undefined}
                   onDoubleClick={
                     entry.presentation?.activation

@@ -6,7 +6,7 @@ const styles = css`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(var(--card-size), 100%), 1fr));
     gap: var(--suzy-space-2);
-    padding: 0;
+    padding: var(--suzy-space-2) 0;
     margin: 0;
     list-style: none;
   }

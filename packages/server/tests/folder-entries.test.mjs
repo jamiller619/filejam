@@ -209,10 +209,30 @@ test('folder sizes include nested contents and reflect updates and deletions', a
       )
 
     assert.deepEqual(await sizes(), { empty: 0, folder: 47, outside: 1000 })
+
+    const folderSize = async (options = {}) =>
+      (
+        await api.entries.listChildren({
+          libraryId: library.id,
+          relativePath: 'folder',
+          ...options,
+        })
+      ).folder.size
+
+    assert.equal(await folderSize(), 47)
+    assert.equal(await folderSize({ recursive: true }), 47)
+    assert.equal(await folderSize({ search: 'a' }), 47)
+    assert.equal(await folderSize({ search: 'missing' }), 47)
+    assert.equal(await folderSize({ relativePath: '' }), 1047)
+    assert.equal(await folderSize({ relativePath: 'empty' }), 0)
+
     await save('folder/a', folder.id, 'file', 20)
     assert.equal((await sizes()).folder, 55)
+    assert.equal(await folderSize(), 55)
+
     await api.entries.completeScan(library.id, [deep.id])
     assert.equal((await sizes()).folder, 25)
+    assert.equal(await folderSize(), 25)
   } finally {
     connection?.close()
 

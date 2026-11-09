@@ -82,6 +82,11 @@ export default function FilesGrid({
         selected={selectedIds.has(entry.id)}
         previewOnly={masonry}
         fileId={entry.id}
+        iconTarget={{
+          kind: 'entry',
+          libraryId: entry.libraryId,
+          relativePath: entry.relativePath,
+        }}
         folderPath={folderPath}
         {...(entry.kind === 'directory'
           ? {

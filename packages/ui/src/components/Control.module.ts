@@ -1,11 +1,11 @@
 import { css } from 'inline-css-modules'
 
 const styles = css<'control' | 'primary' | 'ghost'>`
-  --surface: var(--suzy-gray-10);
-  --surface-opacity: 20%;
-  --surface-hover-opacity: 30%;
-
   .control {
+    --surface: var(--suzy-gray-10);
+    --surface-opacity: 20%;
+    --surface-hover-opacity: 30%;
+
     color: var(--suzy-text);
     background: lch(from var(--surface) l c h / var(--surface-opacity));
     transition: background var(--suzy-duration-fast) var(--suzy-ease-enter);

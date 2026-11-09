@@ -3,12 +3,12 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { css } from 'inline-css-modules'
 import {
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -42,16 +42,6 @@ import { useFilesTablePreferences } from './useFilesTablePreferences.js'
 
 export type { FileColumn } from '../../utils/fileColumns.js'
 export type { Folder } from './Files.types.js'
-
-const styles = css`
-  .filesContainer {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding-block: var(--suzy-space-2);
-    /* gap: var(--suzy-space-2); */
-  }
-`
 
 const emptyEntries: Listing['entries'] = []
 
@@ -178,6 +168,7 @@ function FolderContents({
   )
   const [detailsClosing, setDetailsClosing] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(true)
+  const detailsVisibilityRequest = useRef(0)
   const tableColumns = useMemo(() => {
     const columnSet = new Set([
       'name' as const,
@@ -376,11 +367,33 @@ function FolderContents({
   )
 
   useLayoutEffect(() => {
-    detailsPane.setVisible(detailsOpen)
+    void detailsPane.setVisible(detailsOpen)
   }, [detailsOpen, detailsPane])
 
-  function activateFile(id: number) {
+  function showDetails() {
+    detailsVisibilityRequest.current++
     setDetailsOpen(true)
+    setDetailsClosing(false)
+    void detailsPane.setVisible(true)
+  }
+
+  function hideDetails() {
+    const request = ++detailsVisibilityRequest.current
+
+    setDetailsClosing(true)
+
+    void detailsPane.setVisible(false).then(() => {
+      if (request !== detailsVisibilityRequest.current) {
+        return
+      }
+
+      setDetailsOpen(false)
+      setDetailsClosing(false)
+    })
+  }
+
+  function activateFile(id: number) {
+    showDetails()
     selectFile(id)
     viewFile(id)
   }
@@ -412,7 +425,7 @@ function FolderContents({
   const ariaLabel = collectionId ? 'Collection files' : 'Folder contents'
 
   return (
-    <div ref={containerRef} className={styles.filesContainer}>
+    <div ref={containerRef}>
       {viewError && <p role="alert">{viewError}</p>}
       {librariesFailed && <p role="status">Unable to load full file paths.</p>}
       <FilesToolbar
@@ -428,10 +441,9 @@ function FolderContents({
         flattenLocked={folderView?.allowFlattenToggle === false}
         onDetailsOpenChange={(open) => {
           if (open) {
-            setDetailsOpen(true)
-            setDetailsClosing(false)
+            showDetails()
           } else {
-            setDetailsClosing(true)
+            hideDetails()
           }
         }}
         onFlattenChange={(flatten) => {
@@ -494,11 +506,7 @@ function FolderContents({
             rootPath={libraryRoots.get(detailsEntry.libraryId)}
             dateFormat={dateFormat}
             closing={detailsClosing}
-            onClose={() => setDetailsClosing(true)}
-            onClosed={() => {
-              setDetailsOpen(false)
-              setDetailsClosing(false)
-            }}
+            onClose={hideDetails}
             onCollectionsChange={() => {
               if (collectionId) {
                 refresh()

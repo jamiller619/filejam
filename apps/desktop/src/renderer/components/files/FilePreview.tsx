@@ -1,7 +1,10 @@
-﻿import { Button, Icon } from '@filejam/ui'
+import { iconTargetKey } from '@filejam/server/icons'
+import { Button, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { useEffect, useRef, useState } from 'react'
+import { useAppearance } from '../icons/AppearanceProvider.js'
+import { CustomIconImage } from '../icons/ItemIcon.js'
 import type { FileColor } from './FileName.js'
 
 const styles = css`
@@ -60,6 +63,8 @@ const styles = css`
 `
 
 type Entry = {
+  kind?: string
+  mimeType?: string | null
   libraryId: number
   relativePath: string
   modifiedAt: Date | string | null
@@ -113,6 +118,23 @@ export default function FilePreview({
   onOpen?: () => void
   naturalSize?: boolean
 }) {
+  const { icons } = useAppearance()
+  const [failedCustomAsset, setFailedCustomAsset] = useState('')
+  const customIcon = icons.get(
+    iconTargetKey({
+      kind: 'entry',
+      libraryId: entry.libraryId,
+      relativePath: entry.relativePath,
+    }),
+  )
+  const isMedia =
+    entry.mimeType?.startsWith('image/') || entry.mimeType?.startsWith('video/')
+  const showCustomIcon =
+    customIcon &&
+    (customIcon.kind !== 'upload' ||
+      customIcon.assetId !== failedCustomAsset) &&
+    !onOpen &&
+    (variant === 'list' || !isMedia)
   const containerRef = useRef<HTMLDivElement>(null)
   const [nearViewport, setNearViewport] = useState(Boolean(onOpen))
   const [loadedSource, setLoadedSource] = useState('')
@@ -169,12 +191,26 @@ export default function FilePreview({
   useEffect(() => {
     const container = containerRef.current
 
-    if (detail || !container) {
+    if (detail || showCustomIcon || !container) {
       return
     }
 
     return observeVisibility(container, setNearViewport)
-  }, [detail])
+  }, [detail, showCustomIcon])
+
+  if (showCustomIcon) {
+    return (
+      <CustomIconImage
+        icon={customIcon}
+        onError={() => {
+          if (customIcon.kind === 'upload') {
+            setFailedCustomAsset(customIcon.assetId)
+          }
+        }}
+        size={typeof size === 'number' ? size : 80}
+      />
+    )
+  }
 
   return (
     <div

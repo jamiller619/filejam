@@ -1,4 +1,5 @@
 import type { Database } from '../db/index.js'
+import { createAppearanceApi } from './appearance.js'
 import { createCollectionsApi } from './collections.js'
 import { createEntriesApi } from './entries.js'
 import { createLibrariesApi } from './libraries.js'
@@ -6,6 +7,7 @@ import { createMoveHistoryApi } from './moveHistory.js'
 
 export function createApi(db: Database) {
   return {
+    appearance: createAppearanceApi(db),
     collections: createCollectionsApi(db),
     libraries: createLibrariesApi(db),
     moveHistory: createMoveHistoryApi(db),

@@ -2,8 +2,7 @@ import clsx from 'clsx'
 import { css } from 'inline-css-modules'
 import type { ElementType } from 'react'
 import type { PolymorphicProps } from '../polymorphic.js'
-
-export type Size = 'sm' | 'md' | 'lg'
+import type { Size } from './@types.js'
 
 export type SurfaceOwnProps = {
   className?: string | undefined
@@ -23,8 +22,8 @@ export const styles = css`
     corner-shape: var(--suzy-corner-shape);
     transition: background var(--suzy-duration-fast) var(--suzy-ease-enter);
 
-    &:hover,
-    &:focus {
+    &:hover:not([disabled]),
+    &:focus:not([disabled]) {
       background: lch(from var(--suzy-gray-12) l c h / 12%);
     }
 

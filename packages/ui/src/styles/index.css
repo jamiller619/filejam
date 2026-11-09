@@ -60,16 +60,6 @@ h6 {
   animation: none;
 }
 
-:root[data-details-transition="exit"]::view-transition-old(file-details) {
-  animation: details-exit 180ms cubic-bezier(0.2, 0, 0, 1) both;
-  mix-blend-mode: normal;
-}
-
-:root[data-details-transition="enter"]::view-transition-new(file-details) {
-  animation: details-enter 180ms cubic-bezier(0.2, 0, 0, 1) both;
-  mix-blend-mode: normal;
-}
-
 @keyframes page-exit {
   to {
     opacity: 0;
@@ -81,18 +71,6 @@ h6 {
   from {
     opacity: 0;
     transform: translateX(-24px);
-  }
-}
-
-@keyframes details-exit {
-  to {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes details-enter {
-  from {
-    transform: translateX(100%);
   }
 }
 

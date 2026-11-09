@@ -50,6 +50,11 @@ export default function Home() {
               title={path}
               name={name}
               folderPath={path}
+              iconTarget={{
+                kind: 'entry',
+                libraryId: library.id,
+                relativePath,
+              }}
               {...folderDragProps(path)}
             >
               <FilePreview

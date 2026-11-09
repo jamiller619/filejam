@@ -1,9 +1,11 @@
+import { copyFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { inlineCssModules } from 'inline-css-modules/vite'
 import { build } from 'vite'
 import { copyMediaBinaries } from './copy-media-binaries.mjs'
 import { copyPreviewAssets } from './copy-preview-assets.mjs'
 
+await import('./generate-icons.mjs')
 await import('../../../packages/ui/scripts/copy-assets.mjs')
 
 await copyPreviewAssets()
@@ -34,3 +36,9 @@ await build({
     emptyOutDir: false,
   },
 })
+
+await mkdir(new URL('../dist/licenses/', import.meta.url), { recursive: true })
+await copyFile(
+  new URL('../src/renderer/components/icons/LICENSE.txt', import.meta.url),
+  new URL('../dist/licenses/lucide.txt', import.meta.url),
+)

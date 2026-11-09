@@ -17,6 +17,7 @@ import {
   formatFullPath,
 } from '../../utils/fileColumns.js'
 import type { FileViewMode } from '../../utils/tablePreferences.js'
+import { IconButton } from '../icons/ItemIcon.js'
 
 const styles = css`
   .toolbar {
@@ -26,7 +27,6 @@ const styles = css`
     display: flex;
     align-items: center;
     gap: var(--suzy-space-2);
-    padding-block: var(--suzy-space-2);
     background: var(--suzy-gray-2);
   }
   .controlGroup {
@@ -40,8 +40,7 @@ const styles = css`
     min-height: 36px;
     align-items: center;
     justify-content: space-between;
-    gap: var(--suzy-space-3);
-    padding-inline: var(--suzy-space-2);
+    gap: var(--suzy-space-2);
     white-space: nowrap;
   }
   .favoriteButton {
@@ -266,8 +265,8 @@ export default function FilesToolbar<TData>({
 
   const favoritePaths = Array.isArray(settingsValues?.['user.favoriteFolders'])
     ? settingsValues['user.favoriteFolders'].filter(
-      (path): path is string => typeof path === 'string',
-    )
+        (path): path is string => typeof path === 'string',
+      )
     : []
 
   const [favoriteError, setFavoriteError] = useState('')
@@ -309,7 +308,18 @@ export default function FilesToolbar<TData>({
   return (
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
-      <OverflowToolbar className={styles.toolbar} trailingFrom={3}>
+      <OverflowToolbar className={styles.toolbar} trailingFrom={4}>
+        {collectionId ? (
+          <IconButton
+            target={{ kind: 'collection', id: collectionId }}
+            name="collection"
+          />
+        ) : libraryId !== undefined && relativePath !== undefined ? (
+          <IconButton
+            target={{ kind: 'entry', libraryId, relativePath }}
+            name={relativePath.split('/').at(-1) || 'folder'}
+          />
+        ) : null}
         <div key="view" className={styles.controlGroup}>
           <ButtonGroup role="group" aria-label="File view">
             {(['list', 'grid', 'masonry'] as const).map((mode) => (
@@ -341,8 +351,9 @@ export default function FilesToolbar<TData>({
                 { id, desc: isCurrentSort ? !currentSort.desc : false },
               ])
             }}
-            displayValue={`${currentSortLabel}${currentSortDirection ? ` (${currentSortDirection})` : ''
-              }`}
+            displayValue={`${currentSortLabel}${
+              currentSortDirection ? ` (${currentSortDirection})` : ''
+            }`}
           >
             <Select.MenuItem value={null}>Default order</Select.MenuItem>
             {table.getAllLeafColumns().map((column) => (
@@ -414,7 +425,7 @@ export default function FilesToolbar<TData>({
             id={fileExtensionsSwitchId}
             title="Show file extensions"
             checked={false}
-            onCheckedChange={() => { }}
+            onCheckedChange={() => {}}
           />
         </label>
         <div key="details" className={styles.controlGroup}>

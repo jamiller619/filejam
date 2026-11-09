@@ -17,11 +17,14 @@ import {
 const masonryGap = 8
 
 const styles = css`
+  .section {
+    padding: var(--suzy-space-2) 0;
+  }
   .section + .section {
     margin-block-start: var(--suzy-space-2);
   }
   .masonry {
-    padding: 0;
+    padding:0;
     margin: 0;
     list-style: none;
   }
@@ -85,6 +88,7 @@ function MasonryList({
     columnGutter: masonryGap,
     rowGutter: masonryGap,
   })
+
   const positioner = useMemo<Positioner>(
     () => ({
       ...masonryPositioner,
@@ -105,6 +109,7 @@ function MasonryList({
     }),
     [masonryPositioner],
   )
+
   const resizeObserver = useMasonryResizeObserver(positioner)
 
   const masonry = useMasonry({

@@ -78,6 +78,20 @@
       "when": 1792962514185,
       "tag": "0010_sharp_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793544245187,
+      "tag": "0011_steep_professor_monster",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793544306056,
+      "tag": "0012_restore_moved_icons",
+      "breakpoints": true
     }
   ]
 }

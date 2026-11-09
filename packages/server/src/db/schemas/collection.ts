@@ -1,10 +1,12 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import type { CustomIcon } from '../../icons.js'
 import { entries } from './entry.js'
 
 export const collections = sqliteTable('collections', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   definition: text('definition').notNull(),
+  icon: text('icon', { mode: 'json' }).$type<CustomIcon>(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 })

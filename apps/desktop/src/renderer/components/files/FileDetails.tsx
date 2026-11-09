@@ -8,6 +8,7 @@ import {
   formatFileValueTitle,
   formatFullPath,
 } from '../../utils/fileColumns.js'
+import { IconButton } from '../icons/ItemIcon.js'
 import DetailsPane from '../layout/DetailsPane.js'
 import FileCollections from './FileCollections.js'
 import FilePreview from './FilePreview.js'
@@ -124,7 +125,6 @@ export default function FileDetails({
   dateFormat,
   closing,
   onClose,
-  onClosed,
   onCollectionsChange,
 }: {
   entry: FileEntry
@@ -132,7 +132,6 @@ export default function FileDetails({
   dateFormat: DateFormat
   closing: boolean
   onClose: () => void
-  onClosed: () => void
   onCollectionsChange: () => void
 }) {
   const [imageError, setImageError] = useState<{
@@ -181,7 +180,6 @@ export default function FileDetails({
       closing={closing}
       showCloseButton={false}
       onClose={onClose}
-      onClosed={onClosed}
       footer={
         <nav className={styles.sectionNav} aria-label="Detail sections">
           <ButtonGroup className={styles.sectionButtons} role="group">
@@ -217,6 +215,15 @@ export default function FileDetails({
         </nav>
       }
     >
+      <IconButton
+        target={{
+          kind: 'entry',
+          libraryId: entry.libraryId,
+          relativePath: entry.relativePath,
+        }}
+        name={displayName}
+        label
+      />
       <div ref={previewSection} className={styles.preview}>
         {isVideo ? (
           // biome-ignore lint/a11y/useMediaCaption: Local videos do not include a separate captions source.

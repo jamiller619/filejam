@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -49,7 +49,14 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
       'SELECT * FROM __drizzle_migrations',
     )
 
-    assert.equal(migrations.length, 3)
+    const journal = JSON.parse(
+      await readFile(
+        new URL('../src/db/migrations/meta/_journal.json', import.meta.url),
+        'utf8',
+      ),
+    )
+
+    assert.equal(migrations.length, journal.entries.length)
 
     const entryColumns = await connection.db.all(
       "SELECT name FROM pragma_table_info('entries')",

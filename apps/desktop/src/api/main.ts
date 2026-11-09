@@ -1,12 +1,15 @@
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { readFile, stat } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { ServerApi } from '@filejam/server'
-import { BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
+import type { IconTarget } from '@filejam/server/icons'
+import { app, BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
 import type { EntryRegistry } from '../entries/registry.js'
 import type {
   PresentedEntry,
   PresentedFolderListing,
   PresentedLibrary,
 } from '../entries/types.js'
+import { maximumIconBytes, storeIcon } from '../icons/assets.js'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
 import type { SettingsApi } from '../settings/index.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'
@@ -27,6 +30,55 @@ export function registerApiIpc(
     scanRoot,
   )
   const moveFolders = createMoveFoldersHandler(api, settings, scanRoot)
+
+  ipcMain.handle(
+    'appearance:list',
+    withIpcMiddleware(() => api.appearance.list(), authorizeRenderer(renderer)),
+  )
+  ipcMain.handle(
+    'appearance:set',
+    withIpcMiddleware(
+      (_event, target: IconTarget, icon: unknown) =>
+        api.appearance.set(target, icon),
+      authorizeRenderer(renderer),
+    ),
+  )
+  ipcMain.handle(
+    'appearance:import',
+    withIpcMiddleware(async () => {
+      const window = BrowserWindow.fromWebContents(renderer)
+
+      if (!window) {
+        throw new Error('The app window is unavailable.')
+      }
+
+      const result = await dialog.showOpenDialog(window, {
+        title: 'Choose an icon',
+        properties: ['openFile'],
+        filters: [
+          { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
+        ],
+      })
+      const path = result.filePaths[0]
+
+      if (result.canceled || !path) {
+        return null
+      }
+
+      if ((await stat(path)).size > maximumIconBytes) {
+        throw new Error('Choose an image smaller than 2 MB.')
+      }
+
+      const id = await storeIcon(
+        join(app.getPath('userData'), 'icons'),
+        await readFile(path),
+      )
+
+      await api.appearance.registerAsset(id)
+
+      return { kind: 'upload' as const, assetId: id }
+    }, authorizeRenderer(renderer)),
+  )
 
   ipcMain.handle(
     'libraries:add',
@@ -282,6 +334,9 @@ export function registerApiIpc(
   )
 
   return () => {
+    ipcMain.removeHandler('appearance:list')
+    ipcMain.removeHandler('appearance:set')
+    ipcMain.removeHandler('appearance:import')
     ipcMain.removeHandler('libraries:add')
     ipcMain.removeHandler('favorites:addFolders')
     ipcMain.removeHandler('settings:get')

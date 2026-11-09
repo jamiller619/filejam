@@ -1,3 +1,5 @@
+import { rm, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { boot } from '@filejam/server'
 import {
@@ -17,6 +19,7 @@ import { registerApiIpc } from './api/main.js'
 import { resolveDefaultFolder } from './defaultFolders.js'
 import { createEntryRegistry } from './entries/create-registry.js'
 import type { EntryRegistry } from './entries/registry.js'
+import { createIconHandler } from './icons/assets.js'
 import { registerImageViewerIpc } from './ipc/image-viewer.js'
 import { registerWindowIpc } from './ipc/window.js'
 import { createPreviewService } from './preview/create-service.js'
@@ -35,6 +38,7 @@ import { getOsTrashRoots } from './trash/roots.js'
 import { readWindowState, trackWindowState } from './window-state.js'
 
 protocol.registerSchemesAsPrivileged([
+  { scheme: 'filejam-icon', privileges: { standard: true, secure: true } },
   {
     scheme: 'filejam-preview',
     privileges: { standard: true, secure: true, stream: true },
@@ -53,9 +57,7 @@ app.whenReady().then(async () => {
   try {
     await installExtension(REACT_DEVELOPER_TOOLS)
 
-    console.log(
-      `++++++++++++++++ React DevTools install success ++++++++++++++++`,
-    )
+    console.log(`React DevTools installed successfully.`)
   } catch (error) {
     console.error(`Failed to install React Developer Tools extension:`, error)
   }
@@ -324,6 +326,35 @@ if (!app.requestSingleInstanceLock()) {
       await settings.set('user.favoriteFolders', favorites)
     }
 
+    // Recover the gap between a successful filesystem move and its DB commit.
+    for (const operation of await server.api.moveHistory.list()) {
+      for (const item of operation.items) {
+        if (item.status === 'completed' || !item.appearance?.length) {
+          continue
+        }
+
+        const sourceMissing = await stat(item.sourcePath).then(
+          () => false,
+          (error: NodeJS.ErrnoException) => error.code === 'ENOENT',
+        )
+        const target = await stat(item.targetPath).catch(() => null)
+
+        if (sourceMissing && target?.isDirectory()) {
+          await server.api.moveHistory.markItemMoved(item.id)
+        }
+      }
+    }
+
+    for (const id of await server.api.appearance.collectUnusedAssets()) {
+      await rm(join(app.getPath('userData'), 'icons', `${id}.png`), {
+        force: true,
+      })
+    }
+
+    protocol.handle(
+      'filejam-icon',
+      createIconHandler(join(app.getPath('userData'), 'icons')),
+    )
     previews = await createPreviewService(app.getPath('userData'))
     const fileIcons = createFileIconProvider(async (file, size) => {
       const icon = await app.getFileIcon(file, { size })

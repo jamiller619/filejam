@@ -75,6 +75,7 @@ export function createCollectionsApi(db: Database) {
         id: randomUUID(),
         name: value.name,
         definition: JSON.stringify(value.definition),
+        icon: null,
         createdAt: now,
         updatedAt: now,
       }

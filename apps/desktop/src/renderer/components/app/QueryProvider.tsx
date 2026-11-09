@@ -13,15 +13,18 @@ export default function QueryProvider({
     }
 
     const invalidateCollections = () => {
+      void queryClient.invalidateQueries({ queryKey: ['appearance'] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.collections })
       void queryClient.invalidateQueries({ queryKey: ['entry-collections'] })
     }
 
     const invalidateSettings = () => {
+      void queryClient.invalidateQueries({ queryKey: ['appearance'] })
       void queryClient.invalidateQueries({ queryKey: ['settings'] })
     }
 
     const invalidateFiles = () => {
+      void queryClient.invalidateQueries({ queryKey: ['appearance'] })
       void queryClient.invalidateQueries({ queryKey: ['files'] })
     }
 
