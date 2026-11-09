@@ -27,6 +27,7 @@ import type {
   Listing,
 } from './Files.types.js'
 import FilesGroupToggle from './FilesGroupToggle.js'
+import { findVerticalScrollElement } from './fileScroll.js'
 
 const styles = css`
   @keyframes folder-drag-lift {
@@ -220,22 +221,6 @@ const styles = css`
   }
   .nameCell { width: 100%; max-width: 0; }
 `
-
-function findVerticalScrollElement(element: HTMLElement | null) {
-  let candidate = element?.parentElement ?? null
-
-  while (candidate) {
-    const { overflowY } = window.getComputedStyle(candidate)
-
-    if (overflowY === 'auto' || overflowY === 'scroll') {
-      return candidate
-    }
-
-    candidate = candidate.parentElement
-  }
-
-  return null
-}
 
 type FilesTableProps = {
   table: FilesTableModel

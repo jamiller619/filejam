@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "build": "node apps/desktop/scripts/generate-settings.mjs && tsc -b && pnpm --filter @filejam/server copy:migrations && pnpm --filter @filejam/desktop copy:assets",
-    "typecheck": "node apps/desktop/scripts/generate-settings.mjs && tsc -b --noEmit",
+    "typecheck": "node apps/desktop/scripts/generate-settings.mjs && tsc -b --emitDeclarationOnly",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "format": "biome format --write .",

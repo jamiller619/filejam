@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "build": "node scripts/generate-settings.mjs && tsc -b && pnpm --filter @filejam/server copy:migrations && node scripts/copy-assets.mjs",
-    "typecheck": "node scripts/generate-settings.mjs && tsc -b --noEmit",
+    "typecheck": "node scripts/generate-settings.mjs && tsc -b --emitDeclarationOnly",
     "clean": "tsc -b --clean",
     "start": "pnpm build && node scripts/start.mjs",
     "copy:assets": "node scripts/copy-assets.mjs",

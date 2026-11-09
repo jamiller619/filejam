@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { findVerticalScrollElement } from './fileScroll.js'
 
 const masonryGap = 8
 
@@ -65,6 +66,11 @@ function MasonryList({
   const measurementRef = useRef<HTMLDivElement | null>(null)
   const masonryRef = useRef<HTMLElement | null>(null)
   const [width, setWidth] = useState(0)
+  const [viewport, setViewport] = useState({
+    height: 0,
+    isScrolling: false,
+    scrollTop: 0,
+  })
 
   useLayoutEffect(() => {
     const container = measurementRef.current
@@ -73,13 +79,45 @@ function MasonryList({
       return
     }
 
-    const updateWidth = () => setWidth(container.clientWidth)
-    const observer = new ResizeObserver(updateWidth)
+    const scrollElement = findVerticalScrollElement(container)
+    let scrollEndTimer: ReturnType<typeof setTimeout> | undefined
+    const updateMeasurements = (isScrolling = false) => {
+      setWidth(container.clientWidth)
 
-    updateWidth()
+      if (!scrollElement) {
+        return
+      }
+
+      const offset =
+        container.getBoundingClientRect().top -
+        scrollElement.getBoundingClientRect().top +
+        scrollElement.scrollTop
+
+      setViewport({
+        height: scrollElement.clientHeight,
+        isScrolling,
+        scrollTop: scrollElement.scrollTop - offset,
+      })
+    }
+    const handleScroll = () => {
+      updateMeasurements(true)
+      clearTimeout(scrollEndTimer)
+      scrollEndTimer = setTimeout(() => updateMeasurements(false), 100)
+    }
+    const observer = new ResizeObserver(() => updateMeasurements())
+
+    updateMeasurements()
     observer.observe(container)
+    if (scrollElement) {
+      observer.observe(scrollElement)
+      scrollElement.addEventListener('scroll', handleScroll, { passive: true })
+    }
 
-    return () => observer.disconnect()
+    return () => {
+      clearTimeout(scrollEndTimer)
+      observer.disconnect()
+      scrollElement?.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   const masonryPositioner = usePositioner({
@@ -124,8 +162,9 @@ function MasonryList({
     itemAs: 'li',
     itemStyle: { listStyle: 'none' },
     itemKey: (item) => item.key,
-    height: Number.MAX_SAFE_INTEGER,
-    scrollTop: 0,
+    height: viewport.height,
+    scrollTop: viewport.scrollTop,
+    isScrolling: viewport.isScrolling,
     overscanBy: 1,
     render: ItemContent,
     style: { visibility: width === 0 ? 'hidden' : undefined },

@@ -117,10 +117,10 @@ export default function Layout() {
             minSize={120}
             maxSize={250}
             onResize={({ inPixels }) => {
-              // clearTimeout(saveNavbarTimer.current)
-              // saveNavbarTimer.current = setTimeout(() => {
-              void updateSettings('window.navbarWidth', Math.round(inPixels))
-              // }, 250)
+              clearTimeout(saveNavbarTimer.current)
+              saveNavbarTimer.current = setTimeout(() => {
+                void updateSettings('window.navbarWidth', Math.round(inPixels))
+              }, 3000)
             }}
           >
             <Navbar className={styles.navbar} />

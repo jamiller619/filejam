@@ -1,8 +1,8 @@
 import { css } from 'inline-css-modules'
-import AddLibrary from './AddLibrary.js'
+import Search from './Search.js'
 
 const styles = css`
-  .toolbar {
+  .header {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -12,10 +12,10 @@ const styles = css`
   }
 `
 
-export default function LibrariesToolbar() {
+export default function PageHeader() {
   return (
-    <div className={styles.toolbar} role="toolbar" aria-label="Library actions">
-      <AddLibrary />
-    </div>
+    <header className={styles.header}>
+      <Search />
+    </header>
   )
 }

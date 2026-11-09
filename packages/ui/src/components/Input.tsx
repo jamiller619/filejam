@@ -6,19 +6,12 @@ import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { Size } from './@types.js'
 import Icon, { type IconName } from './Icon.js'
-import Surface from './Surface.js'
 
 const styles = css`
   .root {
     position: relative;
     display: inline-grid;
     max-width: 100%;
-  }
-
-  .input {
-    &:focus-visible {
-      background: lch(from var(--suzy-gray-3) l c h / 10%);
-    }
   }
 
   .icon {
@@ -56,13 +49,13 @@ export default function Input({
   )
 
   if (!icon) {
-    return <Surface as={BaseUIInput} {...props} className={cssClassName} />
+    return <BaseUIInput {...props} className={cssClassName} />
   }
 
   return (
-    <Surface as="span" className={styles.root}>
+    <span className={styles.root}>
       <Icon className={styles.icon} name={icon} size={14} />
       <BaseUIInput {...props} className={cssClassName} />
-    </Surface>
+    </span>
   )
 }

@@ -1,6 +1,5 @@
 import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
-import { Fragment } from 'react'
 import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl } from '../../utils/folderUrl.js'
@@ -74,6 +73,7 @@ export default function FilesGrid({
 
     return (
       <GridCard
+        key={entry.id}
         as={masonry ? 'div' : 'li'}
         name={displayName}
         isDirectory={entry.kind === 'directory'}
@@ -162,23 +162,28 @@ export default function FilesGrid({
 
   return (
     <GridContainer aria-label={ariaLabel} cardSize={cardSize}>
-      {rowGroups.map((group) => (
-        <Fragment key={group.key}>
-          {group.label !== null && (
-            <li className={styles.groupHeading} data-group-heading="true">
-              <FilesGroupToggle
-                expanded={!collapsedGroupKeys.has(group.key)}
-                label={group.label}
-                onClick={() => onToggleGroup(group.key)}
-              />
-            </li>
-          )}
-          {!collapsedGroupKeys.has(group.key) &&
-            group.rows.map(({ original: entry }) => (
-              <Fragment key={entry.id}>{renderFileCard(entry, false)}</Fragment>
-            ))}
-        </Fragment>
-      ))}
+      {rowGroups.flatMap((group) => [
+        ...(group.label !== null
+          ? [
+              <li
+                key={`heading:${group.key}`}
+                className={styles.groupHeading}
+                data-group-heading="true"
+              >
+                <FilesGroupToggle
+                  expanded={!collapsedGroupKeys.has(group.key)}
+                  label={group.label}
+                  onClick={() => onToggleGroup(group.key)}
+                />
+              </li>,
+            ]
+          : []),
+        ...(collapsedGroupKeys.has(group.key)
+          ? []
+          : group.rows.map(({ original: entry }) =>
+              renderFileCard(entry, false),
+            )),
+      ])}
     </GridContainer>
   )
 }
