@@ -1,5 +1,4 @@
 import { css } from 'inline-css-modules'
-import { useEffect, useRef } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Outlet } from 'react-router'
 import { useSettings } from '../../hooks/useSettings.js'
@@ -7,6 +6,7 @@ import DetailsLayout from './DetailsLayout.js'
 import Navbar from './Navbar.js'
 import { SearchProvider } from './SearchContext.js'
 import Titlebar from './Titlebar.js'
+import useResizeHandler from './useResizeHandler.js'
 
 const styles = css`
   .window {
@@ -94,13 +94,9 @@ const styles = css`
 
 export default function Layout() {
   const { values, updateSettings } = useSettings(['window.navbarWidth'])
-  const saveNavbarTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
-
-  useEffect(
-    () => () => {
-      clearTimeout(saveNavbarTimer.current)
-    },
-    [],
+  const handleResize = useResizeHandler(
+    (inPixels) =>
+      void updateSettings('window.navbarWidth', Math.round(inPixels)),
   )
 
   if (!values) {
@@ -116,12 +112,7 @@ export default function Layout() {
             defaultSize={values['window.navbarWidth']}
             minSize={120}
             maxSize={250}
-            onResize={({ inPixels }) => {
-              clearTimeout(saveNavbarTimer.current)
-              saveNavbarTimer.current = setTimeout(() => {
-                void updateSettings('window.navbarWidth', Math.round(inPixels))
-              }, 3000)
-            }}
+            onResize={handleResize}
           >
             <Navbar className={styles.navbar} />
           </Panel>

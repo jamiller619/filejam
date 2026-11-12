@@ -381,7 +381,7 @@ export default function Settings() {
                   setSelection({ type: 'library', id: library.id })
                 }
               >
-                <Icon name="chevron-right" size={12} />
+                <Icon name="forward" size={12} />
               </SettingRow>
             ))
           )}
@@ -396,7 +396,7 @@ export default function Settings() {
                 setSelection({ type: 'collection-new' })
               }}
             >
-              <Icon name="add" size={16} />
+              <Icon name="plus" size={16} />
               Add collection
             </Button>
           }
@@ -428,7 +428,7 @@ export default function Settings() {
                   setSelection({ type: 'collection', id: collection.id })
                 }
               >
-                <Icon name="chevron-right" size={12} />
+                <Icon name="forward" size={12} />
               </SettingRow>
             ))
           )}

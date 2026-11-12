@@ -61,7 +61,7 @@ export default function Search() {
       <Input
         aria-label="Search open folders"
         disabled={!canSearch}
-        icon="magnifying-glass"
+        icon="search"
         type="search"
         value={canSearch ? search : ''}
         onChange={(event) => setSearch(event.currentTarget.value)}

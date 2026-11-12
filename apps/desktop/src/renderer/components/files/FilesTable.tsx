@@ -274,10 +274,10 @@ export default function FilesTable({
         ...(collapsedGroupKeys.has(group.key)
           ? []
           : group.rows.map((row) => ({
-              key: `row:${row.id}`,
-              type: 'row' as const,
-              row,
-            }))),
+            key: `row:${row.id}`,
+            type: 'row' as const,
+            row,
+          }))),
       ]),
     [collapsedGroupKeys, rowGroups],
   )
@@ -320,8 +320,8 @@ export default function FilesTable({
       if (scrollElement && tableBody) {
         setScrollMargin(
           tableBody.getBoundingClientRect().top -
-            scrollElement.getBoundingClientRect().top +
-            scrollElement.scrollTop,
+          scrollElement.getBoundingClientRect().top +
+          scrollElement.scrollTop,
         )
       }
     }
@@ -375,11 +375,7 @@ export default function FilesTable({
                     </span>
                     <Icon
                       className={styles.sortArrow}
-                      name={
-                        header.column.getIsSorted()
-                          ? 'chevron-up'
-                          : 'chevron-up-down'
-                      }
+                      name={header.column.getIsSorted() ? 'up' : 'upDown'}
                       size={12}
                     />
                   </button>
@@ -476,9 +472,9 @@ export default function FilesTable({
               const entryPath =
                 entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
                   ? formatFullPath(
-                      libraryRoots.get(entry.libraryId) ?? '',
-                      entry.relativePath,
-                    )
+                    libraryRoots.get(entry.libraryId) ?? '',
+                    entry.relativePath,
+                  )
                   : undefined
 
               return (

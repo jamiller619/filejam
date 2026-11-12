@@ -28,6 +28,7 @@ const styles = css`
     align-items: center;
     gap: var(--suzy-space-2);
     background: var(--suzy-gray-2);
+    padding-block-end: var(--suzy-space-2);
   }
   .controlGroup {
     display: flex;
@@ -189,7 +190,7 @@ function FavoriteSetting({ busy, isFavorite, onChange }: FavoriteSettingProps) {
         onClick={handleClick}
       >
         <span className={styles.favoriteIcon}>
-          <Icon name={isFavorite ? 'heart-filled' : 'heart'} size={20} />
+          <Icon name={isFavorite ? 'heartFilled' : 'heart'} size={20} />
           {burstId > 0 && (
             <span key={burstId} aria-hidden="true">
               {confettiPieces.map((piece) => (
@@ -436,7 +437,10 @@ export default function FilesToolbar<TData>({
             aria-pressed={detailsOpen}
             onClick={() => onDetailsOpenChange(!detailsOpen)}
           >
-            <Icon name="hide-details" size={18} />
+            <Icon
+              name={detailsOpen ? 'hideDetails' : 'showDetails'}
+              size={18}
+            />
           </Button>
         </div>
       </OverflowToolbar>

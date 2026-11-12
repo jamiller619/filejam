@@ -4,10 +4,10 @@ const folderIcons: Readonly<Partial<Record<string, IconName>>> = {
   applications: 'grid',
   desktop: 'desktop',
   music: 'music',
-  videos: 'videos',
+  videos: 'video',
   pictures: 'image',
   downloads: 'download',
-  documents: 'documents',
+  documents: 'document',
 }
 
 export function getLibraryIcon(name: string): IconName {

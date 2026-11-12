@@ -5,7 +5,7 @@ import {
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { Size } from './@types.js'
-import Icon, { type IconName } from './Icon.js'
+import Icon, { type IconName } from './Icon/index.js'
 
 const styles = css`
   .root {

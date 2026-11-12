@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import Button from './Button.js'
-import Icon from './Icon.js'
+import Icon from './Icon/index.js'
 
 const styles = css`
   .toolbar { display: flex; min-width: 0; align-items: center; }
@@ -210,7 +210,7 @@ export default function OverflowToolbar({
             aria-label="More options"
             title="More options"
           >
-            <Icon name="ellipsis" size={20} />
+            <Icon name="more" size={20} />
           </Popover.Trigger>
         </span>
       </div>

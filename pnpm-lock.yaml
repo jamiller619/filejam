@@ -349,6 +349,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      iconify-icon:
+        specifier: ^3.0.5
+        version: 3.0.5
       inline-css-modules:
         specifier: ^0.3.0
         version: 0.3.0(esbuild@0.28.2)(vite@8.3.4(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15))
@@ -1817,6 +1820,9 @@ packages:
     resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
     engines: {node: '>= 6'}
 
+  iconify-icon@3.0.5:
+    resolution: {integrity: sha512-tApy9Ojh7ZGAuKRiPbUHpqd+hwNwM516al7vwX0dU6f7FoLI11DWGZwl85OYknGIwo4KnWeaqPJvCEMOrnKPWw==}
+
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
 
@@ -3261,6 +3267,10 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
+
+  iconify-icon@3.0.5:
+    dependencies:
+      '@iconify/types': 2.0.0
 
   immediate@3.0.6: {}
 

@@ -116,7 +116,7 @@ function NavButtons() {
         disabled={!canGoBack}
         onClick={() => navigate(-1)}
       >
-        <Icon name="chevron-left" size={18} />
+        <Icon name="back" />
       </Button>
       <Button
         aria-label="Forward"
@@ -124,7 +124,7 @@ function NavButtons() {
         disabled={!canGoForward}
         onClick={() => navigate(1)}
       >
-        <Icon name="chevron-right" size={18} />
+        <Icon name="forward" />
       </Button>
     </ButtonGroup>
   )

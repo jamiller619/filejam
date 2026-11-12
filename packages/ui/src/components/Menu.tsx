@@ -4,7 +4,7 @@ import { css } from 'inline-css-modules'
 import { motion } from 'motion/react'
 import { type FocusEventHandler, type ReactNode, useRef } from 'react'
 import { pressed } from '../interactions.js'
-import Icon from './Icon.js'
+import Icon from './Icon/index.js'
 
 const styles = css`
   .triggerAnchor {
@@ -16,16 +16,16 @@ const styles = css`
   .trigger {
     display: grid;
     width: 32px;
-    /* height: 32px; */
     padding: 0;
     place-items: center;
     border: 0;
     border-radius: var(--suzy-radius-3);
-    /* color: inherit; */
     background: transparent;
     cursor: pointer;
-    &:hover, &[data-popup-open] { background: var(--suzy-gray-3); }
-    /* &:focus-visible { outline: 2px solid var(--suzy-accent-8); } */
+
+    &:hover, &[data-popup-open] {
+      background: var(--suzy-gray-3);
+    }
   }
   .textTrigger {
     display: inline-flex;
@@ -37,7 +37,10 @@ const styles = css`
     font: inherit;
     white-space: nowrap;
     background: var(--suzy-gray-4);
-    &:hover, &[data-popup-open] { background: var(--suzy-gray-5); }
+
+    &:hover, &[data-popup-open] {
+      background: var(--suzy-gray-5);
+    }
   }
   .positioner {
     z-index: var(--suzy-z-dropdown);
@@ -71,14 +74,20 @@ const styles = css`
     font: inherit;
     text-align: start;
     cursor: pointer;
+
     &[data-highlighted], &:hover {
       background: lch(from var(--suzy-gray-11) l c h / 20%);
     }
+
     &[aria-current='true'] {
       color: var(--suzy-accent-1);
       background: var(--suzy-accent-9);
     }
-    &[data-disabled] { opacity: 0.5; cursor: default; }
+
+    &[data-disabled] {
+      opacity: 0.5;
+      cursor: default;
+    }
   }
   .itemIndicator {
     display: grid;
@@ -100,7 +109,9 @@ const styles = css`
     background: var(--suzy-gray-5);
     box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
   }
-  .checkboxItem { justify-content: flex-start; }
+  .checkboxItem {
+    justify-content: flex-start;
+  }
   .checkboxIndicator {
     display: grid;
     width: 16px;
@@ -219,7 +230,7 @@ export function MenuCheckboxItem({
       onCheckedChange={onCheckedChange}
     >
       <BaseMenu.CheckboxItemIndicator className={styles.checkboxIndicator}>
-        <Icon name="checkmark" size={14} />
+        <Icon name="check" size={14} />
       </BaseMenu.CheckboxItemIndicator>
       {children}
     </MotionMenuCheckboxItem>
@@ -243,7 +254,7 @@ export function MenuItem({
       onClick={onClick}
     >
       <span className={styles.itemIndicator} aria-hidden="true">
-        {selected ? <Icon name="checkmark" size={14} /> : null}
+        {selected ? <Icon name="check" size={14} /> : null}
       </span>
       {children}
     </MotionMenuItem>

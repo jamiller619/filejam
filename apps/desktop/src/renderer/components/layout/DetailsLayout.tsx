@@ -11,6 +11,7 @@ import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels'
 import { useSettings } from '../../hooks/useSettings.js'
 import { DetailsPaneContext } from './DetailsPaneContext.js'
 import { PageFooterHostContext } from './PageFooterContext.js'
+import useResizeHandler from './useResizeHandler.js'
 
 const styles = css`
   .workspace {
@@ -116,11 +117,14 @@ export default function DetailsLayout({ children }: DetailsLayoutProps) {
   const visibilityAnimation = useRef<Animation>(null)
   const visibilityRequest = useRef(0)
   const visibleRef = useRef(true)
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [host, setHost] = useState<HTMLDivElement | null>(null)
   const [visible, setVisible] = useState(true)
   const [pageFooterHost, setPageFooterHost] = useState<HTMLDivElement | null>(
     null,
+  )
+  const handleResize = useResizeHandler(
+    (inPixels) =>
+      void updateSettings('window.detailsWidth', Math.round(inPixels)),
   )
 
   const setVisibility = useCallback(
@@ -200,19 +204,11 @@ export default function DetailsLayout({ children }: DetailsLayoutProps) {
 
   useEffect(
     () => () => {
-      clearTimeout(saveTimer.current)
       visibilityRequest.current++
       visibilityAnimation.current?.cancel()
     },
     [],
   )
-
-  function saveWidth(width: number) {
-    clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
-      void updateSettings('window.detailsWidth', Math.round(width))
-    }, 250)
-  }
 
   if (!values) {
     return null
@@ -249,7 +245,7 @@ export default function DetailsLayout({ children }: DetailsLayoutProps) {
                 return
               }
 
-              saveWidth(inPixels)
+              handleResize({ inPixels })
             }}
           >
             <div ref={setHost} className={styles.details}>

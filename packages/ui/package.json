@@ -21,6 +21,7 @@
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "clsx": "^2.1.1",
+    "iconify-icon": "^3.0.5",
     "inline-css-modules": "^0.3.0"
   },
   "devDependencies": {

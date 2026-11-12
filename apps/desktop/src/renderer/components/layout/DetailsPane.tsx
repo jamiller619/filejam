@@ -113,7 +113,7 @@ export default function DetailsPane({
             onClick={() => closeCallback.current?.()}
             aria-label="Hide details"
           >
-            <Icon name="hide-details" size={16} />
+            <Icon name="hideDetails" size={16} />
           </Button>
         )}
       </header>

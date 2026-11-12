@@ -1,4 +1,3 @@
-import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
@@ -66,9 +65,9 @@ export default function FilesGrid({
     const folderPath =
       entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
         ? formatFullPath(
-            libraryRoots.get(entry.libraryId) ?? '',
-            entry.relativePath,
-          )
+          libraryRoots.get(entry.libraryId) ?? '',
+          entry.relativePath,
+        )
         : undefined
 
     return (
@@ -90,20 +89,20 @@ export default function FilesGrid({
         folderPath={folderPath}
         {...(entry.kind === 'directory'
           ? {
-              ...folderDragProps(folderPath),
-              to: folderUrl({
-                libraryId: entry.libraryId,
-                relativePath: entry.relativePath,
-              }),
-            }
+            ...folderDragProps(folderPath),
+            to: folderUrl({
+              libraryId: entry.libraryId,
+              relativePath: entry.relativePath,
+            }),
+          }
           : {
-              onClick: () => onActivateFile(entry.id),
-              onDoubleClick: entry.presentation?.activation
-                ? () => onOpenEntry(entry.id)
-                : undefined,
-              'aria-label': `Show details for ${displayName}`,
-              'aria-expanded': selectedId === entry.id,
-            })}
+            onClick: () => onActivateFile(entry.id),
+            onDoubleClick: entry.presentation?.activation
+              ? () => onOpenEntry(entry.id)
+              : undefined,
+            'aria-label': `Show details for ${displayName}`,
+            'aria-expanded': selectedId === entry.id,
+          })}
       >
         <FilePreview
           entry={entry}
@@ -124,11 +123,11 @@ export default function FilesGrid({
 
   if (listing.scanned && listing.entries.length === 0) {
     return (
-      <Surface className={styles.scroll}>
+      <div className={styles.scroll}>
         <p role="status" className={styles.empty}>
           {search ? 'No matching files or folders.' : 'No files to display.'}
         </p>
-      </Surface>
+      </div>
     )
   }
 
@@ -152,9 +151,9 @@ export default function FilesGrid({
           items: collapsedGroupKeys.has(group.key)
             ? []
             : group.rows.map(({ original: entry }) => ({
-                key: entry.id,
-                content: renderFileCard(entry, true),
-              })),
+              key: entry.id,
+              content: renderFileCard(entry, true),
+            })),
         }))}
       />
     )
@@ -165,24 +164,24 @@ export default function FilesGrid({
       {rowGroups.flatMap((group) => [
         ...(group.label !== null
           ? [
-              <li
-                key={`heading:${group.key}`}
-                className={styles.groupHeading}
-                data-group-heading="true"
-              >
-                <FilesGroupToggle
-                  expanded={!collapsedGroupKeys.has(group.key)}
-                  label={group.label}
-                  onClick={() => onToggleGroup(group.key)}
-                />
-              </li>,
-            ]
+            <li
+              key={`heading:${group.key}`}
+              className={styles.groupHeading}
+              data-group-heading="true"
+            >
+              <FilesGroupToggle
+                expanded={!collapsedGroupKeys.has(group.key)}
+                label={group.label}
+                onClick={() => onToggleGroup(group.key)}
+              />
+            </li>,
+          ]
           : []),
         ...(collapsedGroupKeys.has(group.key)
           ? []
           : group.rows.map(({ original: entry }) =>
-              renderFileCard(entry, false),
-            )),
+            renderFileCard(entry, false),
+          )),
       ])}
     </GridContainer>
   )

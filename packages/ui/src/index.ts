@@ -6,7 +6,7 @@ export {
   default as Icon,
   type IconName,
   type IconProps,
-} from './components/Icon.js'
+} from './components/Icon/index.js'
 export { default as Input, type InputProps } from './components/Input.js'
 export {
   default as Menu,
@@ -34,4 +34,5 @@ export {
   ToastViewport,
   useToastManager,
 } from './components/Toast.js'
+export type * from './global.js'
 export type { PolymorphicProps } from './polymorphic.js'

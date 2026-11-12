@@ -28,7 +28,6 @@ const styles = css`
     }
 
     > a > span:last-child {
-      /* overflow: hidden; */
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -58,6 +57,8 @@ const styles = css`
       a {
         padding: var(--suzy-space-1) var(--suzy-space-2);
         width: stretch;
+        height: stretch;
+        line-height: 18px;
         justify-content: start;
       }
 

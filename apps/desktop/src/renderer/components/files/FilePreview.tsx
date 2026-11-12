@@ -15,6 +15,12 @@ const styles = css`
     max-width: 100%;
     flex-shrink: 0;
     aspect-ratio: 1;
+
+    button, button:hover {
+      background: transparent;
+      background-color: transparent;
+      box-shadow: none;
+    }
   }
 
   .expandable {
@@ -28,7 +34,7 @@ const styles = css`
     height: auto;
     aspect-ratio: auto;
 
-    .preview {
+    .thumbnail, .preview {
       width: 100%;
     }
   }
@@ -55,6 +61,28 @@ const styles = css`
     corner-shape: var(--suzy-corner-shape);
   }
 
+  .thumbnail {
+    position: relative;
+    display: flex;
+    max-width: 100%;
+    max-height: 100%;
+
+    .preview {
+      max-height: inherit;
+    }
+  }
+
+  .videoIcon {
+    position: absolute;
+    right: calc(0px - var(--suzy-space-1));
+    bottom: calc(0px - var(--suzy-space-1));
+    padding: var(--suzy-space-2);
+    /* background: var(--suzy-accent-1); */
+    color: var(--suzy-accent-9);
+    border-radius: var(--suzy-radius-full);
+    pointer-events: none;
+  }
+
   .preview[src*='fallback=1'] {
     width: auto;
     max-width: min(100%, 48px);
@@ -76,13 +104,13 @@ const previewObserver =
   typeof IntersectionObserver === 'undefined'
     ? null
     : new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            visibilityListeners.get(entry.target)?.(entry.isIntersecting)
-          }
-        },
-        { rootMargin: '200px 0px' },
-      )
+      (entries) => {
+        for (const entry of entries) {
+          visibilityListeners.get(entry.target)?.(entry.isIntersecting)
+        }
+      },
+      { rootMargin: '200px 0px' },
+    )
 
 function observeVisibility(
   element: Element,
@@ -127,8 +155,8 @@ export default function FilePreview({
       relativePath: entry.relativePath,
     }),
   )
-  const isMedia =
-    entry.mimeType?.startsWith('image/') || entry.mimeType?.startsWith('video/')
+  const isVideo = entry.mimeType?.startsWith('video/')
+  const isMedia = entry.mimeType?.startsWith('image/') || isVideo
   const showCustomIcon =
     customIcon &&
     (customIcon.kind !== 'upload' ||
@@ -226,38 +254,49 @@ export default function FilePreview({
       }}
     >
       {shouldLoad && (
-        <img
-          key={source}
-          className={styles.preview}
-          src={source}
-          alt=""
-          loading="eager"
-          decoding="async"
-          fetchPriority={detail ? 'high' : 'low'}
-          onLoad={(event) => {
-            setSettledSource(source)
+        <div
+          className={styles.thumbnail}
+          style={{ maxHeight: typeof size === 'number' ? size : undefined }}
+        >
+          <img
+            key={source}
+            className={styles.preview}
+            src={source}
+            alt=""
+            loading="eager"
+            decoding="async"
+            fetchPriority={detail ? 'high' : 'low'}
+            onLoad={(event) => {
+              setSettledSource(source)
 
-            if (
-              !new URL(event.currentTarget.src).searchParams.has('fallback')
-            ) {
-              setLoadedSource(source)
-            }
-          }}
-          onError={(event) => {
-            setLoadedSource('')
+              if (
+                !new URL(event.currentTarget.src).searchParams.has('fallback')
+              ) {
+                setLoadedSource(source)
+              }
+            }}
+            onError={(event) => {
+              setLoadedSource('')
 
-            // Retry through the native file icon path when a preview cannot decode.
-            const image = event.currentTarget
+              // Retry through the native file icon path when a preview cannot decode.
+              const image = event.currentTarget
 
-            if (!new URL(image.src).searchParams.has('fallback')) {
-              const fallback = new URL(source)
+              if (!new URL(image.src).searchParams.has('fallback')) {
+                const fallback = new URL(source)
 
-              fallback.searchParams.delete('original')
-              fallback.searchParams.set('fallback', '1')
-              image.src = fallback.href
-            }
-          }}
-        />
+                fallback.searchParams.delete('original')
+                fallback.searchParams.set('fallback', '1')
+                image.src = fallback.href
+              }
+            }}
+          />
+          {isVideo && loadedSource === source && (
+            <span className={styles.videoIcon} role="img" aria-label="Video">
+              {/* <Icon name="noto:movie-camera" size={24} /> */}
+              <span style={{ fontSize: 24 }}>📹</span>
+            </span>
+          )}
+        </div>
       )}
       {imageCandidate && loadedSource === source && (
         <Button
@@ -266,7 +305,7 @@ export default function FilePreview({
           title="Open full-size image"
           aria-label="Open full-size image"
         >
-          <Icon name="magnifying-glass" size={16} />
+          <Icon name="search" size={16} />
         </Button>
       )}
     </div>

@@ -42,7 +42,7 @@ export default function AddLibrary() {
         disabled={addingLibrary}
         onClick={() => void addLibrary()}
       >
-        <Icon name="add" size={18} />
+        <Icon name="plus" size={18} />
         <span>{addingLibrary ? 'Adding library...' : 'Add library'}</span>
       </Button>
       {addLibraryFailed && (

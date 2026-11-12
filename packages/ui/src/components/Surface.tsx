@@ -17,7 +17,7 @@ export type SurfaceProps<T extends ElementType = 'div'> = PolymorphicProps<
 export const styles = css`
   .surface {
     background: oklch(from var(--suzy-gray-12) l c h / 10%);
-    backdrop-filter: blur(14px);
+    /* backdrop-filter: blur(14px); */
     border-radius: var(--suzy-radius-3);
     corner-shape: var(--suzy-corner-shape);
     transition: background var(--suzy-duration-fast) var(--suzy-ease-enter);

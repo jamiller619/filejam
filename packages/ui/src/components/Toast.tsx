@@ -1,7 +1,7 @@
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { css } from 'inline-css-modules'
 import Button from './Button.js'
-import Icon from './Icon.js'
+import Icon from './Icon/index.js'
 
 const styles = css`
   .viewport {

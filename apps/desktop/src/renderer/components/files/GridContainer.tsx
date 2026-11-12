@@ -28,7 +28,8 @@ const styles = css`
     display: grid;
     grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
     gap: var(--suzy-space-2);
-    padding: 0;
+    /* Include the row gap in the virtualizer's measured height. */
+    padding: 0 0 var(--suzy-space-2);
     margin: 0;
     list-style: none;
   }

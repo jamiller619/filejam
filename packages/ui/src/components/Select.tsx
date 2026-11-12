@@ -5,7 +5,7 @@ import {
   type ReactNode,
   useContext,
 } from 'react'
-import Icon from './Icon.js'
+import Icon from './Icon/index.js'
 import Menu, { MenuItem } from './Menu.js'
 
 const styles = css`
@@ -60,7 +60,7 @@ function SelectMenuItem({ value, children }: SelectMenuItemProps) {
 }
 
 function DropdownIcon() {
-  return <Icon className={styles.dropdownIcon} name="chevron-up" size={12} />
+  return <Icon className={styles.dropdownIcon} name="up" size={12} />
 }
 
 export default function Select({
