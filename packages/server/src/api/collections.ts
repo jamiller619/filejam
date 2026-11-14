@@ -19,24 +19,6 @@ import type { Database } from '../db/index.js'
 import { collections, entryStates } from '../db/schemas/collection.js'
 import { entries } from '../db/schemas/entry.js'
 
-const {
-  parentPath: _parentPath,
-  displayName: _displayName,
-  name: _name,
-  ...storedEntryColumns
-} = getTableColumns(entries)
-const entryName = sql<string>`coalesce(${entries.displayName}, ${entries.name})`
-const entryRelativePath = sql<string>`case
-  when ${entries.parentId} is null and ${entries.kind} = 'directory' then ''
-  when ${entries.parentPath} = '' then ${entries.name}
-  else ${entries.parentPath} || '/' || ${entries.name}
-end`
-const entryColumns = {
-  ...storedEntryColumns,
-  name: entryName,
-  relativePath: entryRelativePath,
-}
-
 type CollectionInput = {
   name: string
   definition: CollectionDefinition
@@ -137,7 +119,7 @@ export function createCollectionsApi(db: Database) {
       })
 
       const query = db
-        .select(entryColumns)
+        .select(getTableColumns(entries))
         .from(entries)
         .leftJoin(entryStates, eq(entryStates.entryId, entries.id))
         .where(predicate)
@@ -281,11 +263,11 @@ function compileRule(rule: CollectionRule): SQL {
 function fieldColumn(field: CollectionField) {
   switch (field) {
     case 'name':
-      return entryName
+      return entries.name
     case 'relativePath':
-      return entryRelativePath
-    case 'volumeId':
-      return entries.volumeId
+      return entries.relativePath
+    case 'libraryId':
+      return entries.libraryId
     case 'kind':
       return entries.kind
     case 'mimeType':

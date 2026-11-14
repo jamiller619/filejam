@@ -1,13 +1,12 @@
 import { QueryClient } from '@tanstack/react-query'
 
 export const queryKeys = {
-  volumes: ['volumes'] as const,
-  locations: ['locations'] as const,
+  libraries: ['libraries'] as const,
   collections: ['collections'] as const,
   settings: (keys: readonly string[]) => ['settings', ...keys] as const,
   files: (source: {
     collectionId?: string | undefined
-    volumeId?: number | undefined
+    libraryId?: number | undefined
     relativePath?: string | undefined
     flatten: boolean
     search?: string | undefined
@@ -16,7 +15,7 @@ export const queryKeys = {
       'files',
       source.collectionId
         ? ['collection', source.collectionId]
-        : ['folder', source.volumeId, source.relativePath],
+        : ['folder', source.libraryId, source.relativePath],
       { flatten: source.flatten, search: source.search },
     ] as const,
   entryCollections: (entryId: number) =>

@@ -23,7 +23,7 @@ export function useFavoriteFolderDrop() {
         },
       }),
     )
-    window.dispatchEvent(new Event('filejam:volumes-updated'))
+    window.dispatchEvent(new Event('filejam:libraries-updated'))
   }
 
   const { dropError, isDragging, dropTargetProps } = useDropTarget({

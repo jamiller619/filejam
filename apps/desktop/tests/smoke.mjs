@@ -135,23 +135,23 @@ async function run() {
       updatesBeforeUnsubscribe,
     )
 
-    const volumes = await window.webContents.executeJavaScript(
-      'window.filejam.volumes.list()',
+    const libraries = await window.webContents.executeJavaScript(
+      'window.filejam.libraries.list()',
     )
 
-    assert.ok(Array.isArray(volumes))
+    assert.ok(Array.isArray(libraries))
 
-    for (const volume of volumes) {
-      assert.equal(typeof volume.id, 'number')
-      assert.equal(typeof volume.name, 'string')
-      assert.equal(typeof volume.rootPath, 'string')
+    for (const library of libraries) {
+      assert.equal(typeof library.id, 'number')
+      assert.equal(typeof library.name, 'string')
+      assert.equal(typeof library.rootPath, 'string')
     }
 
-    if (volumes[0]) {
-      const volume = volumes[0]
+    if (libraries[0]) {
+      const library = libraries[0]
 
       await window.webContents.executeJavaScript(
-        `location.hash = ${JSON.stringify('#/browse/')} + ${volume.id}; undefined`,
+        `location.hash = ${JSON.stringify('#/libraries/')} + ${library.id}; undefined`,
       )
 
       let heading
@@ -161,7 +161,7 @@ async function run() {
           'document.querySelector(\'nav[aria-label="Folder breadcrumbs"] [aria-current="page"]\')?.textContent',
         )
 
-        if (heading === volume.name) {
+        if (heading === library.name) {
           break
         }
 
@@ -170,8 +170,8 @@ async function run() {
 
       assert.equal(
         heading,
-        volume.name,
-        'Volume route renders the selected folder',
+        library.name,
+        'Library route renders the selected folder',
       )
 
       assert.equal(

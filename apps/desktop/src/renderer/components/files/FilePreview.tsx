@@ -110,13 +110,13 @@ const previewObserver =
   typeof IntersectionObserver === 'undefined'
     ? null
     : new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          visibilityListeners.get(entry.target)?.(entry.isIntersecting)
-        }
-      },
-      { rootMargin: '200px 0px' },
-    )
+        (entries) => {
+          for (const entry of entries) {
+            visibilityListeners.get(entry.target)?.(entry.isIntersecting)
+          }
+        },
+        { rootMargin: '200px 0px' },
+      )
 
 function observeVisibility(
   element: Element,
@@ -184,7 +184,7 @@ export default function FilePreview({
   )
 
   const params = new URLSearchParams({
-    volumeId: String(entry.volumeId),
+    libraryId: String(entry.libraryId),
     path: entry.relativePath,
     v: String(entry.modifiedAt),
     variant,

@@ -7,14 +7,11 @@ import type { EntryRegistry } from '../entries/registry.js'
 import type {
   PresentedEntry,
   PresentedFolderListing,
-  PresentedVolume,
+  PresentedLibrary,
 } from '../entries/types.js'
 import { maximumIconBytes, storeIcon } from '../icons/assets.js'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
-import { resolveLocations } from '../locations.js'
 import type { SettingsApi } from '../settings/index.js'
-import { getOsTrashRoots } from '../trash/roots.js'
-import { discoverVolumes } from '../volumes/discover.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'
 import { createMoveFoldersHandler } from './moveFolders.js'
 
@@ -27,10 +24,12 @@ export function registerApiIpc(
   entryRegistry?: EntryRegistry,
   openPath?: (path: string) => Promise<string>,
 ) {
-  const addFavoriteFolders = createFavoriteFoldersHandler(api, settings)
+  const addFavoriteFolders = createFavoriteFoldersHandler(
+    api,
+    settings,
+    scanRoot,
+  )
   const moveFolders = createMoveFoldersHandler(api, settings, scanRoot)
-  let volumesRefreshedAt = 0
-  let volumeRefresh: ReturnType<typeof api.volumes.list> | undefined
 
   ipcMain.handle(
     'appearance:list',
@@ -86,24 +85,28 @@ export function registerApiIpc(
     withIpcMiddleware(async () => {
       const window = BrowserWindow.fromWebContents(renderer)
 
-    if (Date.now() - volumesRefreshedAt < 4_000) {
-      return api.volumes.list()
-    }
+      if (!window) {
+        throw new Error('The app window is unavailable.')
+      }
 
-    volumeRefresh = Promise.all([discoverVolumes(), getOsTrashRoots()])
-      .then(async ([volumes, trashRoots]) => {
-        await api.volumes.sync(volumes)
-        await api.volumes.ensureTrashRoots(trashRoots)
-        volumesRefreshedAt = Date.now()
-
-        return api.volumes.list()
-      })
-      .finally(() => {
-        volumeRefresh = undefined
+      const result = await dialog.showOpenDialog(window, {
+        title: 'Add Library',
+        properties: ['openDirectory'],
       })
 
-    return volumeRefresh
-  }
+      const root = result.filePaths[0]
+
+      if (result.canceled || !root) {
+        return null
+      }
+
+      const library = await api.libraries.ensureRoot(root)
+
+      await scanRoot?.(root)
+
+      return library
+    }, authorizeRenderer(renderer)),
+  )
 
   ipcMain.handle(
     'favorites:addFolders',
@@ -134,23 +137,14 @@ export function registerApiIpc(
   )
 
   ipcMain.handle(
-    'volumes:list',
-    withIpcMiddleware(async (): Promise<PresentedVolume[]> => {
-      const volumes = await refreshVolumes()
+    'libraries:list',
+    withIpcMiddleware(async (): Promise<PresentedLibrary[]> => {
+      const libraries = await api.libraries.list()
 
-      return volumes.map((volume) => ({
-        ...volume,
-        folderView: entryRegistry?.folderView(volume.typeId) ?? null,
+      return libraries.map((library) => ({
+        ...library,
+        folderView: entryRegistry?.folderView(library.typeId) ?? null,
       }))
-    }, authorizeRenderer(renderer)),
-  )
-
-  ipcMain.handle(
-    'locations:list',
-    withIpcMiddleware(async () => {
-      const volumes = await refreshVolumes()
-
-      return resolveLocations(volumes)
     }, authorizeRenderer(renderer)),
   )
 
@@ -161,11 +155,11 @@ export function registerApiIpc(
         _event,
         folder: Parameters<ServerApi['entries']['listChildren']>[0],
       ): Promise<PresentedFolderListing> => {
-        const volumes = await api.volumes.list()
-        const volume = volumes.find((item) => item.id === folder?.volumeId)
+        const libraries = await api.libraries.list()
+        const library = libraries.find((item) => item.id === folder?.libraryId)
         const folderView =
           folder?.relativePath === ''
-            ? entryRegistry?.folderView(volume?.typeId)
+            ? entryRegistry?.folderView(library?.typeId)
             : null
         const listing = await api.entries.listChildren({
           ...folder,
@@ -179,9 +173,9 @@ export function registerApiIpc(
             async (entry): Promise<PresentedEntry> => ({
               ...entry,
               presentation:
-                volume && entryRegistry
+                library && entryRegistry
                   ? await entryRegistry.resolve({
-                      path: resolve(volume.rootPath, entry.relativePath),
+                      path: resolve(library.rootPath, entry.relativePath),
                       name: entry.name,
                       kind: entry.kind,
                     })
@@ -223,7 +217,7 @@ export function registerApiIpc(
         relation === '..' ||
         relation.startsWith(`..${sep}`)
       ) {
-        throw new Error('Entry path is outside its volume')
+        throw new Error('Entry path is outside its library')
       }
 
       const presentation = await entryRegistry.resolve({
@@ -358,8 +352,7 @@ export function registerApiIpc(
     ipcMain.removeHandler('collections:setFavorite')
     ipcMain.removeHandler('collections:recordView')
 
-    ipcMain.removeHandler('volumes:list')
-    ipcMain.removeHandler('locations:list')
+    ipcMain.removeHandler('libraries:list')
     ipcMain.removeHandler('entries:listChildren')
     ipcMain.removeHandler('entries:activate')
     ipcMain.removeHandler('entries:moveFolders')

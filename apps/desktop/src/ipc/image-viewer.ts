@@ -18,20 +18,20 @@ export function registerImageViewerIpc(
 
   ipcMain.handle(
     'window:openImage',
-    withIpcMiddleware(async (_event, volumeId: unknown, path: unknown) => {
-      if (!Number.isSafeInteger(volumeId) || typeof path !== 'string') {
+    withIpcMiddleware(async (_event, libraryId: unknown, path: unknown) => {
+      if (!Number.isSafeInteger(libraryId) || typeof path !== 'string') {
         throw new Error('Invalid image request')
       }
 
       const params = new URLSearchParams({
-        volumeId: String(volumeId),
+        libraryId: String(libraryId),
         path,
         original: '1',
       })
 
       const authorized = await authorizePreview(
-        volumes,
-        volumeId as number,
+        libraries,
+        libraryId as number,
         path,
       )
 

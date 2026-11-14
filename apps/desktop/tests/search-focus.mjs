@@ -17,10 +17,10 @@ async function run() {
   process.env.FILEJAM_CONFIG_FILE = join(directory, 'config.json')
   const connection = await initDatabase(join(directory, 'test.sqlite'))
   const api = createApi(connection.db)
-  const volume = await api.volumes.ensure(app.getPath('temp'))
+  const library = await api.libraries.ensureRoot(app.getPath('temp'))
 
   await api.entries.upsert({
-    volumeId: volume.id,
+    libraryId: library.id,
     name: 'root',
     relativePath: '',
     kind: 'directory',
@@ -28,7 +28,7 @@ async function run() {
     modifiedAt: new Date(),
     indexedAt: new Date(),
   })
-  await api.entries.completeScan(volume.id, [])
+  await api.entries.completeScan(library.id, [])
 
   const window = new BrowserWindow({
     show: false,

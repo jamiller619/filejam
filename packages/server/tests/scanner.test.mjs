@@ -37,9 +37,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
       })[key],
   })
 
-  let scanner = new FileScanner(cache, join(directory, 'filejam.sqlite'), {
-    collectChangePaths: true,
-  })
+  let scanner = new FileScanner(cache, join(directory, 'filejam.sqlite'))
 
   try {
     await writeFile(join(root, 'a.txt'), 'a')
@@ -58,9 +56,7 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
     })
 
     await scanner.close()
-    scanner = new FileScanner(cache, join(directory, 'filejam.sqlite'), {
-      collectChangePaths: true,
-    })
+    scanner = new FileScanner(cache, join(directory, 'filejam.sqlite'))
     await scanner.start(root)
     assert.equal((await finished(scanner)).state, 'completed')
 
@@ -114,8 +110,18 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
       .filter((entry) => entry.component === 'scanner')
 
     assert.ok(
-      logs.every((entry) => entry.msg !== 'Scan progress'),
-      'info logs should omit in-flight scan progress',
+      logs.some(
+        (entry) => entry.msg === 'Scan progress' && entry.phase === 'crawling',
+      ),
+    )
+
+    assert.ok(
+      logs.some(
+        (entry) =>
+          entry.msg === 'Scan progress' &&
+          entry.phase === 'checking' &&
+          entry.total === 2,
+      ),
     )
 
     const completed = logs.find((entry) => entry.msg === 'Scan completed')
@@ -139,48 +145,6 @@ test('worker scans, persists changes, rejects overlap, and handles failure and c
   } finally {
     await scanner.close()
     await closeLogger()
-    await rm(directory, { recursive: true, force: true })
-  }
-})
-
-test('queued subtree scans reconcile only the affected branch', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'filejam-subtree-scanner-'))
-  const root = join(directory, 'root')
-  const left = join(root, 'left')
-  const right = join(root, 'right')
-  const scanner = new FileScanner(
-    join(directory, 'cache'),
-    join(directory, 'filejam.sqlite'),
-    { collectChangePaths: true },
-  )
-
-  try {
-    await mkdir(left, { recursive: true })
-    await mkdir(right)
-    await writeFile(join(left, 'left.txt'), 'left')
-    await writeFile(join(right, 'right.txt'), 'right')
-
-    await scanner.start(root)
-    assert.equal((await finished(scanner)).state, 'completed')
-
-    await writeFile(join(left, 'left.txt'), 'changed left')
-    await rm(join(right, 'right.txt'))
-
-    scanner.enqueue(root, left)
-    assert.equal((await finished(scanner)).state, 'completed')
-    assert.deepEqual(await scanner.results(root), {
-      added: [],
-      changed: [join('left', 'left.txt')],
-      removed: [],
-    })
-
-    await scanner.start(root)
-    assert.equal((await finished(scanner)).state, 'completed')
-    assert.deepEqual((await scanner.results(root)).removed, [
-      join('right', 'right.txt'),
-    ])
-  } finally {
-    await scanner.close()
     await rm(directory, { recursive: true, force: true })
   }
 })

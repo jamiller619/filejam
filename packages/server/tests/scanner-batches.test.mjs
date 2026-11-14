@@ -18,7 +18,7 @@ async function inDatabaseProcess(directory, source) {
       `
         import assert from 'node:assert/strict'
         import { join } from 'node:path'
-        import { lstat, rm } from 'node:fs/promises'
+        import { lstat } from 'node:fs/promises'
         import { createApi } from ${moduleUrl('../dist/api/index.js')}
         import { initDatabase } from ${moduleUrl('../dist/db/index.js')}
         import { entries } from ${moduleUrl('../dist/db/schemas/entry.js')}
@@ -26,12 +26,6 @@ async function inDatabaseProcess(directory, source) {
         const directory = ${JSON.stringify(directory)}
         const root = join(directory, 'root')
         const databasePath = join(directory, 'filejam.sqlite')
-        const entryPath = entry =>
-          entry.parentId === null && entry.kind === 'directory'
-            ? ''
-            : entry.parentPath
-              ? entry.parentPath + '/' + entry.name
-              : entry.name
         ${source}
       `,
     ],
@@ -136,14 +130,14 @@ test('scan batches roll back parents and bookkeeping, preserve IDs, and respect 
         const saved = await scan.saveBatch([root, nested, file])
         assert.deepEqual(saved.map(entry => entry.kind), ['directory', 'directory', 'file'])
         let rows = await connection.db.select().from(entries)
-        const rootRow = rows.find(row => entryPath(row) === '')
-        const parent = rows.find(row => entryPath(row) === 'nested')
-        const original = rows.find(row => entryPath(row) === 'nested/file.txt')
+        const rootRow = rows.find(row => row.relativePath === '')
+        const parent = rows.find(row => row.relativePath === 'nested')
+        const original = rows.find(row => row.relativePath === 'nested/file.txt')
         assert.equal(parent.parentId, rootRow.id)
         assert.equal(original.parentId, parent.id)
         await scan.saveBatch([file])
         rows = await connection.db.select().from(entries)
-        const updated = rows.find(row => entryPath(row) === 'nested/file.txt')
+        const updated = rows.find(row => row.relativePath === 'nested/file.txt')
         assert.equal(updated.id, original.id)
         await scan.complete()
         rows = await connection.db.select().from(entries)
@@ -159,7 +153,7 @@ test('scan batches roll back parents and bookkeeping, preserve IDs, and respect 
   }
 })
 
-test('deletion batches handle multiple chunks and stay within the selected volume', async () => {
+test('deletion batches handle multiple chunks and stay within the selected library', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'scanner-delete-batch-'))
 
   try {
@@ -169,11 +163,11 @@ test('deletion batches handle multiple chunks and stay within the selected volum
       const connection = await initDatabase(databasePath)
       try {
         const api = createApi(connection.db)
-        const volume = await api.volumes.ensure(root)
-        const other = await api.volumes.ensure(join(directory, 'other'))
+        const library = await api.libraries.ensureRoot(root)
+        const other = await api.libraries.ensureRoot(join(directory, 'other'))
         const values = Array.from({ length: 1101 }, (_, index) => ({
-          volumeId: index === 1100 ? other.id : volume.id,
-          parentPath: '',
+          libraryId: index === 1100 ? other.id : library.id,
+          relativePath: String(index),
           name: String(index),
           kind: 'file',
           indexedAt: new Date(),
@@ -183,10 +177,10 @@ test('deletion batches handle multiple chunks and stay within the selected volum
           await connection.db.insert(entries).values(values.slice(index, index + 100))
         const rows = await connection.db.select().from(entries)
         function* ids() { for (const row of rows) yield row.id }
-        await api.entries.completeScan(volume.id, ids())
+        await api.entries.completeScan(library.id, ids())
         const remaining = await connection.db.select().from(entries)
         assert.equal(remaining.length, 1)
-        assert.equal(remaining[0].volumeId, other.id)
+        assert.equal(remaining[0].libraryId, other.id)
         await api.entries.completeScan(other.id, [])
         assert.equal((await connection.db.select().from(entries)).length, 1)
       } finally {
@@ -230,52 +224,11 @@ test('large saves commit bounded batches and retain earlier batches after a late
         await scan.saveBatch(paths.slice(64))
         rows = await connection.db.select().from(entries)
         assert.equal(rows.length, 71)
-        const rootRow = rows.find(row => entryPath(row) === '')
+        const rootRow = rows.find(row => row.relativePath === '')
         assert.ok(rows.filter(row => row.kind === 'file').every(row => row.parentId === rootRow.id))
       } finally {
         await scan.close()
         connection.close()
-      }
-    `,
-    )
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-})
-
-test('incremental deletion removes only journal-reported paths', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'scanner-incremental-'))
-  const root = join(directory, 'root')
-  const first = join(root, 'first.txt')
-  const second = join(root, 'second.txt')
-
-  await mkdir(root, { recursive: true })
-  await writeFile(first, 'first')
-  await writeFile(second, 'second')
-
-  try {
-    await inDatabaseProcess(
-      directory,
-      `
-      let scan = await openScanDatabase(databasePath, root)
-      await scan.saveBatch([root, ${JSON.stringify(first)}, ${JSON.stringify(second)}])
-      await scan.complete()
-      await scan.close()
-
-      await rm(${JSON.stringify(first)})
-      scan = await openScanDatabase(databasePath, root)
-      const removed = await scan.removePaths([${JSON.stringify(first)}], true)
-      assert.equal(removed.removedCount, 1)
-      assert.deepEqual(removed.removedPaths, ['first.txt'])
-
-      const connection = await initDatabase(databasePath)
-      try {
-        const rows = await connection.db.select().from(entries)
-        assert.equal(rows.some(row => entryPath(row) === 'first.txt'), false)
-        assert.equal(rows.some(row => entryPath(row) === 'second.txt'), true)
-      } finally {
-        connection.close()
-        await scan.close()
       }
     `,
     )

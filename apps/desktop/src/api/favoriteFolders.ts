@@ -6,6 +6,7 @@ import type { SettingsApi } from '../settings/index.js'
 export function createFavoriteFoldersHandler(
   api: ServerApi,
   settings: SettingsApi,
+  scanRoot?: (root: string) => Promise<unknown>,
 ) {
   let pending = Promise.resolve<string[]>([])
 
@@ -26,14 +27,14 @@ export function createFavoriteFoldersHandler(
           ...new Set((input as string[]).map((path) => resolve(path))),
         ]
 
-        // Validate the entire drop before changing preferences.
+        // Validate the entire drop before changing libraries or preferences.
         for (const path of paths) {
           if (!(await stat(path)).isDirectory()) {
             throw new Error('Only folders can be added to Favorites.')
           }
         }
 
-        const volumes = await api.volumes.list()
+        const libraries = await api.libraries.list()
 
         const contains = (root: string, path: string) => {
           const child = relative(root, path)
@@ -48,8 +49,8 @@ export function createFavoriteFoldersHandler(
 
         for (const path of paths) {
           if (
-            volumes.some(
-              (volume) => volume.isTrash && contains(volume.rootPath, path),
+            libraries.some(
+              (library) => library.isTrash && contains(library.rootPath, path),
             )
           ) {
             throw new Error('Trash folders cannot be added to Favorites.')
@@ -57,8 +58,9 @@ export function createFavoriteFoldersHandler(
         }
 
         for (const path of paths) {
-          if (!volumes.some((volume) => contains(volume.rootPath, path))) {
-            throw new Error('The folder is not on a mounted volume.')
+          if (!libraries.some((library) => contains(library.rootPath, path))) {
+            await api.libraries.ensureRoot(path)
+            await scanRoot?.(path)
           }
         }
 

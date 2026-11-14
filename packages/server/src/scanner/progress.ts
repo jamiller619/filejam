@@ -1,8 +1,6 @@
 import { createLogger } from '../logger.js'
 import type { ScannerStatus, ScanProgress, ScanStatus } from './types.js'
 
-const PROGRESS_LOG_INTERVAL_MS = 10_000
-
 const totals = () => ({
   total: 0,
   processed: 0,
@@ -18,7 +16,6 @@ export class ScanProgressReporter {
   #startedAt: number | undefined
   #lastLoggedAt = -Infinity
   #lastPhase: ScanStatus['phase'] = 'idle'
-  readonly #loggedFallbacks = new Set<string>()
 
   begin() {
     this.#active.clear()
@@ -26,7 +23,6 @@ export class ScanProgressReporter {
     this.#startedAt = performance.now()
     this.#lastLoggedAt = -Infinity
     this.#lastPhase = 'idle'
-    this.#loggedFallbacks.clear()
   }
 
   update(root: string, progress: ScanProgress) {
@@ -66,32 +62,12 @@ export class ScanProgressReporter {
 
     const now = performance.now()
     const scanning = status.state === 'scanning'
-    const fallbacks = status.roots.flatMap((root) =>
-      root.fallbackReason
-        ? [{ root: root.root, reason: root.fallbackReason }]
-        : [],
-    )
-    const logger = createLogger('scanner')
 
-    // Fallbacks need to be visible immediately, even when the normal heartbeat
-    // is throttled because the worker switched strategies during the same phase.
-    for (const fallback of fallbacks) {
-      const key = `${fallback.root}\0${fallback.reason}`
-
-      if (!this.#loggedFallbacks.has(key)) {
-        this.#loggedFallbacks.add(key)
-        logger.warn('MFT fast path unavailable; using directory traversal', {
-          root: fallback.root,
-          reason: fallback.reason,
-        })
-      }
-    }
-
-    // Worker heartbeats can arrive together. Keep same-phase progress sparse,
-    // while still publishing phase transitions and a single final snapshot.
+    // Worker heartbeats can arrive together; emit one global heartbeat per second.
+    // Also publish phase transitions and a single final snapshot.
     if (
       scanning &&
-      now - this.#lastLoggedAt < PROGRESS_LOG_INTERVAL_MS &&
+      now - this.#lastLoggedAt < 1000 &&
       status.phase === this.#lastPhase
     ) {
       return
@@ -109,35 +85,38 @@ export class ScanProgressReporter {
 
     const elapsedMs = Math.round(now - this.#startedAt)
 
-    const errors = status.roots.flatMap((root) =>
-      root.error ? [{ root: root.root, error: root.error }] : [],
+    const errors = status.libraries.flatMap((library) =>
+      library.error ? [{ root: library.root, error: library.error }] : [],
     )
-    const level = scanning
-      ? 'debug'
-      : status.state === 'failed'
-        ? 'error'
-        : 'info'
 
-    logger[level](scanning ? 'Scan progress' : `Scan ${status.state}`, {
-      state: status.state,
-      phase: status.phase,
-      ...aggregate,
-      elapsedMs,
-      entriesPerSecond:
-        elapsedMs > 0
-          ? Math.round((aggregate.processed * 1000) / elapsedMs)
-          : 0,
-      activeRoots: status.active.length,
-      queuedRoots: status.queued.length,
-      completedRoots: status.roots.filter((root) => root.state === 'completed')
-        .length,
-      failedRoots: status.roots.filter((root) => root.state === 'failed')
-        .length,
-      cancelledRoots: status.roots.filter((root) => root.state === 'cancelled')
-        .length,
-      error: status.error,
-      errors,
-    })
+    const logger = createLogger('scanner')
+
+    logger[status.state === 'failed' ? 'error' : 'info'](
+      scanning ? 'Scan progress' : `Scan ${status.state}`,
+      {
+        state: status.state,
+        phase: status.phase,
+        ...aggregate,
+        elapsedMs,
+        entriesPerSecond:
+          elapsedMs > 0
+            ? Math.round((aggregate.processed * 1000) / elapsedMs)
+            : 0,
+        activeLibraries: status.active.length,
+        queuedLibraries: status.queued.length,
+        completedLibraries: status.libraries.filter(
+          (library) => library.state === 'completed',
+        ).length,
+        failedLibraries: status.libraries.filter(
+          (library) => library.state === 'failed',
+        ).length,
+        cancelledLibraries: status.libraries.filter(
+          (library) => library.state === 'cancelled',
+        ).length,
+        error: status.error,
+        errors,
+      },
+    )
 
     this.#lastLoggedAt = now
     this.#lastPhase = status.phase

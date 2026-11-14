@@ -5,44 +5,37 @@ import GridContainer from '../components/files/GridContainer.js'
 import PageHeader from '../components/layout/PageHeader.js'
 import { useLibraries } from '../hooks/useLibraries.js'
 import { useSettings } from '../hooks/useSettings.js'
-import { useVolumes } from '../hooks/useVolumes.js'
 import { folderDragProps } from '../utils/folderDrag.js'
 import { folderUrl } from '../utils/folderUrl.js'
 import { normalizePath } from '../utils/normalizePath.js'
 import Page from './Page.js'
 
 export default function Home() {
-  const { volumes, loadFailed } = useVolumes()
-  const { locations } = useLocations()
-  const userVolumes = volumes.filter((volume) => !volume.isTrash)
+  const { libraries, loadFailed } = useLibraries()
+  const userLibraries = libraries.filter((library) => !library.isTrash)
   const { values } = useSettings(['user.favoriteFolders'])
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
   const favorites = favoritePaths.flatMap((path) => {
     const target = normalizePath(path)
-    const volume = userVolumes
-      .filter((item) => {
-        const root = normalizePath(item.rootPath)
+    const library = userLibraries.find((item) => {
+      const root = normalizePath(item.rootPath)
 
-        return target === root || target.startsWith(`${root}/`)
-      })
-      .sort((a, b) => b.rootPath.length - a.rootPath.length)[0]
+      return target === root || target.startsWith(`${root}/`)
+    })
 
-    if (!volume) {
+    if (!library) {
       return []
     }
 
-    const root = volume.rootPath.replace(/[\\/]+$/, '')
+    const root = library.rootPath.replace(/[\\/]+$/, '')
     const relativePath = path
       .slice(root.length)
       .replace(/^[\\/]+/, '')
       .replaceAll('\\', '/')
-    const name = relativePath.split('/').filter(Boolean).at(-1) ?? volume.name
+    const name = relativePath.split('/').filter(Boolean).at(-1) ?? library.name
 
-    return [{ path, volume, relativePath, name }]
+    return [{ path, library, relativePath, name }]
   })
-  const initialFolder =
-    locations.find((location) => location.id === 'desktop') ??
-    (userVolumes[0] && { volumeId: userVolumes[0].id, relativePath: '' })
 
   return (
     <Page title="Home">
@@ -50,10 +43,10 @@ export default function Home() {
         {loadFailed && <p role="status">Unable to load folders.</p>}
         <PageHeader />
         <GridContainer aria-label="Favorite folders">
-          {favorites.map(({ path, volume, relativePath, name }) => (
+          {favorites.map(({ path, library, relativePath, name }) => (
             <GridCard
               key={path}
-              to={folderUrl({ volumeId: volume.id, relativePath })}
+              to={folderUrl({ libraryId: library.id, relativePath })}
               title={path}
               name={name}
               folderPath={path}
@@ -66,7 +59,7 @@ export default function Home() {
             >
               <FilePreview
                 entry={{
-                  volumeId: volume.id,
+                  libraryId: library.id,
                   relativePath,
                   modifiedAt: null,
                 }}
@@ -78,8 +71,10 @@ export default function Home() {
         </GridContainer>
       </section>
       <section>
-        {initialFolder ? (
-          <Files folder={initialFolder} />
+        {userLibraries[0] ? (
+          <Files
+            folder={{ libraryId: userLibraries[0].id, relativePath: '' }}
+          />
         ) : !loadFailed ? (
           <p role="status">No folder available.</p>
         ) : null}

@@ -134,8 +134,8 @@ const styles = css`
 `
 
 type FilesToolbarProps<TData> = {
-  volumeId?: number | undefined
-  volumeRoots: Map<number, string>
+  libraryId?: number | undefined
+  libraryRoots: Map<number, string>
   relativePath?: string | undefined
   collectionId?: string | undefined
   detailsOpen: boolean
@@ -236,8 +236,8 @@ const viewLabels = {
 } satisfies Record<FileViewMode, string>
 
 export default function FilesToolbar<TData>({
-  volumeId,
-  volumeRoots,
+  libraryId,
+  libraryRoots,
   relativePath,
   collectionId,
   detailsOpen,
@@ -258,7 +258,7 @@ export default function FilesToolbar<TData>({
   } = useSettings(['user.favoriteFolders'])
 
   const rootPath =
-    volumeId === undefined ? undefined : volumeRoots.get(volumeId)
+    libraryId === undefined ? undefined : libraryRoots.get(libraryId)
 
   const currentFolderPath = rootPath
     ? formatFullPath(rootPath, relativePath ?? '')

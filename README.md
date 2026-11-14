@@ -120,31 +120,11 @@ missing database row is repaired. Failed or cancelled scans retain saved rows;
 stale rows are removed only after successful traversal. Database files and their
 SQLite sidecars are excluded from scans.
 
-On Windows, the desktop build includes `filejam-mft.exe`. Full scans of local
-drive-letter roots use `FSCTL_ENUM_USN_DATA` on NTFS and stream parent-first
-batches back to the scanner over a named pipe. The helper relaunches only itself
-with `runas` when direct volume access requires elevation; Electron remains
-unelevated. Directory records are retained for path reconstruction, then a
-second MFT pass streams files without materializing the complete tree. The
-native helper reads size and timestamps concurrently and includes them in each
-batch, so the Node worker does not issue another filesystem call per entry. A
-successful full pass saves the NTFS journal ID and USN position; later passes
-read only file changes from the USN journal. Structural directory changes safely
-trigger a full MFT refresh because they can alter every descendant path. Expired
-journal positions also trigger a full MFT refresh. Subtree refreshes, non-NTFS
-volumes, network paths, declined elevation, and helper setup failures use the
-directory walker. The fallback reason is included in scan logs. Building or
-running the Windows desktop app in development requires Go on `PATH`;
-non-Windows builds skip the helper. The MFT helper supplies an entry total, so
-the footer shows determinate per-volume progress for NTFS scans; fallback
-directory walks remain indeterminate until traversal finishes.
-
-Debug-level scan progress logs combine all libraries into one global heartbeat
-at most every 10 seconds, with entry and change counts, active/queued library
-counts, elapsed time, and overall entries per second. Counts include completed
-scans and follow-up passes during the same busy period and reset when a new run
-starts. Totals grow as libraries finish crawling. A final info-level summary is
-logged once the entire queue finishes.
+Scan progress logs combine all libraries into one global heartbeat, with entry
+and change counts, active/queued library counts, elapsed time, and overall entries
+per second. Counts include completed scans and follow-up passes during the same
+busy period and reset when a new run starts. Totals grow as libraries finish
+crawling. A final summary is logged once the entire queue finishes.
 
 The desktop main process registers `registerScannerIpc(scanner, window.webContents)`
 from `src/scanner/main.ts` for each window. The preload exposes

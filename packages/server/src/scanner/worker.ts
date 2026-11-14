@@ -1,19 +1,14 @@
 import { createHash } from 'node:crypto'
 import type { Stats } from 'node:fs'
-import { mkdir, opendir, readFile, realpath, stat } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { realpath, stat } from 'node:fs/promises'
+import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
 import { setImmediate } from 'node:timers/promises'
 import { parentPort, workerData } from 'node:worker_threads'
-import writeAtomic from 'write-file-atomic'
+import { fdir } from 'fdir'
+import { create, type FileDescriptorMeta } from 'file-entry-cache'
 import { initDatabase } from '../db/index.js'
 import { isIgnoredScanPath } from './ignore.js'
-import {
-  canEnumerateMft,
-  enumerateMft,
-  type MftCheckpoint,
-  type MftEntry,
-} from './mft.js'
-import { type EntryMetadata, openScanDatabase } from './persistence.js'
+import { openScanDatabase } from './persistence.js'
 import type {
   ScannerRequest,
   ScannerResponse,
@@ -28,20 +23,13 @@ if (!port) {
   throw new Error('Scanner must run in a worker thread')
 }
 
-const collectChangePaths = workerData.collectChangePaths === true
-const mftHelperPath = workerData.mftHelperPath as string | undefined
 const cacheDirectory = resolve(workerData.cacheDirectory as string)
-const excludedPaths =
-  (workerData.excludedPaths as string[] | undefined)?.map((path) =>
-    resolve(path),
-  ) ?? []
 
 let status: ScanStatus = {
   state: 'idle',
   root: null,
   phase: 'idle',
   total: 0,
-  totalKnown: false,
   processed: 0,
   error: null,
 }
@@ -50,78 +38,16 @@ let results: ScanResults = { added: [], changed: [], removed: [] }
 let cancelled = false
 let activeScan: Promise<void> | undefined
 
-type PendingEntry = {
-  path: string
-  metadata: EntryMetadata
-  change: 'added' | 'changed' | 'unchanged'
-  save: boolean
-}
-
-function checkpointPath(root: string) {
-  const key = createHash('sha256').update(root.toLowerCase()).digest('hex')
-
-  return join(cacheDirectory, 'mft', `${key}.json`)
-}
-
-async function readMftCheckpoint(root: string) {
-  try {
-    const value = JSON.parse(
-      await readFile(checkpointPath(root), { encoding: 'utf8' }),
-    ) as Partial<MftCheckpoint>
-
-    if (
-      typeof value.journalId === 'string' &&
-      /^\d+$/.test(value.journalId) &&
-      typeof value.nextUsn === 'string' &&
-      /^\d+$/.test(value.nextUsn)
-    ) {
-      return value as MftCheckpoint
-    }
-  } catch {
-    // A missing or invalid checkpoint simply requires a full MFT pass.
-  }
-
-  return undefined
-}
-
-async function writeMftCheckpoint(root: string, checkpoint: MftCheckpoint) {
-  const path = checkpointPath(root)
-
-  await mkdir(join(cacheDirectory, 'mft'), { recursive: true })
-  await writeAtomic(path, `${JSON.stringify(checkpoint)}\n`)
-}
-
-function metadataFromMft(entry: MftEntry): EntryMetadata {
-  return {
-    size: entry.size,
-    mtime: new Date(entry.modifiedAt),
-    birthtime: new Date(entry.createdAt),
-    isDirectory: () => entry.directory,
-    isSymbolicLink: () => false,
-    isFile: () => !entry.directory,
-  }
-}
-
-// SQLite is both the browsable tree and the change-detection baseline. Traversal
-// stays parent-first and streams bounded batches instead of retaining every path.
-async function scan(input: string, requestedScanPath = input) {
+// SQLite stores the browsable tree; file-entry-cache tracks file changes across
+// scans. Entries are saved in short batches, but results and the cache baseline are
+// published only after a complete pass.
+async function scan(input: string) {
   let database: Awaited<ReturnType<typeof openScanDatabase>> | undefined
   let finalState: 'completed' | 'cancelled' | 'failed' = 'completed'
   const startedAt = performance.now()
   const next: ScanResults = { added: [], changed: [], removed: [] }
-  let addedCount = 0
-  let changedCount = 0
-  let removedCount = 0
-  let lastProgressAt = -Infinity
 
-  const reportProgress = (force = false) => {
-    const now = performance.now()
-
-    if (!force && now - lastProgressAt < 250) {
-      return
-    }
-
-    lastProgressAt = now
+  const reportProgress = () => {
     const elapsedMs = Math.round(performance.now() - startedAt)
 
     port?.postMessage({
@@ -131,42 +57,25 @@ async function scan(input: string, requestedScanPath = input) {
       entriesPerSecond:
         elapsedMs > 0 ? Math.round((status.processed * 1000) / elapsedMs) : 0,
       changes: {
-        added: addedCount,
-        changed: changedCount,
-        removed: removedCount,
+        added: next.added.length,
+        changed: next.changed.length,
+        removed: next.removed.length,
       },
     } satisfies ScanProgress)
   }
 
-  reportProgress(true)
+  reportProgress()
 
-  const progressTimer = setInterval(reportProgress, 250)
+  const progressTimer = setInterval(reportProgress, 1000)
 
   try {
-    // Canonicalize aliases so the same directory shares a volume and cache key.
+    // Canonicalize aliases so the same directory shares a library and cache key.
     const root = await realpath(input)
     const rootMetadata = await stat(root)
 
     if (!rootMetadata.isDirectory()) {
       throw new Error('Scan root must be a directory')
     }
-
-    const scanPath = resolve(requestedScanPath)
-
-    if (!isInside(root, scanPath)) {
-      throw new Error('Scan path is outside its root')
-    }
-
-    const scanMetadata =
-      scanPath === root
-        ? rootMetadata
-        : await stat(scanPath).catch((error: unknown) => {
-            if (isMissingPath(error)) {
-              return undefined
-            }
-
-            throw error
-          })
 
     status.root = root
 
@@ -176,353 +85,165 @@ async function scan(input: string, requestedScanPath = input) {
       databasePath,
       root,
       workerData.databaseInitialized !== true,
-      scanPath,
     )
-    const scanDatabase = database
-    let traversalComplete = true
 
-    // Watcher events include removed files and directories. Only reconcile the
-    // missing path's scoped baseline; unrelated branches remain untouched.
-    if (!scanMetadata) {
+    const cache = create(
+      createHash('sha256').update(root).digest('hex'),
+      cacheDirectory,
+      { cwd: root },
+    )
+
+    const previous = new Set(cache.cache.keys())
+
+    const createCrawler = () =>
+      new fdir()
+        .withFullPaths()
+        .withErrors()
+        .withDirs()
+        // Exclude our own changing database files and cache directory when they
+        // live under the scan root.
+        .filter(
+          (path) =>
+            !isIgnoredScanPath(path) &&
+            !isTrashMetadata(root, path) &&
+            ![
+              databasePath,
+              `${databasePath}-wal`,
+              `${databasePath}-shm`,
+              `${databasePath}-journal`,
+            ].includes(resolve(path)),
+        )
+        .exclude((name, path) => {
+          const rel = relative(cacheDirectory, resolve(path))
+
+          return (
+            isIgnoredScanPath(name) ||
+            isTrashMetadata(root, path) ||
+            rel === '' ||
+            (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel))
+          )
+        })
+
+    const [paths, directPaths] = await Promise.all([
+      createCrawler()
+        .withSymlinks({ resolvePaths: false })
+        .crawl(root)
+        .withPromise(),
+      // fdir follows a linked directory's children but omits the link itself.
+      // Keep the direct listing so linked and empty directories are persisted.
+      createCrawler().crawl(root).withPromise(),
+    ])
+
+    // Persistence needs a parent ID before it can insert a child. Sorting by
+    // depth guarantees parents come first, including empty directories.
+    const orderedPaths = [
+      ...new Set([...paths, ...directPaths].map((path) => resolve(path))),
+    ]
+      .filter((path) => path !== root)
+      .sort(
+        (a, b) =>
+          relative(root, a).split(sep).length -
+            relative(root, b).split(sep).length || a.localeCompare(b),
+      )
+
+    orderedPaths.unshift(root)
+    status.total = orderedPaths.length
+    status.phase = 'checking'
+    reportProgress()
+
+    for (let index = 0; index < orderedPaths.length; index += 64) {
+      // Give incoming status/cancel messages a chance to run during checking.
+      if (index % 100 === 0) {
+        await setImmediate()
+      }
+
       if (cancelled) {
-        finalState = 'cancelled'
-        return
+        break
       }
 
-      status.phase = 'checking'
-      reportProgress(true)
-
-      const removed = await scanDatabase.complete(true, collectChangePaths)
-
-      removedCount = removed.removedCount
-      results = { added: [], changed: [], removed: removed.removedPaths }
-      return
-    }
-
-    const shouldExclude = (path: string) => {
-      const resolvedPath = resolve(path)
-
-      if (
-        [
-          databasePath,
-          `${databasePath}-wal`,
-          `${databasePath}-shm`,
-          `${databasePath}-journal`,
-        ].includes(resolvedPath)
-      ) {
-        return true
-      }
-
-      return excludedPaths.some(
-        (excludedPath) =>
-          excludedPath !== root &&
-          isInside(root, excludedPath) &&
-          isInside(excludedPath, resolvedPath),
-      )
-    }
-
-    const describe = (path: string, metadata: EntryMetadata): PendingEntry => {
-      const { change, save } = scanDatabase.inspect(path, metadata)
-
-      return { path, metadata, change, save }
-    }
-
-    const save = async (batch: PendingEntry[]) => {
-      if (!batch.length || cancelled) {
-        return
-      }
-
-      const metadataByPath = new Map(
-        batch.map((entry) => [entry.path, entry.metadata]),
-      )
-      const changes = new Map(batch.map((entry) => [entry.path, entry.change]))
+      const batch = orderedPaths.slice(index, index + 64)
+      const metadataByPath = new Map<string, Stats>()
       const savePaths: string[] = []
+      const changes = new Map<string, 'added' | 'changed' | 'unchanged'>()
 
-      for (const entry of batch) {
-        if (!entry.save) {
+      for (const path of batch) {
+        if (cancelled) {
+          break
+        }
+
+        const metadata = path === root ? rootMetadata : await stat(path)
+
+        metadataByPath.set(path, metadata)
+
+        const key = relative(root, path)
+        // Reuse the stat snapshot instead of getFileDescriptor(), which would
+        // repeat the lookup. stat intentionally follows symbolic links so they
+        // are indexed and change-tracked like their targets.
+        const baseline = cache.cache.getKey<FileDescriptorMeta>(key)
+
+        if (metadata.isFile()) {
+          cache.cache.setKey(key, {
+            size: metadata.size,
+            mtime: metadata.mtime.getTime(),
+          })
+        } else if (previous.has(key)) {
+          cache.removeEntry(key)
+        }
+
+        if (!previous.has(key)) {
+          savePaths.push(path)
+          changes.set(path, 'added')
+          continue
+        }
+
+        if (
+          !metadata.isFile() ||
+          baseline?.size !== metadata.size ||
+          baseline?.mtime !== metadata.mtime.getTime()
+        ) {
+          savePaths.push(path)
+          changes.set(path, 'changed')
+          continue
+        }
+
+        // A cache hit is safe to skip only when its database row still exists.
+        // This also repairs the database if it was cleared independently.
+        if (database.skipUnchanged(path, metadata)) {
+          previous.delete(key)
+          changes.set(path, 'unchanged')
           status.processed++
         } else {
-          savePaths.push(entry.path)
+          savePaths.push(path)
+          changes.set(path, 'unchanged')
         }
       }
 
-      const saved = await database?.saveBatch(
+      if (cancelled) {
+        break
+      }
+
+      const saved = await database.saveBatch(
         savePaths,
         metadataByPath,
         () => cancelled,
       )
 
-      for (const { path, kind } of saved ?? []) {
+      for (const { path, kind } of saved) {
         if (kind === 'file') {
           const key = relative(root, path)
           const change = changes.get(path)
 
           if (change === 'added') {
-            addedCount++
-
-            if (collectChangePaths) {
-              next.added.push(key)
-            }
+            next.added.push(key)
           } else if (change === 'changed') {
-            changedCount++
-
-            if (collectChangePaths) {
-              next.changed.push(key)
-            }
+            next.changed.push(key)
           }
+
+          previous.delete(key)
         }
 
         status.processed++
       }
-    }
-
-    status.total = 1
-    await save([describe(scanPath, scanMetadata)])
-
-    let usedMft = false
-    let mftProducedEntries = false
-    let incrementalMft = false
-    let nextMftCheckpoint: MftCheckpoint | undefined
-    const unreadableMftDirectories = new Set<string>()
-
-    const hasUnreadableMftAncestor = (path: string) => {
-      let ancestor = path
-
-      while (ancestor !== root) {
-        if (unreadableMftDirectories.has(ancestor.toLowerCase())) {
-          return true
-        }
-
-        const parent = dirname(ancestor)
-
-        if (parent === ancestor) {
-          break
-        }
-
-        ancestor = parent
-      }
-
-      return false
-    }
-
-    if (mftHelperPath && canEnumerateMft(root, scanPath, mftHelperPath)) {
-      try {
-        const checkpoint = scanDatabase.hasBaseline
-          ? await readMftCheckpoint(root)
-          : undefined
-        const mftResult = await enumerateMft(
-          root,
-          mftHelperPath,
-          async (entries) => {
-            mftProducedEntries ||= entries.length > 0
-
-            for (let index = 0; index < entries.length; index += 64) {
-              if (cancelled) {
-                break
-              }
-
-              const entryBatch = entries.slice(index, index + 64)
-              const batch: PendingEntry[] = []
-              const completedDirectories: string[] = []
-              const deletedPaths: string[] = []
-              let skipped = 0
-
-              for (const entry of entryBatch) {
-                if (
-                  isIgnoredMftPath(root, entry.path) ||
-                  isTrashMetadata(root, entry.path) ||
-                  shouldExclude(entry.path) ||
-                  (unreadableMftDirectories.size > 0 &&
-                    hasUnreadableMftAncestor(entry.path))
-                ) {
-                  skipped++
-                  continue
-                }
-
-                if (entry.deleted) {
-                  deletedPaths.push(entry.path)
-                  continue
-                }
-
-                if (entry.metadataError) {
-                  // MFT enumeration is parent-first but still includes children
-                  // of directories whose metadata could not be read. Keep those
-                  // branches out of this pass instead of saving orphaned entries.
-                  if (entry.directory) {
-                    unreadableMftDirectories.add(entry.path.toLowerCase())
-                  }
-
-                  if (!entry.missing || entry.directory) {
-                    traversalComplete = false
-                  }
-
-                  skipped++
-                  continue
-                }
-
-                const metadata = metadataFromMft(entry)
-
-                batch.push(describe(entry.path, metadata))
-
-                if (entry.directory) {
-                  completedDirectories.push(entry.path)
-                }
-              }
-
-              status.processed += skipped
-
-              if (deletedPaths.length) {
-                const removed = await scanDatabase.removePaths(
-                  deletedPaths,
-                  collectChangePaths,
-                )
-
-                removedCount += removed.removedCount
-                next.removed.push(...removed.removedPaths)
-                status.processed += deletedPaths.length
-              }
-
-              await save(batch)
-
-              if (!cancelled) {
-                for (const path of completedDirectories) {
-                  scanDatabase.directoryScanned(path)
-                }
-              }
-
-              reportProgress()
-            }
-          },
-          () => cancelled,
-          (total) => {
-            status.total = total
-            status.totalKnown = true
-            reportProgress(true)
-          },
-          checkpoint,
-        )
-
-        incrementalMft = mftResult.mode === 'incremental'
-        nextMftCheckpoint = mftResult.checkpoint
-
-        if (!cancelled && !incrementalMft) {
-          scanDatabase.directoryScanned(root)
-        }
-
-        usedMft = true
-      } catch (error) {
-        // Setup failures (unsupported volume, denied UAC, missing helper) fall
-        // back before touching the baseline. A mid-stream failure must fail the
-        // pass so already-seen entries are not counted twice by a second walk.
-        if (mftProducedEntries) {
-          throw error
-        }
-
-        status.fallbackReason =
-          error instanceof Error ? error.message : String(error)
-        status.total = 1
-        status.totalKnown = false
-        reportProgress(true)
-      }
-    }
-
-    if (!usedMft && scanMetadata.isDirectory()) {
-      const directoryStack = [scanPath]
-      const visitedDirectories = new Set([directoryIdentity(scanMetadata)])
-      let operations = 0
-
-      while (directoryStack.length && !cancelled) {
-        const directory = directoryStack.pop()
-
-        if (!directory) {
-          break
-        }
-
-        const batch: PendingEntry[] = []
-        const completedAliases: string[] = []
-        let directoryReadable = true
-
-        try {
-          const handle = await opendir(directory)
-
-          for await (const child of handle) {
-            if (cancelled) {
-              break
-            }
-
-            if (++operations % 100 === 0) {
-              await setImmediate()
-            }
-
-            const path = resolve(directory, child.name)
-
-            if (
-              isIgnoredScanPath(child.name) ||
-              isTrashMetadata(root, path) ||
-              shouldExclude(path)
-            ) {
-              continue
-            }
-
-            let metadata: Stats
-
-            try {
-              metadata = await stat(path)
-            } catch (error) {
-              // Entries may disappear or become inaccessible between enumeration
-              // and metadata lookup. A later watcher pass will revisit the parent.
-              if (!isMissingPath(error)) {
-                traversalComplete = false
-              }
-
-              continue
-            }
-
-            status.total++
-            batch.push(describe(path, metadata))
-
-            if (metadata.isDirectory()) {
-              const identity = directoryIdentity(metadata)
-
-              if (!visitedDirectories.has(identity)) {
-                visitedDirectories.add(identity)
-                directoryStack.push(path)
-              } else {
-                // Persist aliases but do not follow a directory identity twice.
-                // This prevents junction and symlink cycles from growing forever.
-                completedAliases.push(path)
-              }
-            }
-
-            if (batch.length === 64) {
-              await save(batch.splice(0))
-            }
-          }
-        } catch (error) {
-          directoryReadable = false
-
-          if (!isMissingPath(error)) {
-            traversalComplete = false
-          }
-        }
-
-        await save(batch)
-
-        for (const path of completedAliases) {
-          scanDatabase.directoryScanned(path)
-        }
-
-        if (directoryReadable && !cancelled) {
-          scanDatabase.directoryScanned(directory)
-        }
-
-        reportProgress()
-      }
-    }
-
-    if (!cancelled) {
-      status.phase = 'checking'
-      reportProgress(true)
     }
 
     if (cancelled) {
@@ -530,24 +251,19 @@ async function scan(input: string, requestedScanPath = input) {
       // the cache baseline after an incomplete pass.
       finalState = 'cancelled'
     } else {
-      if (!incrementalMft) {
-        // Only a complete traversal can establish that an unseen entry was removed.
-        const removed = await scanDatabase.complete(
-          traversalComplete,
-          collectChangePaths,
-        )
+      // Only a full traversal can establish that an unseen entry was removed.
+      // DB reconciliation and cache writing are separate, not one transaction.
+      await database.complete()
+      next.removed = [...previous]
 
-        removedCount = removed.removedCount
-        next.removed = removed.removedPaths
+      for (const key of previous) {
+        cache.removeEntry(key)
       }
 
-      if (nextMftCheckpoint && traversalComplete) {
-        await writeMftCheckpoint(root, nextMftCheckpoint)
-      }
-
-      results = collectChangePaths
-        ? next
-        : { added: [], changed: [], removed: [] }
+      // Traversal already identified missing entries; reconcile() would stat
+      // every cached file again. Publish only this successful pass's snapshot.
+      cache.cache.save()
+      results = next
       finalState = 'completed'
     }
   } catch (error) {
@@ -565,33 +281,8 @@ async function scan(input: string, requestedScanPath = input) {
 
     status.state = finalState
     status.phase = 'idle'
-    reportProgress(true)
+    reportProgress()
   }
-}
-
-function directoryIdentity(metadata: Stats) {
-  return `${metadata.dev}:${metadata.ino}`
-}
-
-function isInside(parent: string, child: string) {
-  const path = relative(parent, child)
-
-  return (
-    path === '' ||
-    (path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path))
-  )
-}
-
-function isMissingPath(error: unknown) {
-  return (
-    error instanceof Error &&
-    'code' in error &&
-    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-  )
-}
-
-function isIgnoredMftPath(root: string, path: string) {
-  return relative(root, path).split(sep).some(isIgnoredScanPath)
 }
 
 function isTrashMetadata(root: string, path: string) {
@@ -636,14 +327,13 @@ port.on('message', async (request: ScannerRequest) => {
           root: request.root,
           phase: 'crawling',
           total: 0,
-          totalKnown: false,
           processed: 0,
           error: null,
         }
 
         // Reply immediately; awaiting the full scan would make start() a wait
         // for completion instead of an acknowledgement.
-        activeScan = scan(request.root, request.scanPath)
+        activeScan = scan(request.root)
         result = status
         break
       case 'shutdown':

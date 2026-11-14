@@ -16,8 +16,8 @@ import { useLocation } from 'react-router'
 import { useApi } from '../../hooks/useApi.js'
 import { useApiQuery } from '../../hooks/useApiQuery.js'
 import { useFileSelection } from '../../hooks/useFileSelection.js'
+import { useLibraries } from '../../hooks/useLibraries.js'
 import { useSettings } from '../../hooks/useSettings.js'
-import { useVolumes } from '../../hooks/useVolumes.js'
 import { usePageCardSizeControl, usePageFolderStats } from '../../pages/Page.js'
 import { queryClient, queryKeys } from '../../queryClient.js'
 import {
@@ -101,7 +101,7 @@ export default function Files({
   const preferencesKeyParts = [
     pathname,
     collectionId ?? null,
-    folder?.volumeId ?? null,
+    folder?.libraryId ?? null,
     folder?.relativePath ?? null,
   ]
 
@@ -130,7 +130,7 @@ function FolderContents({
   const api = useApi()
   const detailsPane = useDetailsPane()
   const { search: searchText } = useSearch()
-  const { volumes, loadFailed: volumesFailed } = useVolumes()
+  const { libraries, loadFailed: librariesFailed } = useLibraries()
   const { values: settingsValues } = useSettings([
     'user.dateformat',
     'user.files.showExtensions',
@@ -138,15 +138,15 @@ function FolderContents({
   const dateFormat = settingsValues?.['user.dateformat'] ?? 'relative'
   const showFileExtensions =
     settingsValues?.['user.files.showExtensions'] ?? false
-  const volumeRoots = useMemo(
-    () => new Map(volumes.map((volume) => [volume.id, volume.rootPath])),
-    [volumes],
+  const libraryRoots = useMemo(
+    () => new Map(libraries.map((library) => [library.id, library.rootPath])),
+    [libraries],
   )
-  const volumeId = folder?.volumeId
+  const libraryId = folder?.libraryId
   const relativePath = folder?.relativePath
   const folderView =
     relativePath === ''
-      ? volumes.find((volume) => volume.id === volumeId)?.folderView
+      ? libraries.find((library) => library.id === libraryId)?.folderView
       : null
   const search = folder ? searchText.trim() || undefined : undefined
   const {
@@ -187,7 +187,7 @@ function FolderContents({
         }
 
         if (column === 'relativePath') {
-          const root = volumeRoots.get(entry.volumeId)
+          const root = libraryRoots.get(entry.libraryId)
 
           return root === undefined
             ? '—'
@@ -200,31 +200,31 @@ function FolderContents({
       },
       header: fileColumnLabels[column],
     }))
-  }, [columns, volumeRoots])
+  }, [columns, libraryRoots])
   const request = useCallback(
     () =>
       collectionId
         ? api.collections.listEntries(collectionId)
-        : volumeId !== undefined && relativePath !== undefined
+        : libraryId !== undefined && relativePath !== undefined
           ? api.entries.listChildren({
-              volumeId,
+              libraryId,
               relativePath,
               recursive: effectiveFlatten,
               ...(search ? { search } : {}),
             })
           : Promise.reject(new Error('Missing file source')),
-    [api, collectionId, effectiveFlatten, volumeId, relativePath, search],
+    [api, collectionId, effectiveFlatten, libraryId, relativePath, search],
   )
   const queryKey = useMemo(
     () =>
       queryKeys.files({
         collectionId,
-        volumeId,
+        libraryId,
         relativePath,
         flatten: effectiveFlatten,
         search,
       }),
-    [collectionId, effectiveFlatten, volumeId, relativePath, search],
+    [collectionId, effectiveFlatten, libraryId, relativePath, search],
   )
   const {
     data: listing,
@@ -427,10 +427,10 @@ function FolderContents({
   return (
     <div ref={containerRef}>
       {viewError && <p role="alert">{viewError}</p>}
-      {volumesFailed && <p role="status">Unable to load full file paths.</p>}
+      {librariesFailed && <p role="status">Unable to load full file paths.</p>}
       <FilesToolbar
-        volumeId={volumeId}
-        volumeRoots={volumeRoots}
+        libraryId={libraryId}
+        libraryRoots={libraryRoots}
         relativePath={relativePath}
         collectionId={collectionId}
         detailsOpen={detailsOpen && !detailsClosing}
@@ -466,7 +466,7 @@ function FolderContents({
           listing={listing}
           rowGroups={rowGroups}
           collapsedGroupKeys={collapsedGroupKeys}
-          volumeRoots={volumeRoots}
+          libraryRoots={libraryRoots}
           selectedId={selectedId}
           selectedIds={selectedIds}
           search={search}
@@ -486,7 +486,7 @@ function FolderContents({
           cardSize={cardSize}
           rowGroups={rowGroups}
           collapsedGroupKeys={collapsedGroupKeys}
-          volumeRoots={volumeRoots}
+          libraryRoots={libraryRoots}
           selectedId={selectedId}
           selectedIds={selectedIds}
           search={search}
@@ -503,7 +503,7 @@ function FolderContents({
         createPortal(
           <FileDetails
             entry={detailsEntry}
-            rootPath={volumeRoots.get(detailsEntry.volumeId)}
+            rootPath={libraryRoots.get(detailsEntry.libraryId)}
             dateFormat={dateFormat}
             closing={detailsClosing}
             onClose={hideDetails}

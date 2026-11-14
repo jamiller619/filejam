@@ -1,6 +1,6 @@
 {
   "name": "filejam",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "",
   "scripts": {
     "build": "node apps/desktop/scripts/generate-settings.mjs && tsc -b && pnpm --filter @filejam/server copy:migrations && pnpm --filter @filejam/desktop copy:assets",

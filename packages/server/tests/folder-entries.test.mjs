@@ -1,71 +1,161 @@
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { createApi } from '../dist/api/index.js'
 import { initDatabase } from '../dist/db/index.js'
 
-test('folder contents are read directly from a mounted volume', async () => {
+test('folder contents are immediate children isolated by library and report scan state', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-folder-'))
-  const rootPath = join(directory, 'volume')
   let connection
 
   try {
-    await mkdir(join(rootPath, 'nested'), { recursive: true })
-    await writeFile(join(rootPath, 'example.txt'), 'hello')
-    await writeFile(join(rootPath, 'volume'), 'root names may repeat')
-    await writeFile(join(rootPath, 'nested', 'child.txt'), 'world')
-
     connection = await initDatabase(join(directory, 'filejam.sqlite'))
 
     const api = createApi(connection.db)
-    const volume = await api.volumes.ensure({
-      name: 'Test volume',
-      rootPath,
-      kind: 'internal',
-    })
-    const root = await api.entries.listChildren({
-      volumeId: volume.id,
-      relativePath: '',
+    const library = await api.libraries.ensureRoot('/first')
+    const other = await api.libraries.ensureRoot('/second')
+    const folder = { libraryId: library.id, relativePath: '' }
+
+    assert.deepEqual(await api.entries.listChildren(folder), {
+      folder: null,
+      entries: [],
+      scanned: false,
     })
 
-    assert.equal(root.scanned, true)
+    const save = (libraryId, relativePath, parentId, kind = 'file') =>
+      api.entries.upsert({
+        libraryId,
+        relativePath,
+        parentId,
+        kind,
+        name: relativePath.split('/').at(-1) || 'root',
+        indexedAt: new Date(),
+      })
+
+    const root = await save(library.id, '', null, 'directory')
+    const nested = await save(library.id, 'nested', root.id, 'directory')
+
+    await save(library.id, 'alpha', root.id, 'directory')
+    await save(library.id, 'z.txt', root.id)
+    await save(library.id, 'a.txt', root.id)
+    await save(library.id, 'nested/hidden.txt', nested.id)
+
+    const otherRoot = await save(other.id, '', null, 'directory')
+
+    await save(other.id, 'other.txt', otherRoot.id)
+
+    const listing = await api.entries.listChildren(folder)
+
+    assert.equal(listing.folder.id, root.id)
+
     assert.deepEqual(
-      root.entries.map(({ name, kind }) => ({ name, kind })),
-      [
-        { name: 'nested', kind: 'directory' },
-        { name: 'example.txt', kind: 'file' },
-        { name: 'volume', kind: 'file' },
-      ],
-    )
-    assert.equal(
-      root.entries.find((entry) => entry.name === 'nested').size,
-      null,
+      listing.entries.map((entry) => entry.name),
+      ['alpha', 'nested', 'a.txt', 'z.txt'],
     )
 
-    const nested = await api.entries.listChildren({
-      volumeId: volume.id,
-      relativePath: 'nested',
+    assert.equal(listing.scanned, false)
+
+    const deep = await save(library.id, 'nested/deep', nested.id, 'directory')
+
+    await save(library.id, 'nested/deep/a.txt', deep.id)
+
+    const flattened = await api.entries.listChildren({
+      ...folder,
+      recursive: true,
     })
 
     assert.deepEqual(
-      nested.entries.map((entry) => entry.name),
-      ['child.txt'],
+      flattened.entries.map((entry) => entry.relativePath),
+      ['a.txt', 'nested/deep/a.txt', 'nested/hidden.txt', 'z.txt'],
     )
-    assert.ok(nested.entries[0].id > 0)
 
-    const refreshedRoot = await api.entries.listChildren({
-      volumeId: volume.id,
-      relativePath: '',
-    })
+    assert.equal(flattened.scanned, false)
+    await api.entries.completeScan(library.id, [])
+    assert.equal((await api.entries.listChildren(folder)).scanned, true)
 
     assert.equal(
-      refreshedRoot.entries.find((entry) => entry.name === 'nested').size,
-      5,
+      (await api.entries.listChildren({ ...folder, recursive: true })).scanned,
+      true,
+    )
+
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({
+          ...folder,
+          relativePath: 'nested',
+          recursive: true,
+        })
+      ).entries.map((entry) => entry.relativePath),
+      ['nested/deep/a.txt', 'nested/hidden.txt'],
+    )
+
+    await save(library.id, 'nested/deep/pending', deep.id, 'directory')
+    assert.equal((await api.entries.listChildren(folder)).scanned, true)
+
+    assert.equal(
+      (await api.entries.listChildren({ ...folder, recursive: true })).scanned,
+      false,
+    )
+
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({ ...folder, relativePath: 'nested' })
+      ).entries.map((entry) => entry.name),
+      ['deep', 'hidden.txt'],
+    )
+
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({
+          ...folder,
+          search: 'A.TXT',
+        })
+      ).entries.map((entry) => entry.relativePath),
+      ['a.txt', 'nested/deep/a.txt'],
+    )
+
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({
+          ...folder,
+          search: 'deep',
+        })
+      ).entries.map((entry) => entry.relativePath),
+      ['nested/deep'],
+    )
+
+    assert.deepEqual(
+      (
+        await api.entries.listChildren({
+          ...folder,
+          relativePath: 'nested',
+          search: 'z.txt',
+        })
+      ).entries,
+      [],
+    )
+
+    await assert.rejects(
+      () => api.entries.listChildren({ libraryId: '1', relativePath: '' }),
+      /Invalid folder/,
+    )
+
+    await assert.rejects(() => api.entries.listChildren(null), /Invalid folder/)
+
+    await assert.rejects(
+      () => api.entries.listChildren({ ...folder, recursive: 'yes' }),
+      /Invalid folder/,
+    )
+
+    await assert.rejects(
+      () => api.entries.listChildren({ ...folder, search: 123 }),
+      /Invalid folder/,
     )
   } finally {
-    await connection?.close()
+    connection?.close()
+
     await rm(directory, {
       recursive: true,
       force: true,
@@ -75,18 +165,15 @@ test('folder contents are read directly from a mounted volume', async () => {
   }
 })
 
-test('folder references reject paths outside their volume', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'filejam-folder-security-'))
+test('folder sizes include nested contents and reflect updates and deletions', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'filejam-sizes-'))
   let connection
 
   try {
     connection = await initDatabase(join(directory, 'filejam.sqlite'))
+
     const api = createApi(connection.db)
-    const volume = await api.volumes.ensure({
-      name: 'Test volume',
-      rootPath: directory,
-      kind: 'internal',
-    })
+    const library = await api.libraries.ensureRoot('/sizes')
 
     const save = (relativePath, parentId, kind, size = null) =>
       api.entries.upsert({
@@ -147,7 +234,8 @@ test('folder references reject paths outside their volume', async () => {
     assert.equal((await sizes()).folder, 25)
     assert.equal(await folderSize(), 25)
   } finally {
-    await connection?.close()
+    connection?.close()
+
     await rm(directory, {
       recursive: true,
       force: true,

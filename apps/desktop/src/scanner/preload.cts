@@ -3,9 +3,8 @@ import type { CustomIcon } from '@filejam/server/icons'
 import type { ScannerApi } from '@filejam/server/scanner'
 import type {
   PresentedFolderListing,
-  PresentedVolume,
+  PresentedLibrary,
 } from '../entries/types.js'
-import type { PresentedLocation } from '../locations.js'
 import type { SettingsApi } from '../settings/index.js'
 
 // Sandboxed preloads need CommonJS and can only require Electron's allowed modules.
@@ -23,11 +22,11 @@ type FilejamApi = {
   }
   collections: ServerApi['collections']
   settings: SettingsApi
-  volumes: {
-    list: () => Promise<PresentedVolume[]>
-  }
-  locations: {
-    list: () => Promise<PresentedLocation[]>
+  libraries: {
+    list: () => Promise<PresentedLibrary[]>
+    add: () => Promise<
+      Awaited<ReturnType<ServerApi['libraries']['list']>>[number] | null
+    >
   }
   entries: {
     listChildren: (
@@ -78,23 +77,17 @@ const filejam: FilejamApi = {
   moveHistory: {
     list: () => ipcRenderer.invoke('moveHistory:list'),
   },
-  volumes: {
-    list: () => ipcRenderer.invoke('volumes:list'),
-  },
-  locations: {
-    list: () => ipcRenderer.invoke('locations:list'),
+  libraries: {
+    list: () => ipcRenderer.invoke('libraries:list'),
+    add: () => ipcRenderer.invoke('libraries:add'),
   },
 }
 
 contextBridge.exposeInMainWorld('filejam', filejam)
 
-type ScannerBridge = ScannerApi & {
-  onUpdated(listener: (status: ScannerStatus) => void): () => void
-}
-
-const scanner: ScannerBridge = {
+const scanner: ScannerApi & { onUpdated(listener: () => void): () => void } = {
   onUpdated: (listener) => {
-    const handler = (_event: unknown, status: ScannerStatus) => listener(status)
+    const handler = () => listener()
 
     ipcRenderer.on('scanner:updated', handler)
 
@@ -113,6 +106,6 @@ contextBridge.exposeInMainWorld('scanner', scanner)
 declare global {
   interface Window {
     filejam: FilejamApi
-    scanner: ScannerBridge
+    scanner: ScannerApi & { onUpdated(listener: () => void): () => void }
   }
 }

@@ -8,16 +8,16 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
-import { volumes } from './volume.js'
+import { libraries } from './library.js'
 
 export const entries = sqliteTable(
   'entries',
   {
     id: integer('id').primaryKey(),
 
-    volumeId: integer('volume_id')
+    libraryId: integer('library_id')
       .notNull()
-      .references(() => volumes.id, { onDelete: 'cascade' }),
+      .references(() => libraries.id, { onDelete: 'cascade' }),
 
     // The root has no parent; deleting a directory cascades through its subtree.
     parentId: integer('parent_id').references(
@@ -25,17 +25,11 @@ export const entries = sqliteTable(
       { onDelete: 'cascade' },
     ),
 
-    // Physical filesystem name. The volume root uses ""; most other entries
-    // expose this directly.
     name: text('name').notNull(),
 
-    // The containing directory relative to volumes.rootPath, using "/"
-    // separators. Entries directly inside the volume use "".
-    parentPath: text('parent_path').notNull().default(''),
-
-    // Only set when a virtual filesystem has a different user-facing name.
-    // Windows Trash entries are the common example.
-    displayName: text('display_name'),
+    // Relative to libraries.rootPath, using "/" separators.
+    // The library root itself uses "".
+    relativePath: text('relative_path').notNull(),
 
     kind: text('kind', {
       enum: ['directory', 'file', 'symlink'],
@@ -67,10 +61,9 @@ export const entries = sqliteTable(
       .default(true),
   },
   (table) => [
-    uniqueIndex('entries_volume_parent_name_unique').on(
-      table.volumeId,
-      table.parentPath,
-      table.name,
+    uniqueIndex('entries_library_path_unique').on(
+      table.libraryId,
+      table.relativePath,
     ),
 
     // Supports listing a folder's children alphabetically.
@@ -85,14 +78,4 @@ export const entries = sqliteTable(
 
 export type Entry = typeof entries.$inferSelect
 
-type StoredNewEntry = typeof entries.$inferInsert
-
-// Callers work with complete relative paths; upsertEntry normalizes them into
-// the non-redundant name + parentPath representation used by the database.
-export type NewEntry = Omit<
-  StoredNewEntry,
-  'name' | 'parentPath' | 'displayName'
-> & {
-  name: string
-  relativePath: string
-}
+export type NewEntry = typeof entries.$inferInsert

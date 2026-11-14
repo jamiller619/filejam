@@ -76,36 +76,35 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
       const defaultScanner = new FileScanner('cache', 'db')
       assert.equal(defaultScanner.maxConcurrentScans, 1)
       await defaultScanner.close()
-      const poolWorkerOffset = workers.length
-      const scanner = new FileScanner('cache', 'db', { maxConcurrentScans: 2, collectChangePaths: true })
+      const scanner = new FileScanner('cache', 'db', { maxConcurrentScans: 2 })
       await assert.rejects(scanner.startAll([roots[0], '']), /root is required/)
       assert.equal((await scanner.status()).state, 'idle')
       await scanner.startAll([...roots, join(roots[0], '..', 'a')])
       let status = await scanner.status()
       assert.equal(status.active.length, 2)
       assert.equal(status.queued.length, 1)
-      assert.equal(status.roots.length, 3)
+      assert.equal(status.libraries.length, 3)
       assert.equal(starts.length, 2)
       await assert.rejects(scanner.start(join(roots[0], '..', 'a')), /already running/)
       scanner.enqueue(roots[0]); scanner.enqueue(join(roots[0], '..', 'a'))
       status = await scanner.status()
       assert.equal(status.queued.filter(root => root === roots[0]).length, 1)
-      workers[poolWorkerOffset].finish()
+      workers[0].finish()
       status = await scanner.status()
       assert.equal(status.state, 'scanning')
       assert.equal(status.active.length, 2)
       assert.equal(starts[2], roots[2]) // FIFO: c precedes a's refresh.
-      workers[poolWorkerOffset + 1].finish()
+      workers[1].finish()
       status = await scanner.status()
       assert.equal(starts[3], roots[0])
       assert.equal(starts.filter(root => root === roots[0]).length, 2)
-      workers[poolWorkerOffset].crash()
+      workers[0].crash()
       status = await scanner.status()
-      assert.equal(status.roots.find(s => s.root === roots[2]).state, 'failed')
-      assert.equal(workers[poolWorkerOffset].closed, true)
+      assert.equal(status.libraries.find(s => s.root === roots[2]).state, 'failed')
+      assert.equal(workers[0].closed, true)
       scanner.enqueue(roots[2])
       status = await scanner.status()
-      assert.equal(workers.length, poolWorkerOffset + 3)
+      assert.equal(workers.length, 3)
       assert.equal(status.active.length, 2)
       scanner.enqueue(roots[1])
       await scanner.status()
@@ -137,7 +136,7 @@ test('pool schedules bounded concurrent jobs, coalesces aliases and refreshes, r
   }
 })
 
-test('real workers index and reconcile concurrent volumes with isolated baselines and results', async () => {
+test('real workers index and reconcile concurrent libraries with isolated caches and results', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-pool-persistence-'))
 
   try {
@@ -170,7 +169,7 @@ test('real workers index and reconcile concurrent volumes with isolated baseline
       const { initLogger, closeLogger } = await import(${JSON.stringify(new URL('../dist/logger.js', import.meta.url).href)})
       await initLogger({ get: key => ({ 'appdata.logsPath': join(directory, 'logs'), 'log.level': 'info', 'log.retentionDays': 1 })[key] })
       const databasePath = join(directory, 'filejam.sqlite')
-      const scanner = new FileScanner(join(directory, 'cache'), databasePath, { maxConcurrentScans: 2, collectChangePaths: true })
+      const scanner = new FileScanner(join(directory, 'cache'), databasePath, { maxConcurrentScans: 2 })
       let overlap = false
       scanner.onUpdated(() => { void scanner.status().then(s => { if (s.active.length === 2) overlap = true }).catch(() => {}) })
       async function finish() {
@@ -192,16 +191,16 @@ test('real workers index and reconcile concurrent volumes with isolated baseline
         await scanner.startAll([join(directory, 'missing'), ...roots])
         const status = await finish()
         assert.equal(status.state, 'failed')
-        assert.equal(status.roots.filter(s => s.state === 'completed').length, 3)
+        assert.equal(status.libraries.filter(s => s.state === 'completed').length, 3)
         assert.deepEqual((await scanner.results(roots[0])).removed, ['0.txt'])
         assert.deepEqual((await scanner.results(roots[1])).changed, ['0.txt'])
         assert.deepEqual(await scanner.results(roots[2]), { added: [], changed: [], removed: [] })
         const connection = await initDatabase(databasePath)
         try {
           const api = createApi(connection.db)
-          for (const volume of await api.volumes.list()) {
-            const listing = await api.entries.listChildren({ volumeId: volume.id, relativePath: '' })
-            assert.equal(listing.entries.length, volume.rootPath === roots[0] ? 129 : 130)
+          for (const library of await api.libraries.list()) {
+            const listing = await api.entries.listChildren({ libraryId: library.id, relativePath: '' })
+            assert.equal(listing.entries.length, library.rootPath === roots[0] ? 129 : 130)
             assert.equal(listing.scanned, true)
           }
         } finally { connection.close() }
@@ -212,12 +211,12 @@ test('real workers index and reconcile concurrent volumes with isolated baseline
       assert.equal(completed[0].processed, 393)
       assert.equal(completed[0].total, 393)
       assert.equal(completed[0].added, 390)
-      assert.equal(completed[0].completedRoots, 3)
-      assert.equal(completed[0].activeRoots, 0)
+      assert.equal(completed[0].completedLibraries, 3)
+      assert.equal(completed[0].activeLibraries, 0)
       assert.ok(logs.every(log => !('root' in log)))
       const failed = logs.find(log => log.msg === 'Scan failed')
-      assert.equal(failed.completedRoots, 3)
-      assert.equal(failed.failedRoots, 1)
+      assert.equal(failed.completedLibraries, 3)
+      assert.equal(failed.failedLibraries, 1)
       assert.equal(failed.errors.length, 1)
     `)
   } finally {

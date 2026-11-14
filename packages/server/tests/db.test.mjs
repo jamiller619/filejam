@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { initDatabase } from '../dist/db/index.js'
 import { entries } from '../dist/db/schemas/entry.js'
-import { volumes } from '../dist/db/schemas/volume.js'
+import { libraries } from '../dist/db/schemas/library.js'
 
 test('creates a database, preserves data on reopen, and enforces constraints', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'filejam-db-'))
@@ -18,15 +18,14 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     const { db } = connection
 
     await db
-      .insert(volumes)
-      .values({ id: 1, name: 'Files', rootPath: '/files', kind: 'system' })
+      .insert(libraries)
+      .values({ id: 1, name: 'Files', rootPath: '/files' })
 
     const entry = {
-      volumeId: 1,
+      libraryId: 1,
       name: 'example.txt',
-      parentPath: '',
+      relativePath: 'example.txt',
       kind: 'file',
-      createdAt: new Date(),
       indexedAt: new Date(),
     }
 
@@ -36,18 +35,15 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     await assert.rejects(
       db
         .insert(entries)
-        .values({ ...entry, volumeId: 999 })
+        .values({ ...entry, libraryId: 999 })
         .run(),
     )
-    await connection.close()
+
+    connection.close()
 
     connection = await initDatabase(path)
-    assert.equal((await connection.db.select().from(volumes)).length, 1)
-    const storedEntries = await connection.db.select().from(entries)
-
-    assert.equal(storedEntries.length, 1)
-    assert.equal(storedEntries[0].parentPath, '')
-    assert.equal(storedEntries[0].name, 'example.txt')
+    assert.equal((await connection.db.select().from(libraries)).length, 1)
+    assert.equal((await connection.db.select().from(entries)).length, 1)
 
     const migrations = await connection.db.all(
       'SELECT * FROM __drizzle_migrations',
@@ -67,29 +63,16 @@ test('creates a database, preserves data on reopen, and enforces constraints', a
     )
 
     assert.ok(
-      [
-        'relative_path',
-        'app_tags',
-        'os_tags',
-        'embedded_tags',
-        'tag_read_error',
-      ].every((name) => !entryColumns.some((column) => column.name === name)),
+      ['app_tags', 'os_tags', 'embedded_tags', 'tag_read_error'].every(
+        (name) => !entryColumns.some((column) => column.name === name),
+      ),
     )
-    assert.ok(entryColumns.some((column) => column.name === 'parent_path'))
 
-    await connection.db.delete(volumes)
-    assert.deepEqual(
-      await connection.db.select({ id: entries.id }).from(entries),
-      [],
-    )
+    await connection.db.delete(libraries)
+    assert.deepEqual(await connection.db.select().from(entries), [])
   } finally {
-    await connection?.close()
-    await rm(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 10,
-      retryDelay: 100,
-    })
+    connection?.close()
+    await rm(directory, { recursive: true, force: true })
   }
 })
 

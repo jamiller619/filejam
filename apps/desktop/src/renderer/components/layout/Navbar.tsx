@@ -10,6 +10,7 @@ import { useCollections } from '../../hooks/useCollections.js'
 import { useFavoriteFolderDrop } from '../../hooks/useFavoriteFolderDrop.js'
 import { useLibraries } from '../../hooks/useLibraries.js'
 import { folderUrl, isCurrentFolderUrl } from '../../utils/folderUrl.js'
+import { getLibraryIcon } from '../../utils/libraryIcon.js'
 import { normalizePath } from '../../utils/normalizePath.js'
 import { IconButton } from '../icons/ItemIcon.js'
 
@@ -22,7 +23,10 @@ const styles = css`
     min-height: 0;
     padding: var(--suzy-space-2);
 
-    .eyebrow { margin-block-start: var(--suzy-space-3); }
+    .eyebrow {
+      margin-block-start: var(--suzy-space-3);
+    }
+
     ol {
       display: flex;
       flex: 1 1 auto;
@@ -32,7 +36,6 @@ const styles = css`
       list-style: none;
       margin: var(--suzy-space-6) 0 0;
       padding: 0;
-      overflow-y: auto;
 
       .item {
         display: flex;
@@ -97,6 +100,7 @@ const styles = css`
       justify-content: center;
       height: 20px;
     }
+
     .favorites {
       border-radius: var(--suzy-radius-3);
       outline: 2px solid transparent;
@@ -104,12 +108,11 @@ const styles = css`
         outline-color: var(--suzy-accent-9);
         background: var(--suzy-gray-4);
       }
-      ol { margin: 0; overflow: visible; }
+      ol { margin: 0; }
     }
-    .dropHint {
-      padding: var(--suzy-space-2);
-      color: var(--suzy-gray-11);
-      font-size: 0.85em;
+    .dropHint { padding: var(--suzy-space-2); color: var(--suzy-gray-11); font-size: 0.85em; }
+    .settings {
+      margin-block-start: auto;
     }
 
     .actions {
@@ -126,20 +129,11 @@ const styles = css`
   }
 `
 
-const locationIcons: Record<string, IconName> = {
-  applications: 'grid',
-  desktop: 'desktop',
-  downloads: 'download',
-  documents: 'documents',
-  music: 'music',
-  pictures: 'image',
-  trash: 'trash',
-}
-
 export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   const { libraries, loadFailed } = useLibraries()
 
   const { collections, loadFailed: collectionsFailed } = useCollections()
+
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
   const favoriteFolders = useFavoriteFolders(libraries)
 
@@ -191,7 +185,6 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           </ol>
           {dropError && <p role="alert">{dropError}</p>}
         </li>
-
         <li>
           <Eyebrow className={styles.eyebrow}>Libraries</Eyebrow>
         </li>
@@ -212,26 +205,11 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
         {loadFailed && <li role="status">Unable to load libraries</li>}
         {trashLibraries.map((library) => {
           const drive = library.rootPath.match(/^[a-z]:/i)?.[0].toUpperCase()
-          deviceVolumes.length > 0 && (
-            <li>
-              <Eyebrow className={styles.eyebrow}>Devices</Eyebrow>
-            </li>
-          )
-          deviceVolumes.map((volume) => (
-            <li key={volume.id}>
-              <Link
-                to={folderUrl({ volumeId: volume.id, relativePath: '' })}
-                title={volume.rootPath}
-                viewTransition
-                aria-current={currentFolder(volume.id) ? 'page' : undefined}
-                {...folderDragProps(volume.rootPath)}
-              >
-                <Icon name="hard-drive" size="20" />
-                <span>{volume.name}</span>
-              </Link>
-            </li>
-          ))
-          volumesFailed && <li role="status">Unable to load devices.</li>
+
+          const label =
+            trashLibraries.length > 1 && drive
+              ? `${drive} ${library.name}`
+              : library.name
 
           return (
             <NavItem
@@ -300,14 +278,14 @@ function NavItem({
 
   const current = libraryRoute
     ? isCurrentFolderUrl(location, {
-      libraryId: Number(libraryRoute.params.libraryId),
-      relativePath:
-        new URLSearchParams(destination.search).get('folder') ?? '',
-    })
+        libraryId: Number(libraryRoute.params.libraryId),
+        relativePath:
+          new URLSearchParams(destination.search).get('folder') ?? '',
+      })
     : !!matchPath(
-      { path: destination.pathname, end: destination.pathname === '/' },
-      location.pathname,
-    )
+        { path: destination.pathname, end: destination.pathname === '/' },
+        location.pathname,
+      )
 
   return (
     <li className={clsx(styles.item, className)} {...props}>
@@ -337,28 +315,31 @@ function useFavoriteFolders(libraries: Library[]) {
   const { values } = useSettings(['user.favoriteFolders'])
   const favoritePaths = values?.['user.favoriteFolders'] ?? []
 
-  return favoritePaths.flatMap((path) => {
-    const target = normalizePath(path)
-    const volume = volumes
-      .filter((item) => !item.isTrash)
-      .filter((item) => {
-        const root = normalizePath(item.rootPath)
+  const favoriteFolders = favoritePaths.flatMap((path) => {
+    const library = libraries.find((item) => {
+      if (item.isTrash) {
+        return false
+      }
 
-        return target === root || target.startsWith(`${root}/`)
-      })
-      .sort((a, b) => b.rootPath.length - a.rootPath.length)[0]
+      const root = normalizePath(item.rootPath)
+      const target = normalizePath(path)
 
-    if (!volume) {
+      return target === root || target.startsWith(`${root}/`)
+    })
+
+    if (!library) {
       return []
     }
 
-    const root = volume.rootPath.replace(/[\\/]+$/, '')
+    const root = library.rootPath.replace(/[\\/]+$/, '')
+
     const relativePath = path
       .slice(root.length)
       .replace(/^[\\/]+/, '')
       .replaceAll('\\', '/')
-    const name = relativePath.split('/').filter(Boolean).at(-1) ?? volume.name
 
-    return [{ path, volume, relativePath, name }]
+    return [{ path, library, relativePath }]
   })
+
+  return favoriteFolders
 }

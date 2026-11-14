@@ -27,7 +27,7 @@ export const fileColumnTypes: Record<FileColumn, FileColumnType> = {
 
 export const fileColumnLabels: Record<FileColumn, string> = {
   id: 'ID',
-  volumeId: 'Volume ID',
+  libraryId: 'Library ID',
   parentId: 'Parent ID',
   name: 'Name',
   relativePath: 'Path',

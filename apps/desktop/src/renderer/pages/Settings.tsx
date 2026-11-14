@@ -29,6 +29,7 @@ import {
   notifyCollectionsChanged,
   useCollections,
 } from '../hooks/useCollections.js'
+import { useLibraries } from '../hooks/useLibraries.js'
 import { useSettings } from '../hooks/useSettings.js'
 import Page from './Page.js'
 
@@ -238,6 +239,11 @@ export default function Settings() {
   const [collectionError, setCollectionError] = useState(false)
   const [selection, setSelection] = useState<SettingsSelection | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
+  const {
+    libraries,
+    loading: librariesLoading,
+    loadFailed: librariesLoadFailed,
+  } = useLibraries()
   const {
     collections,
     loading: collectionsLoading,
@@ -545,7 +551,7 @@ function SettingsDetails({
     >
       {!selection && (
         <p className={styles.detailsEmpty}>
-          Select a setting or collection to view its details.
+          Select a setting, library, or collection to view its details.
         </p>
       )}
       {setting && (
@@ -565,6 +571,16 @@ function SettingsDetails({
           ]}
         />
       )}
+      {library && (
+        <SettingsDetailsContent
+          type="Library"
+          title={library.name}
+          metadata={[
+            ['Folder', library.rootPath],
+            ['Library ID', String(library.id)],
+          ]}
+        />
+      )}
       {collection && (
         <CollectionEditor collection={collection} onSaved={onCollectionSaved} />
       )}
@@ -572,6 +588,7 @@ function SettingsDetails({
         <CollectionEditor onSaved={onCollectionSaved} />
       )}
       {selection &&
+        !library &&
         !collection &&
         selection.type !== 'collection-new' &&
         !setting && (

@@ -30,7 +30,7 @@ function supportsOriginal(file: string, service?: PreviewService) {
 }
 
 export function createPreviewHandler(
-  volumes: Pick<ServerApi['volumes'], 'list'>,
+  libraries: Pick<ServerApi['libraries'], 'list'>,
   fetchFile: (url: string, init?: RequestInit) => Promise<Response>,
   service?: PreviewService,
   fileIcon?: FileIconProvider,
@@ -42,12 +42,12 @@ export function createPreviewHandler(
     }
 
     const url = new URL(request.url)
-    const volumeId = Number(url.searchParams.get('volumeId'))
+    const libraryId = Number(url.searchParams.get('libraryId'))
     const path = url.searchParams.get('path')
 
     if (
-      !Number.isSafeInteger(volumeId) ||
-      volumeId <= 0 ||
+      !Number.isSafeInteger(libraryId) ||
+      libraryId <= 0 ||
       path === null ||
       path.includes('\0') ||
       (url.pathname !== '' && url.pathname !== '/')
@@ -57,7 +57,11 @@ export function createPreviewHandler(
 
     if (url.host === 'video') {
       try {
-        const { file, info } = await authorizePreview(volumes, volumeId, path)
+        const { file, info } = await authorizePreview(
+          libraries,
+          libraryId,
+          path,
+        )
         const mimeType = mime.getType(file)
 
         if (!info.isFile() || !mimeType?.startsWith('video/')) {
@@ -114,9 +118,9 @@ export function createPreviewHandler(
     }
 
     try {
-      const { file, root, volume, info } = await authorizePreview(
-        volumes,
-        volumeId,
+      const { file, root, library, info } = await authorizePreview(
+        libraries,
+        libraryId,
         path,
       )
       const original =
@@ -137,8 +141,8 @@ export function createPreviewHandler(
         ? await entryRegistry.resolve({
             path: file,
             name:
-              volume.rootPath === file
-                ? volume.name
+              library.rootPath === file
+                ? library.name
                 : (path.split('/').at(-1) ?? path),
             kind: info.isDirectory()
               ? 'directory'
@@ -153,7 +157,7 @@ export function createPreviewHandler(
           await previewIcon({
             directory: info.isDirectory(),
             variant,
-            volumeName: file === root ? volume.name : undefined,
+            libraryName: file === root ? library.name : undefined,
             color: color ?? '#7ce2fe',
             darkColor: darkColor ?? undefined,
           }),
@@ -212,7 +216,7 @@ export function createPreviewHandler(
             request.signal,
           )
 
-          const current = await authorizePreview(volumes, volumeId, path)
+          const current = await authorizePreview(libraries, libraryId, path)
 
           if (
             !result ||

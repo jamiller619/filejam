@@ -16,6 +16,7 @@ import {
   REACT_DEVELOPER_TOOLS,
 } from 'electron-devtools-installer'
 import { registerApiIpc } from './api/main.js'
+import { resolveDefaultFolder } from './defaultFolders.js'
 import { createEntryRegistry } from './entries/create-registry.js'
 import type { EntryRegistry } from './entries/registry.js'
 import { createIconHandler } from './icons/assets.js'
@@ -34,7 +35,6 @@ import {
 } from './settings/index.js'
 import { settingsKeys } from './settings/settings.js'
 import { getOsTrashRoots } from './trash/roots.js'
-import { discoverVolumes } from './volumes/discover.js'
 import { readWindowState, trackWindowState } from './window-state.js'
 
 protocol.registerSchemesAsPrivileged([
@@ -278,20 +278,10 @@ if (!app.requestSingleInstanceLock()) {
       return
     }
 
-    const [volumes, trashRoots] = await Promise.all([
-      discoverVolumes(),
-      getOsTrashRoots(),
-    ])
-
-    const mftHelperPath =
-      process.platform === 'win32'
-        ? fileURLToPath(new URL('./bin/filejam-mft.exe', import.meta.url))
-        : undefined
-
     server = await boot({
-      volumes,
-      trashRoots,
-      ...(mftHelperPath ? { mftHelperPath } : {}),
+      resolveDefaultFolder: (folder) =>
+        resolveDefaultFolder(folder, (name) => app.getPath(name)),
+      trashRoots: await getOsTrashRoots(),
     })
 
     const legacyConfig = server.config.getStore() as unknown as Record<
@@ -326,7 +316,11 @@ if (!app.requestSingleInstanceLock()) {
       initializedSettings.migratedKeys.length === 0 &&
       settings.get('user.favoriteFolders').length === 0
     ) {
-      const favorites = [app.getPath('desktop'), app.getPath('downloads')]
+      const favorites = (await server.api.libraries.list())
+        .filter((library) =>
+          ['desktop', 'downloads'].includes(library.name.toLowerCase()),
+        )
+        .map((library) => library.rootPath)
 
       await settings.set('user.favoriteFolders', favorites)
     }
@@ -371,7 +365,7 @@ if (!app.requestSingleInstanceLock()) {
     protocol.handle(
       'filejam-preview',
       createPreviewHandler(
-        server.api.volumes,
+        server.api.libraries,
         (url, init) => net.fetch(url, init),
         previews,
         fileIcons,

@@ -2,21 +2,18 @@ export interface ScanStatus {
   state: 'idle' | 'queued' | 'scanning' | 'completed' | 'cancelled' | 'failed'
   root: string | null
   phase: 'idle' | 'crawling' | 'checking'
-  /** Entries discovered so far, including directories and the root. */
+  /** Entries (including directories and the root); known after crawling finishes. */
   total: number
-  /** Whether total is final and can drive determinate progress. */
-  totalKnown: boolean
-  /** Discovered entries checked and saved or confirmed unchanged. */
+  /** Entries saved to the database during the checking phase. */
   processed: number
-  /** Why the native fast path fell back to directory traversal, if applicable. */
-  fallbackReason?: string
   error: string | null
 }
 
 /**
- * File changes relative to the SQLite baseline, using root-relative paths with
- * native separators. Populated only when collectChangePaths is enabled; production
- * scans retain counts in progress events instead. Directories are excluded.
+ * File changes relative to the persisted cache baseline, using root-relative paths
+ * with native separators. Empty until a scan completes; reset on each start.
+ * Directories are indexed in SQLite but excluded from these lists. Symbolic
+ * links are followed and reported according to the kind of their targets.
  */
 export interface ScanResults {
   added: string[]
@@ -25,14 +22,14 @@ export interface ScanResults {
 }
 
 export interface ScannerStatus extends ScanStatus {
-  roots: ScanStatus[]
+  libraries: ScanStatus[]
   active: string[]
   queued: string[]
 }
 
 export interface WorkerApi {
   /** Acknowledge the start; poll status() to learn when the scan finishes. */
-  start(root: string, scanPath?: string): Promise<ScanStatus>
+  start(root: string): Promise<ScanStatus>
   status(): Promise<ScanStatus>
   results(): Promise<ScanResults>
   /** Request cancellation; the returned snapshot may still say scanning. */
@@ -53,7 +50,6 @@ export type ScannerRequest = {
   id: number
   method: keyof WorkerApi | 'shutdown' | 'initialize'
   root?: string
-  scanPath?: string
 }
 
 export type ScannerResponse =

@@ -31,7 +31,7 @@ type FilesGridProps = {
   cardSize: number
   rowGroups: FileRowGroup[]
   collapsedGroupKeys: ReadonlySet<string>
-  volumeRoots: ReadonlyMap<number, string>
+  libraryRoots: ReadonlyMap<number, string>
   selectedId: number | null
   selectedIds: ReadonlySet<number>
   search: string | undefined
@@ -48,7 +48,7 @@ export default function FilesGrid({
   cardSize,
   rowGroups,
   collapsedGroupKeys,
-  volumeRoots,
+  libraryRoots,
   selectedId,
   selectedIds,
   search,
@@ -61,9 +61,9 @@ export default function FilesGrid({
   function renderFileCard(entry: FileEntry, masonry: boolean) {
     const displayName = entry.presentation?.displayName ?? entry.name
     const folderPath =
-      entry.kind === 'directory' && volumeRoots.has(entry.volumeId)
+      entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
         ? formatFullPath(
-            volumeRoots.get(entry.volumeId) ?? '',
+            libraryRoots.get(entry.libraryId) ?? '',
             entry.relativePath,
           )
         : undefined
@@ -89,7 +89,7 @@ export default function FilesGrid({
           ? {
               ...folderDragProps(folderPath),
               to: folderUrl({
-                volumeId: entry.volumeId,
+                libraryId: entry.libraryId,
                 relativePath: entry.relativePath,
               }),
             }

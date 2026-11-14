@@ -16,8 +16,8 @@ test('move history preserves completed and interrupted operations across restart
     let api = createApi(connection.db)
 
     const completed = await api.moveHistory.plan([
-      { sourcePath: '/volume/one', targetPath: '/volume/archive/one' },
-      { sourcePath: '/volume/two', targetPath: '/volume/archive/two' },
+      { sourcePath: '/library/one', targetPath: '/library/archive/one' },
+      { sourcePath: '/library/two', targetPath: '/library/archive/two' },
     ])
 
     await api.moveHistory.markItemMoved(completed.items[0].id)
@@ -26,8 +26,8 @@ test('move history preserves completed and interrupted operations across restart
 
     const interrupted = await api.moveHistory.plan([
       {
-        sourcePath: '/volume/three',
-        targetPath: '/volume/archive/three',
+        sourcePath: '/library/three',
+        targetPath: '/library/archive/three',
       },
     ])
 
@@ -55,13 +55,13 @@ test('move history preserves completed and interrupted operations across restart
       })),
       [
         {
-          sourcePath: '/volume/one',
-          targetPath: '/volume/archive/one',
+          sourcePath: '/library/one',
+          targetPath: '/library/archive/one',
           status: 'completed',
         },
         {
-          sourcePath: '/volume/two',
-          targetPath: '/volume/archive/two',
+          sourcePath: '/library/two',
+          targetPath: '/library/archive/two',
           status: 'completed',
         },
       ],

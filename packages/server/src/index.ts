@@ -1,28 +1,22 @@
 import { join } from 'node:path'
+import type { ResolveDefaultFolder } from './api/defaultLibraries.js'
 import { createApi } from './api/index.js'
-import type { VolumeInput } from './api/volumes.js'
 import { initConfig } from './config/index.js'
 import { initDatabase } from './db/index.js'
 import { closeLogger, createLogger, initLogger } from './logger.js'
 import { FileScanner } from './scanner/index.js'
-import { watchRoots } from './scanner/watch.js'
+import { watchLibraries } from './scanner/watch.js'
 
 // Keep the startup promise so callers also share initialization while it is in flight.
 let running: ReturnType<typeof start> | undefined
 
 type BootOptions = {
-  volumes?: VolumeInput[]
+  resolveDefaultFolder?: ResolveDefaultFolder
   trashRoots?: string[]
-  /** Native Windows helper used for full NTFS scans when available. */
-  mftHelperPath?: string
-  /** Network indexing is opt-in and always scheduled after local volumes. */
-  indexNetworkVolumes?: boolean
-  /** Retain individual changed paths for diagnostics; disabled in production. */
-  collectScannerChangePaths?: boolean
 }
 
-export type { ServerApi, Volume } from './api/index.js'
-export type { VolumeInput } from './api/volumes.js'
+export type { DefaultFolder } from './api/defaultLibraries.js'
+export type { Library, ServerApi } from './api/index.js'
 export type {
   CollectionDefinition,
   CollectionField,
@@ -61,35 +55,19 @@ async function start(options: BootOptions) {
     database = await initDatabase(databasePath)
 
     const api = createApi(database.db)
-    await api.volumes.sync(options.volumes ?? [])
-    await api.volumes.ensureTrashRoots(options.trashRoots ?? [])
-
-    const volumes = await api.volumes.list()
-    const indexableVolumes = volumes
-      .filter(
-        (volume) =>
-          options.indexNetworkVolumes === true || volume.kind !== 'network',
+    if (options.resolveDefaultFolder) {
+      await api.libraries.initializeDefaults(
+        options.resolveDefaultFolder,
+        (message, error) => logger.warn(message, error),
       )
-      .sort((a, b) => volumePriority(a.kind) - volumePriority(b.kind))
-    const roots = indexableVolumes.map((volume) => volume.rootPath)
-    const excludedPaths = [
-      ...volumes.map((volume) => volume.rootPath),
-      config.get('appdata.path'),
-      config.get('appdata.dbPath'),
-      config.get('appdata.cachePath'),
-      config.get('appdata.logsPath'),
-    ]
+    }
+
+    await api.libraries.ensureTrashRoots(options.trashRoots ?? [])
 
     // Keep background indexing bounded. Scans are dominated by filesystem and
     // SQLite I/O, so matching worker count to CPU cores only creates contention
     // with interactive reads such as file previews.
-    scanner = new FileScanner(config.get('appdata.cachePath'), databasePath, {
-      excludedPaths,
-      ...(options.mftHelperPath
-        ? { mftHelperPath: options.mftHelperPath }
-        : {}),
-      collectChangePaths: options.collectScannerChangePaths === true,
-    })
+    scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
 
     // A round trip confirms the worker loaded before exposing the server.
     await scanner.status()
@@ -111,18 +89,9 @@ async function start(options: BootOptions) {
       database.db,
     )
 
-    if (roots.length) {
-      await scanner.startAll(roots)
-    }
+    await scanner.startAll(libraries.map((library) => library.rootPath))
 
-    logger.info('Server started', {
-      mountedVolumes: options.volumes?.length ?? 0,
-      indexedVolumes: roots.length,
-      deferredNetworkVolumes: volumes.filter(
-        (volume) =>
-          volume.kind === 'network' && !roots.includes(volume.rootPath),
-      ).length,
-    })
+    logger.info('Server started', { queuedLibraries: libraries.length })
 
     let closing: Promise<void> | undefined
 
@@ -135,14 +104,12 @@ async function start(options: BootOptions) {
         // Share shutdown too: stop worker writes before closing the main DB,
         // then flush the logger after the final server message.
         closing ??= (async () => {
-          stopWatching?.()
-          stopWatching = undefined
-
           try {
+            stopWatching?.()
             await scanner?.close()
           } finally {
             try {
-              await database?.close()
+              database?.close()
               logger.info('Server stopped')
             } finally {
               await closeLogger()
@@ -156,32 +123,15 @@ async function start(options: BootOptions) {
     }
   } catch (error) {
     logger.error('Server startup failed', error)
-    stopWatching?.()
 
     try {
+      stopWatching?.()
       await scanner?.close()
     } finally {
-      await database?.close()
+      database?.close()
       await closeLogger()
     }
 
     throw error
-  }
-}
-
-function volumePriority(kind: VolumeInput['kind']) {
-  switch (kind) {
-    case 'system':
-      return 0
-    case 'internal':
-      return 1
-    case 'external':
-      return 2
-    case 'removable':
-      return 3
-    case 'virtual':
-      return 4
-    case 'network':
-      return 5
   }
 }

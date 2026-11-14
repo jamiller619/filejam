@@ -7,7 +7,7 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router'
-import { useVolumes } from '../../hooks/useVolumes.js'
+import { useLibraries } from '../../hooks/useLibraries.js'
 import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderUrl } from '../../utils/folderUrl.js'
 
@@ -28,12 +28,6 @@ const style = css`
 
     > :first-child {
       justify-self: start;
-    }
-
-    .navigationControls {
-      display: flex;
-      align-items: center;
-      gap: var(--suzy-space-2);
     }
 
     .breadcrumbs {
@@ -111,53 +105,16 @@ export default function Toolbar() {
 function NavButtons() {
   const navigate = useNavigate()
   const location = useLocation()
-  const folderMatch = useMatch('/browse/:volumeId')
-  const [searchParams] = useSearchParams()
   const canGoBack = location.key !== 'default' && window.history.state?.idx > 0
   const canGoForward = window.history.state?.idx < window.history.length - 1
-  const pathSegments = (searchParams.get('path') ?? '')
-    .split('/')
-    .filter(Boolean)
-  const canGoUp = folderMatch !== null && pathSegments.length > 0
-
-  function goUp() {
-    if (!folderMatch || !canGoUp) {
-      return
-    }
-
-    navigate(
-      folderUrl({
-        volumeId: Number(folderMatch.params.volumeId),
-        relativePath: pathSegments.slice(0, -1).join('/'),
-      }),
-    )
-  }
 
   return (
-    <div className={style.navigationControls}>
-      <ButtonGroup>
-        <Button
-          aria-label="Back"
-          title="Back"
-          disabled={!canGoBack}
-          onClick={() => navigate(-1)}
-        >
-          <Icon name="chevron-left" size={18} />
-        </Button>
-        <Button
-          aria-label="Forward"
-          title="Forward"
-          disabled={!canGoForward}
-          onClick={() => navigate(1)}
-        >
-          <Icon name="chevron-right" size={18} />
-        </Button>
-      </ButtonGroup>
+    <ButtonGroup>
       <Button
-        aria-label="Up one folder"
-        title="Up one folder"
-        disabled={!canGoUp}
-        onClick={goUp}
+        aria-label="Back"
+        title="Back"
+        disabled={!canGoBack}
+        onClick={() => navigate(-1)}
       >
         <Icon name="back" />
       </Button>
@@ -174,18 +131,18 @@ function NavButtons() {
 }
 
 function Breadcrumbs() {
-  const match = useMatch('/browse/:volumeId')
+  const match = useMatch('/libraries/:libraryId')
   const [searchParams] = useSearchParams()
-  const { volumes } = useVolumes()
+  const { libraries } = useLibraries()
 
-  const volume = match
-    ? volumes.find((item) => item.id === Number(match.params.volumeId))
+  const library = match
+    ? libraries.find((item) => item.id === Number(match.params.libraryId))
     : undefined
 
-  const segments = (searchParams.get('path') ?? '').split('/').filter(Boolean)
+  const segments = (searchParams.get('folder') ?? '').split('/').filter(Boolean)
   const isHome = useMatch('/') !== null
   const relativePath = segments.join('/')
-  const fullPath = volume ? formatFullPath(volume.rootPath, relativePath) : ''
+  const fullPath = library ? formatFullPath(library.rootPath, relativePath) : ''
 
   return (
     <div className={style.location}>
@@ -200,19 +157,19 @@ function Breadcrumbs() {
         >
           <Icon name="home" size={18} />
         </Button>
-        {volume && (
+        {library && (
           <>
             <span aria-hidden="true">/</span>
             {segments.length ? (
               <Link
                 className={style.link}
-                to={folderUrl({ volumeId: volume.id, relativePath: '' })}
+                to={folderUrl({ libraryId: library.id, relativePath: '' })}
                 viewTransition
               >
-                {volume.name}
+                {library.name}
               </Link>
             ) : (
-              <span aria-current="page">{volume.name}</span>
+              <span aria-current="page">{library.name}</span>
             )}
             {segments.map((segment, index) => {
               const segmentPath = segments.slice(0, index + 1).join('/')
@@ -226,7 +183,7 @@ function Breadcrumbs() {
                     <Link
                       className={style.link}
                       to={folderUrl({
-                        volumeId: volume.id,
+                        libraryId: library.id,
                         relativePath: segmentPath,
                       })}
                       viewTransition

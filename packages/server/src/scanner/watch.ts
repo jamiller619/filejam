@@ -4,10 +4,9 @@ import type { Database } from '../db/index.js'
 import { hasIndexedPathChanged } from './changes.js'
 import { isIgnoredScanPath } from './ignore.js'
 import type { FileScanner } from './index.js'
-import { addPendingPath } from './pendingPaths.js'
 
 /** Watch before the initial scan so edits during indexing receive another pass. */
-export function watchRoots(
+export function watchLibraries(
   roots: string[],
   scanner: FileScanner,
   excludedPaths: string[],
@@ -16,10 +15,18 @@ export function watchRoots(
 ) {
   const watchers: FSWatcher[] = []
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
-  const dirtyPaths = new Map<string, Set<string>>()
   const excluded = excludedPaths.map((path) => resolve(path))
   const pending = new Map<string, Set<string | null>>()
   let closed = false
+
+  const inside = (parent: string, child: string) => {
+    const path = relative(parent, child)
+
+    return (
+      path === '' ||
+      (path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+    )
+  }
 
   for (const root of new Set(roots)) {
     try {
@@ -31,15 +38,9 @@ export function watchRoots(
 
           const path = resolve(root, filename)
 
-          if (
-            rootExclusions.some((excludedPath) => isInside(excludedPath, path))
-          ) {
+          if (excluded.some((excludedPath) => inside(excludedPath, path))) {
             return
           }
-
-          // Refresh the changed entry itself. A file at the drive root must
-          // never turn ordinary writes into repeated whole-volume scans.
-          scanPath = path
         }
 
         const paths = pending.get(root) ?? new Set<string | null>()
@@ -86,12 +87,12 @@ export function watchRoots(
       })
 
       watcher.on('error', (error) =>
-        warn(`Filesystem watcher failed: ${root}`, error),
+        warn(`Library watcher failed: ${root}`, error),
       )
 
       watchers.push(watcher)
     } catch (error) {
-      warn(`Unable to watch filesystem root: ${root}`, error)
+      warn(`Unable to watch library: ${root}`, error)
     }
   }
 
@@ -109,13 +110,4 @@ export function watchRoots(
     timers.clear()
     pending.clear()
   }
-}
-
-function isInside(parent: string, child: string) {
-  const path = relative(parent, child)
-
-  return (
-    path === '' ||
-    (path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path))
-  )
 }
