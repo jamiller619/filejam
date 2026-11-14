@@ -15,6 +15,10 @@
     "./scanner": {
       "types": "./dist/scanner/index.d.ts",
       "import": "./dist/scanner/index.js"
+    },
+    "./icons": {
+      "types": "./dist/icons.d.ts",
+      "import": "./dist/icons.js"
     }
   },
   "files": [

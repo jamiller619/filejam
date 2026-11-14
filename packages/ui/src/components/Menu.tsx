@@ -2,24 +2,30 @@ import { Menu as BaseMenu } from '@base-ui/react/menu'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { motion } from 'motion/react'
-import type { ReactNode } from 'react'
+import { type FocusEventHandler, type ReactNode, useRef } from 'react'
 import { pressed } from '../interactions.js'
-import Icon from './Icon.js'
+import Icon from './Icon/index.js'
 
 const styles = css`
+  .triggerAnchor {
+    display: inline-flex;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .submenuAnchor { display: flex; }
   .trigger {
     display: grid;
     width: 32px;
-    /* height: 32px; */
     padding: 0;
     place-items: center;
     border: 0;
     border-radius: var(--suzy-radius-3);
-    color: inherit;
     background: transparent;
     cursor: pointer;
-    &:hover, &[data-popup-open] { background: var(--suzy-gray-3); }
-    &:focus-visible { outline: 2px solid var(--suzy-accent-8); }
+
+    &:hover, &[data-popup-open] {
+      background: var(--suzy-gray-3);
+    }
   }
   .textTrigger {
     display: inline-flex;
@@ -31,7 +37,10 @@ const styles = css`
     font: inherit;
     white-space: nowrap;
     background: var(--suzy-gray-4);
-    &:hover, &[data-popup-open] { background: var(--suzy-gray-5); }
+
+    &:hover, &[data-popup-open] {
+      background: var(--suzy-gray-5);
+    }
   }
   .positioner {
     z-index: var(--suzy-z-dropdown);
@@ -65,14 +74,20 @@ const styles = css`
     font: inherit;
     text-align: start;
     cursor: pointer;
+
     &[data-highlighted], &:hover {
       background: lch(from var(--suzy-gray-11) l c h / 20%);
     }
+
     &[aria-current='true'] {
       color: var(--suzy-accent-1);
       background: var(--suzy-accent-9);
     }
-    &[data-disabled] { opacity: 0.5; cursor: default; }
+
+    &[data-disabled] {
+      opacity: 0.5;
+      cursor: default;
+    }
   }
   .itemIndicator {
     display: grid;
@@ -94,7 +109,9 @@ const styles = css`
     background: var(--suzy-gray-5);
     box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
   }
-  .checkboxItem { justify-content: flex-start; }
+  .checkboxItem {
+    justify-content: flex-start;
+  }
   .checkboxIndicator {
     display: grid;
     width: 16px;
@@ -109,32 +126,46 @@ const MotionMenuSubmenuTrigger = motion.create(BaseMenu.SubmenuTrigger)
 const MotionMenuCheckboxItem = motion.create(BaseMenu.CheckboxItem)
 const MotionMenuItem = motion.create(BaseMenu.Item)
 
-export function Menu({
+export default function Menu({
   label,
   trigger,
   triggerVariant = 'icon',
+  disabled,
+  title = label,
+  onFocus,
   children,
 }: {
   label: string
   trigger: ReactNode
   triggerVariant?: 'icon' | 'text'
+  disabled?: boolean | undefined
+  title?: string | undefined
+  onFocus?: FocusEventHandler<HTMLButtonElement> | undefined
   children: ReactNode
 }) {
+  const anchorRef = useRef<HTMLSpanElement>(null)
+
   return (
     <BaseMenu.Root>
-      <MotionMenuTrigger
-        whileTap={pressed}
-        className={clsx(
-          styles.trigger,
-          triggerVariant === 'text' && styles.textTrigger,
-        )}
-        aria-label={label}
-        title={label}
-      >
-        {trigger}
-      </MotionMenuTrigger>
+      {/* Keep popup measurements independent of the trigger's press animation. */}
+      <span ref={anchorRef} className={styles.triggerAnchor}>
+        <MotionMenuTrigger
+          whileTap={pressed}
+          className={clsx(
+            styles.trigger,
+            triggerVariant === 'text' && styles.textTrigger,
+          )}
+          aria-label={label}
+          title={title}
+          disabled={disabled}
+          onFocus={onFocus}
+        >
+          {trigger}
+        </MotionMenuTrigger>
+      </span>
       <BaseMenu.Portal>
         <BaseMenu.Positioner
+          anchor={anchorRef}
           className={styles.positioner}
           side="bottom"
           align="start"
@@ -154,17 +185,21 @@ export function MenuSubmenu({
   label: string
   children: ReactNode
 }) {
+  const anchorRef = useRef<HTMLDivElement>(null)
+
   return (
     <BaseMenu.SubmenuRoot>
-      <MotionMenuSubmenuTrigger
-        className={styles.submenuTrigger}
-        whileTap={pressed}
-      >
-        {label}
-        <span aria-hidden="true">›</span>
-      </MotionMenuSubmenuTrigger>
+      <div ref={anchorRef} className={styles.submenuAnchor}>
+        <MotionMenuSubmenuTrigger
+          className={styles.submenuTrigger}
+          whileTap={pressed}
+        >
+          {label}
+          <span aria-hidden="true">›</span>
+        </MotionMenuSubmenuTrigger>
+      </div>
       <BaseMenu.Portal>
-        <BaseMenu.Positioner>
+        <BaseMenu.Positioner anchor={anchorRef}>
           <BaseMenu.Popup className={styles.submenuPopup}>
             {children}
           </BaseMenu.Popup>
@@ -195,7 +230,7 @@ export function MenuCheckboxItem({
       onCheckedChange={onCheckedChange}
     >
       <BaseMenu.CheckboxItemIndicator className={styles.checkboxIndicator}>
-        <Icon name="checkmark" size={14} />
+        <Icon name="check" size={14} />
       </BaseMenu.CheckboxItemIndicator>
       {children}
     </MotionMenuCheckboxItem>
@@ -219,7 +254,7 @@ export function MenuItem({
       onClick={onClick}
     >
       <span className={styles.itemIndicator} aria-hidden="true">
-        {selected ? <Icon name="checkmark" size={14} /> : null}
+        {selected ? <Icon name="check" size={14} /> : null}
       </span>
       {children}
     </MotionMenuItem>

@@ -15,10 +15,14 @@ import { maximumCardSize, minimumCardSize } from '../utils/tablePreferences.js'
 const styles = css`
   .page {
     box-sizing: border-box;
+    min-width: 0;
     height: 100%;
     min-height: 0;
   }
   .pageContent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--suzy-space-2);
     box-sizing: border-box;
     min-height: 100%;
     padding: var(--suzy-space-2);

@@ -1,6 +1,7 @@
 import { useParams, useSearchParams } from 'react-router'
 import Files, { type Folder } from '../components/files/Files.js'
-import { useVolumes } from '../hooks/useVolumes.js'
+import PageHeader from '../components/layout/PageHeader.js'
+import { useLibraries } from '../hooks/useLibraries.js'
 import Page from './Page.js'
 
 export default function Browse({
@@ -52,6 +53,7 @@ export default function Browse({
         ),
       }}
     >
+      <PageHeader />
       <Files folder={folder} />
     </Page>
   )

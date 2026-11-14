@@ -1,5 +1,6 @@
 import type { ServerApi } from '@filejam/server'
-import type { ScannerApi, ScannerStatus } from '@filejam/server/scanner'
+import type { CustomIcon } from '@filejam/server/icons'
+import type { ScannerApi } from '@filejam/server/scanner'
 import type {
   PresentedFolderListing,
   PresentedVolume,
@@ -15,12 +16,11 @@ const { contextBridge, ipcRenderer } = electron
 type FilejamApi = {
   getDroppedFilePath: (file: File) => string
   addFavoriteFolders: (paths: string[]) => Promise<string[]>
-  openImage: (volumeId: number, path: string) => Promise<void>
-  previewCapabilities: (
-    volumeId: number,
-    path: string,
-  ) => Promise<{ original: boolean }>
+  openImage: (libraryId: number, path: string) => Promise<void>
   setControlsColor: (color: string) => Promise<void>
+  appearance: Pick<ServerApi['appearance'], 'list' | 'set'> & {
+    import: () => Promise<CustomIcon | null>
+  }
   collections: ServerApi['collections']
   settings: SettingsApi
   volumes: {
@@ -43,12 +43,15 @@ const filejam: FilejamApi = {
   getDroppedFilePath: (file) => electron.webUtils.getPathForFile(file),
   addFavoriteFolders: (paths) =>
     ipcRenderer.invoke('favorites:addFolders', paths),
-  openImage: (volumeId, path) =>
-    ipcRenderer.invoke('window:openImage', volumeId, path),
-  previewCapabilities: (volumeId, path) =>
-    ipcRenderer.invoke('preview:capabilities', volumeId, path),
+  openImage: (libraryId, path) =>
+    ipcRenderer.invoke('window:openImage', libraryId, path),
   setControlsColor: (color) =>
     ipcRenderer.invoke('window:setControlsColor', color),
+  appearance: {
+    list: () => ipcRenderer.invoke('appearance:list'),
+    set: (target, icon) => ipcRenderer.invoke('appearance:set', target, icon),
+    import: () => ipcRenderer.invoke('appearance:import'),
+  },
   collections: {
     list: () => ipcRenderer.invoke('collections:list'),
     create: (input) => ipcRenderer.invoke('collections:create', input),

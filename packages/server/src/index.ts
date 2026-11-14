@@ -94,8 +94,21 @@ async function start(options: BootOptions) {
     // A round trip confirms the worker loaded before exposing the server.
     await scanner.status()
 
-    stopWatching = watchRoots(roots, scanner, excludedPaths, (message, error) =>
-      logger.warn(message, error),
+    // Include previously seeded libraries: their setup marker may predate
+    // automatic scanning. A batch acknowledges its start without delaying boot
+    // until indexing finishes, and the pool processes roots concurrently.
+    const libraries = await api.libraries.list()
+
+    stopWatching = watchLibraries(
+      libraries.map((library) => library.rootPath),
+      scanner,
+      [
+        config.get('appdata.dbPath'),
+        config.get('appdata.cachePath'),
+        config.get('appdata.logsPath'),
+      ],
+      (message, error) => logger.warn(message, error),
+      database.db,
     )
 
     if (roots.length) {

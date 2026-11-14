@@ -1,12 +1,15 @@
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { readFile, stat } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { ServerApi } from '@filejam/server'
-import { ipcMain, type WebContents } from 'electron'
+import type { IconTarget } from '@filejam/server/icons'
+import { app, BrowserWindow, dialog, ipcMain, type WebContents } from 'electron'
 import type { EntryRegistry } from '../entries/registry.js'
 import type {
   PresentedEntry,
   PresentedFolderListing,
   PresentedVolume,
 } from '../entries/types.js'
+import { maximumIconBytes, storeIcon } from '../icons/assets.js'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
 import { resolveLocations } from '../locations.js'
 import type { SettingsApi } from '../settings/index.js'
@@ -29,10 +32,59 @@ export function registerApiIpc(
   let volumesRefreshedAt = 0
   let volumeRefresh: ReturnType<typeof api.volumes.list> | undefined
 
-  const refreshVolumes = () => {
-    if (volumeRefresh) {
-      return volumeRefresh
-    }
+  ipcMain.handle(
+    'appearance:list',
+    withIpcMiddleware(() => api.appearance.list(), authorizeRenderer(renderer)),
+  )
+  ipcMain.handle(
+    'appearance:set',
+    withIpcMiddleware(
+      (_event, target: IconTarget, icon: unknown) =>
+        api.appearance.set(target, icon),
+      authorizeRenderer(renderer),
+    ),
+  )
+  ipcMain.handle(
+    'appearance:import',
+    withIpcMiddleware(async () => {
+      const window = BrowserWindow.fromWebContents(renderer)
+
+      if (!window) {
+        throw new Error('The app window is unavailable.')
+      }
+
+      const result = await dialog.showOpenDialog(window, {
+        title: 'Choose an icon',
+        properties: ['openFile'],
+        filters: [
+          { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
+        ],
+      })
+      const path = result.filePaths[0]
+
+      if (result.canceled || !path) {
+        return null
+      }
+
+      if ((await stat(path)).size > maximumIconBytes) {
+        throw new Error('Choose an image smaller than 2 MB.')
+      }
+
+      const id = await storeIcon(
+        join(app.getPath('userData'), 'icons'),
+        await readFile(path),
+      )
+
+      await api.appearance.registerAsset(id)
+
+      return { kind: 'upload' as const, assetId: id }
+    }, authorizeRenderer(renderer)),
+  )
+
+  ipcMain.handle(
+    'libraries:add',
+    withIpcMiddleware(async () => {
+      const window = BrowserWindow.fromWebContents(renderer)
 
     if (Date.now() - volumesRefreshedAt < 4_000) {
       return api.volumes.list()
@@ -288,6 +340,10 @@ export function registerApiIpc(
   )
 
   return () => {
+    ipcMain.removeHandler('appearance:list')
+    ipcMain.removeHandler('appearance:set')
+    ipcMain.removeHandler('appearance:import')
+    ipcMain.removeHandler('libraries:add')
     ipcMain.removeHandler('favorites:addFolders')
     ipcMain.removeHandler('settings:get')
     ipcMain.removeHandler('settings:set')

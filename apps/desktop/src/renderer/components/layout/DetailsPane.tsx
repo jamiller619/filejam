@@ -1,4 +1,5 @@
 import { Button, Icon, ScrollArea } from '@filejam/ui'
+import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react'
 
@@ -7,10 +8,9 @@ const styles = css`
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    width: var(--details-width);
+    width: 100%;
     height: 100%;
     min-width: 0;
-    flex-shrink: 0;
     overflow: hidden;
     color: var(--suzy-gray-12);
     background: var(--suzy-gray-4);
@@ -60,7 +60,6 @@ type DetailsPaneProps = {
   footer?: ReactNode | undefined
   showCloseButton?: boolean | undefined
   onClose?: (() => void) | undefined
-  onClosed?: (() => void) | undefined
 }
 
 export default function DetailsPane({
@@ -72,70 +71,13 @@ export default function DetailsPane({
   footer,
   showCloseButton = true,
   onClose,
-  onClosed,
 }: DetailsPaneProps) {
-  const panel = useRef<HTMLElement>(null)
   const closeCallback = useRef(onClose)
-  const closedCallback = useRef(onClosed)
   const closable = onClose !== undefined
 
   useLayoutEffect(() => {
     closeCallback.current = onClose
-    closedCallback.current = onClosed
-  }, [onClose, onClosed])
-
-  useLayoutEffect(() => {
-    const element = panel.current
-    const host = element?.parentElement
-
-    if (!element || !host) {
-      return
-    }
-
-    // Keep the full-size pane left-aligned inside its clipped host so one
-    // moving boundary controls both the content width and pane position.
-    const from = host.getBoundingClientRect().width
-    const to = closing ? 0 : element.getBoundingClientRect().width
-
-    host.style.width = `${to}px`
-
-    if (!closing && Math.abs(from - to) < 1) {
-      return
-    }
-
-    const duration = window.matchMedia('(prefers-reduced-motion: reduce)')
-      .matches
-      ? 0
-      : 180
-    const timing: KeyframeAnimationOptions = {
-      duration,
-      easing: 'cubic-bezier(0.2, 0, 0, 1)',
-    }
-    const hostAnimation = host.animate(
-      [{ width: `${from}px` }, { width: `${to}px` }],
-      timing,
-    )
-    const panelAnimation = element.animate(
-      closing
-        ? [{ transform: 'translateX(0)' }, { transform: 'translateX(100%)' }]
-        : [{ transform: 'translateX(100%)' }, { transform: 'translateX(0)' }],
-      timing,
-    )
-
-    hostAnimation.onfinish = () => {
-      if (closing) {
-        closedCallback.current?.()
-      }
-    }
-
-    return () => {
-      host.style.width = `${host.getBoundingClientRect().width}px`
-
-      hostAnimation.onfinish = null
-      hostAnimation.cancel()
-      panelAnimation.cancel()
-    }
-  }, [closing])
+  }, [onClose])
 
   useEffect(() => {
     if (closing || !closable) {
@@ -158,7 +100,6 @@ export default function DetailsPane({
 
   return (
     <aside
-      ref={panel}
       className={styles.panel}
       data-details-pane
       data-closing={closing}
@@ -172,16 +113,16 @@ export default function DetailsPane({
             onClick={() => closeCallback.current?.()}
             aria-label="Hide details"
           >
-            <Icon name="hide-details" size={16} />
+            <Icon name="hideDetails" size={16} />
           </Button>
         )}
       </header>
       <div className={styles.content}>
         <ScrollArea>
           <div
-            className={
-              bodyClassName ? `${styles.body} ${bodyClassName}` : styles.body
-            }
+            className={clsx(
+              bodyClassName ? [styles.body, bodyClassName] : styles.body,
+            )}
           >
             {children}
           </div>

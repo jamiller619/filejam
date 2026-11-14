@@ -2,7 +2,8 @@ import FilePreview from '../components/files/FilePreview.js'
 import Files from '../components/files/Files.js'
 import GridCard from '../components/files/GridCard.js'
 import GridContainer from '../components/files/GridContainer.js'
-import { useLocations } from '../hooks/useLocations.js'
+import PageHeader from '../components/layout/PageHeader.js'
+import { useLibraries } from '../hooks/useLibraries.js'
 import { useSettings } from '../hooks/useSettings.js'
 import { useVolumes } from '../hooks/useVolumes.js'
 import { folderDragProps } from '../utils/folderDrag.js'
@@ -47,6 +48,7 @@ export default function Home() {
     <Page title="Home">
       <section>
         {loadFailed && <p role="status">Unable to load folders.</p>}
+        <PageHeader />
         <GridContainer aria-label="Favorite folders">
           {favorites.map(({ path, volume, relativePath, name }) => (
             <GridCard
@@ -55,6 +57,11 @@ export default function Home() {
               title={path}
               name={name}
               folderPath={path}
+              iconTarget={{
+                kind: 'entry',
+                libraryId: library.id,
+                relativePath,
+              }}
               {...folderDragProps(path)}
             >
               <FilePreview

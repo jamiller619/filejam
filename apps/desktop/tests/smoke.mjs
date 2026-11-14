@@ -22,17 +22,17 @@ async function run() {
     await app.whenReady()
     console.log('Electron ready; waiting for renderer')
 
-    let text
+    let homeRendered = false
 
     for (let attempt = 0; attempt < 200; attempt++) {
       const window = BrowserWindow.getAllWindows()[0]
 
       if (window && !window.webContents.isLoading()) {
-        text = await window.webContents.executeJavaScript(
-          'document.querySelector("#root h2")?.textContent',
+        homeRendered = await window.webContents.executeJavaScript(
+          'Boolean(document.querySelector(\'ul[aria-label="Favorite folders"]\'))',
         )
 
-        if (text === 'Home') {
+        if (homeRendered) {
           assert.equal(window.webContents.getLastWebPreferences().sandbox, true)
 
           assert.equal(
@@ -47,9 +47,43 @@ async function run() {
       await delay(50)
     }
 
-    assert.equal(text, 'Home')
+    assert.ok(homeRendered, 'Home renders its favorite folders grid')
 
     const window = BrowserWindow.getAllWindows()[0]
+
+    // Load each route from the production file URL to exercise split JS and CSS.
+    for (const [hash, selector, expectedText] of [
+      ['#/settings', '#libraries-heading', 'Libraries'],
+      [
+        '#/collections/smoke-missing',
+        '[role="status"]',
+        'Collection not found.',
+      ],
+      ['#/libraries/invalid', '[role="status"]', 'Invalid library.'],
+      ['#/', 'ul[aria-label="Favorite folders"]', null],
+    ]) {
+      const routeUrl = new URL(window.webContents.getURL())
+
+      routeUrl.hash = hash
+      await window.loadURL(routeUrl.href)
+
+      let rendered = false
+
+      for (let attempt = 0; attempt < 100; attempt++) {
+        rendered = await window.webContents.executeJavaScript(`
+          Array.from(document.querySelectorAll(${JSON.stringify(selector)}))
+            .some((element) => ${expectedText === null} || element.textContent === ${JSON.stringify(expectedText)})
+        `)
+
+        if (rendered) {
+          break
+        }
+
+        await delay(50)
+      }
+
+      assert.ok(rendered, `${hash} renders after loading its route chunk`)
+    }
 
     // Exercise the same renderer-initiated reload that Vite uses as its fallback.
     await Promise.all([
@@ -65,7 +99,7 @@ async function run() {
       'window.scanner.status()',
     )
 
-    assert.equal(scanner.state, 'idle')
+    assert.ok(['idle', 'scanning'].includes(scanner.state))
 
     await window.webContents.executeJavaScript(`
       window.scanUpdates = 0;
@@ -77,7 +111,7 @@ async function run() {
 
     for (let attempt = 0; attempt < 100; attempt++) {
       if (
-        await window.webContents.executeJavaScript('window.scanUpdates === 1')
+        await window.webContents.executeJavaScript('window.scanUpdates >= 1')
       ) {
         break
       }
@@ -85,13 +119,12 @@ async function run() {
       await delay(10)
     }
 
-    assert.equal(
-      await window.webContents.executeJavaScript('window.scanUpdates'),
-      1,
+    assert.ok(
+      await window.webContents.executeJavaScript('window.scanUpdates >= 1'),
     )
 
-    await window.webContents.executeJavaScript(
-      'window.stopScanUpdates(); undefined',
+    const updatesBeforeUnsubscribe = await window.webContents.executeJavaScript(
+      'window.stopScanUpdates(); window.scanUpdates',
     )
 
     window.webContents.send('scanner:updated')
@@ -99,7 +132,7 @@ async function run() {
 
     assert.equal(
       await window.webContents.executeJavaScript('window.scanUpdates'),
-      1,
+      updatesBeforeUnsubscribe,
     )
 
     const volumes = await window.webContents.executeJavaScript(
@@ -125,7 +158,7 @@ async function run() {
 
       for (let attempt = 0; attempt < 100; attempt++) {
         heading = await window.webContents.executeJavaScript(
-          'document.querySelector("#root h2")?.textContent',
+          'document.querySelector(\'nav[aria-label="Folder breadcrumbs"] [aria-current="page"]\')?.textContent',
         )
 
         if (heading === volume.name) {
@@ -150,7 +183,7 @@ async function run() {
     }
 
     console.log(
-      'Desktop smoke test passed: Home renders, renderer reloads, and scanner bridge responds',
+      'Desktop smoke test passed: lazy routes render, renderer reloads, and scanner bridge responds',
     )
 
     app.once('will-quit', () => clearTimeout(timeout))

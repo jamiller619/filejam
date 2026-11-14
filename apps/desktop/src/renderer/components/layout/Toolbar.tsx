@@ -1,6 +1,5 @@
-import { Button, ButtonGroup, Icon, Input } from '@filejam/ui'
+import { Button, ButtonGroup, Icon } from '@filejam/ui'
 import { css } from 'inline-css-modules'
-import { useEffect } from 'react'
 import {
   Link,
   useLocation,
@@ -11,12 +10,11 @@ import {
 import { useVolumes } from '../../hooks/useVolumes.js'
 import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderUrl } from '../../utils/folderUrl.js'
-import { useSearch } from './SearchContext.js'
 
 const style = css`
   .toolbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     width: 100%;
     min-width: 0;
@@ -98,21 +96,6 @@ const style = css`
         text-decoration: underline;
       }
     }
-
-    .search {
-      justify-self: center;
-      width: 100%;
-
-      > span {
-        width: 100%;
-      }
-
-      input {
-        width: 100%;
-        corner-shape: round;
-        border-radius: 100px;
-      }
-    }
   }
 `
 
@@ -121,60 +104,6 @@ export default function Toolbar() {
     <div className={style.toolbar}>
       <NavButtons />
       <Breadcrumbs />
-      <Search />
-    </div>
-  )
-}
-
-function Search() {
-  return <Icon name="magnifying-glass" size={18} aria-hidden="true" />
-}
-
-export function Search2() {
-  const volumeMatch = useMatch('/browse/:volumeId')
-  const homeMatch = useMatch('/')
-  const location = useLocation()
-  const { search, setSearch } = useSearch()
-  const canSearch = volumeMatch !== null || homeMatch !== null
-
-  useEffect(() => {
-    const currentSearch =
-      new URLSearchParams(location.search).get('search') ?? ''
-
-    if (search === currentSearch) {
-      return
-    }
-
-    const timeout = window.setTimeout(() => {
-      const searchParams = new URLSearchParams(location.search)
-
-      if (search) {
-        searchParams.set('search', search)
-      } else {
-        searchParams.delete('search')
-      }
-
-      const query = searchParams.size ? `?${searchParams}` : ''
-      const route = `${location.pathname}${query}${location.hash}`
-      const url = new URL(window.location.href)
-
-      url.hash = route
-      window.history.replaceState(window.history.state, '', url)
-    }, 250)
-
-    return () => window.clearTimeout(timeout)
-  }, [location.hash, location.pathname, location.search, search])
-
-  return (
-    <div className={style.search}>
-      <Input
-        aria-label="Search open folders"
-        disabled={!canSearch}
-        icon="magnifying-glass"
-        type="search"
-        value={canSearch ? search : ''}
-        onChange={(event) => setSearch(event.currentTarget.value)}
-      />
     </div>
   )
 }
@@ -230,9 +159,17 @@ function NavButtons() {
         disabled={!canGoUp}
         onClick={goUp}
       >
-        <Icon name="chevron-up" size={18} />
+        <Icon name="back" />
       </Button>
-    </div>
+      <Button
+        aria-label="Forward"
+        title="Forward"
+        disabled={!canGoForward}
+        onClick={() => navigate(1)}
+      >
+        <Icon name="forward" />
+      </Button>
+    </ButtonGroup>
   )
 }
 

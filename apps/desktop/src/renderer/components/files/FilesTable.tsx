@@ -1,4 +1,4 @@
-import { Surface } from '@filejam/ui'
+import { Icon } from '@filejam/ui'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { css } from 'inline-css-modules'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -9,15 +9,17 @@ import {
   type DateFormat,
   type FileColumn,
   fileColumnLabels,
+  fileColumnTypes,
   formatFileValue,
   formatFileValueTitle,
   formatFullPath,
 } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl } from '../../utils/folderUrl.js'
-import FileName, { fileColorForName } from './FileName.js'
+import { useAppearance } from '../icons/AppearanceProvider.js'
+import FileName from './FileName.js'
 import FilePreview from './FilePreview.js'
-import { minimumNameColumnWidth, selectedFileColor } from './Files.constants.js'
+import { minimumNameColumnWidth } from './Files.constants.js'
 import type {
   FileRowGroup,
   FilesTableModel,
@@ -25,6 +27,7 @@ import type {
   Listing,
 } from './Files.types.js'
 import FilesGroupToggle from './FilesGroupToggle.js'
+import { findVerticalScrollElement } from './fileScroll.js'
 
 const styles = css`
   @keyframes folder-drag-lift {
@@ -54,7 +57,7 @@ const styles = css`
       vertical-align: middle;
       padding-inline: var(--suzy-space-2);
     }
-    [data-column='size'] { text-align: right; }
+    [data-type='number'] { text-align: right; }
     [data-value-color='blue'] { color: light-dark(#006adc, #70b8ff); }
     [data-value-color='cyan'] { color: light-dark(#00749e, #4ccce6); }
     [data-value-color='green'] { color: light-dark(#18794e, #4cc38a); }
@@ -81,12 +84,9 @@ const styles = css`
       font-weight: 400;
       white-space: nowrap;
       position: sticky;
-      top: calc(var(--files-sticky-offset, 0px) + 48px);
+      top: 36px;
       z-index: 1;
       background: var(--suzy-gray-2);
-      border-radius: var(--suzy-radius-3);
-
-      &:hover { background: lch(from var(--suzy-gray-5) l c h / 70%); }
     }
     .resizer {
       position: absolute;
@@ -124,7 +124,11 @@ const styles = css`
       gap: var(--suzy-space-1);
     }
     .sort {
-      display: block;
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      align-items: center;
+      gap: var(--suzy-space-1);
       width: 100%;
       text-align: inherit;
       font: inherit;
@@ -133,7 +137,29 @@ const styles = css`
       border: 0;
       padding: 0 var(--suzy-space-2);
       cursor: pointer;
+
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 var(--suzy-space-1) 0;
+        z-index: -1;
+        border-radius: var(--suzy-radius-3);
+        pointer-events: none;
+      }
+      &:hover::before { background: lch(from var(--suzy-gray-5) l c h / 70%); }
     }
+    .sortLabel {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sortArrow { flex-shrink: 0; }
+    [aria-sort='none'] .sortArrow { visibility: hidden; }
+    [aria-sort='none'] .sort:hover .sortArrow,
+    [aria-sort='none'] .sort:focus-visible .sortArrow { visibility: visible; }
+    [aria-sort='descending'] .sortArrow { transform: rotate(180deg); }
+    [data-type='number'] .sortArrow { order: -1; }
     .groupRow + .row > td:first-child { border-top-left-radius: var(--suzy-radius-3); }
     .groupRow + .row > td:last-child { border-top-right-radius: var(--suzy-radius-3); }
     .row:has(+ .groupRow) > td:first-child { border-bottom-left-radius: var(--suzy-radius-3); }
@@ -196,22 +222,6 @@ const styles = css`
   .nameCell { width: 100%; max-width: 0; }
 `
 
-function findVerticalScrollElement(element: HTMLElement | null) {
-  let candidate = element?.parentElement ?? null
-
-  while (candidate) {
-    const { overflowY } = window.getComputedStyle(candidate)
-
-    if (overflowY === 'auto' || overflowY === 'scroll') {
-      return candidate
-    }
-
-    candidate = candidate.parentElement
-  }
-
-  return null
-}
-
 type FilesTableProps = {
   table: FilesTableModel
   listing: Listing
@@ -249,6 +259,7 @@ export default function FilesTable({
   onToggleGroup,
   onWidthChange,
 }: FilesTableProps) {
+  const { edit } = useAppearance()
   const containerRef = useRef<HTMLDivElement>(null)
   const [tableElement, setTableElement] = useState<HTMLTableElement | null>(
     null,
@@ -325,7 +336,7 @@ export default function FilesTable({
 
   return (
     <div ref={containerRef} className={styles.container}>
-      <Surface className={styles.scroll}>
+      <div className={styles.scroll}>
         <table
           ref={setTableElement}
           className={styles.table}
@@ -344,6 +355,7 @@ export default function FilesTable({
                 <th
                   key={header.id}
                   data-column={header.column.id}
+                  data-type={fileColumnTypes[header.column.id as FileColumn]}
                   scope="col"
                   aria-sort={
                     header.column.getIsSorted() === 'asc'
@@ -358,12 +370,14 @@ export default function FilesTable({
                     className={styles.sort}
                     onClick={header.column.getToggleSortingHandler()}
                   >
-                    {fileColumnLabels[header.column.id as FileColumn]}
-                    {header.column.getIsSorted() === 'asc'
-                      ? ' ↑'
-                      : header.column.getIsSorted() === 'desc'
-                        ? ' ↓'
-                        : ''}
+                    <span className={styles.sortLabel}>
+                      {fileColumnLabels[header.column.id as FileColumn]}
+                    </span>
+                    <Icon
+                      className={styles.sortArrow}
+                      name={header.column.getIsSorted() ? 'up' : 'upDown'}
+                      size={12}
+                    />
                   </button>
                   <button
                     type="button"
@@ -472,6 +486,17 @@ export default function FilesTable({
                   aria-rowindex={virtualItem.index + 2}
                   data-selected={selectedIds.has(entry.id)}
                   data-file-id={entry.id}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    edit(
+                      {
+                        kind: 'entry',
+                        libraryId: entry.libraryId,
+                        relativePath: entry.relativePath,
+                      },
+                      entry.name,
+                    )
+                  }}
                   data-folder-drag-preview={entryPath ? true : undefined}
                   onDoubleClick={
                     entry.presentation?.activation
@@ -486,6 +511,7 @@ export default function FilesTable({
                       <td
                         key={column}
                         data-column={column}
+                        data-type={fileColumnTypes[column]}
                         className={
                           column === 'name' ? styles.nameCell : undefined
                         }
@@ -493,16 +519,7 @@ export default function FilesTable({
                       >
                         {column === 'name' ? (
                           <span className={styles.file}>
-                            <FilePreview
-                              entry={entry}
-                              color={
-                                entry.kind === 'directory'
-                                  ? undefined
-                                  : selectedIds.has(entry.id)
-                                    ? selectedFileColor
-                                    : fileColorForName(entry.name)
-                              }
-                            />
+                            <FilePreview entry={entry} />
                             {entry.kind === 'directory' ? (
                               <FolderNameLink
                                 entry={entry}
@@ -554,7 +571,7 @@ export default function FilesTable({
             )}
           </tbody>
         </table>
-      </Surface>
+      </div>
     </div>
   )
 }

@@ -8,6 +8,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -167,6 +168,7 @@ function FolderContents({
   )
   const [detailsClosing, setDetailsClosing] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(true)
+  const detailsVisibilityRequest = useRef(0)
   const tableColumns = useMemo(() => {
     const columnSet = new Set([
       'name' as const,
@@ -365,11 +367,33 @@ function FolderContents({
   )
 
   useLayoutEffect(() => {
-    detailsPane.setVisible(detailsOpen)
+    void detailsPane.setVisible(detailsOpen)
   }, [detailsOpen, detailsPane])
 
-  function activateFile(id: number) {
+  function showDetails() {
+    detailsVisibilityRequest.current++
     setDetailsOpen(true)
+    setDetailsClosing(false)
+    void detailsPane.setVisible(true)
+  }
+
+  function hideDetails() {
+    const request = ++detailsVisibilityRequest.current
+
+    setDetailsClosing(true)
+
+    void detailsPane.setVisible(false).then(() => {
+      if (request !== detailsVisibilityRequest.current) {
+        return
+      }
+
+      setDetailsOpen(false)
+      setDetailsClosing(false)
+    })
+  }
+
+  function activateFile(id: number) {
+    showDetails()
     selectFile(id)
     viewFile(id)
   }
@@ -417,10 +441,9 @@ function FolderContents({
         flattenLocked={folderView?.allowFlattenToggle === false}
         onDetailsOpenChange={(open) => {
           if (open) {
-            setDetailsOpen(true)
-            setDetailsClosing(false)
+            showDetails()
           } else {
-            setDetailsClosing(true)
+            hideDetails()
           }
         }}
         onFlattenChange={(flatten) => {
@@ -483,11 +506,7 @@ function FolderContents({
             rootPath={volumeRoots.get(detailsEntry.volumeId)}
             dateFormat={dateFormat}
             closing={detailsClosing}
-            onClose={() => setDetailsClosing(true)}
-            onClosed={() => {
-              setDetailsOpen(false)
-              setDetailsClosing(false)
-            }}
+            onClose={hideDetails}
             onCollectionsChange={() => {
               if (collectionId) {
                 refresh()

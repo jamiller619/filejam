@@ -19,10 +19,9 @@ const server = await createServer({
     {
       name: 'development-csp',
       transformIndexHtml(html) {
-        return html.replace(
-          "script-src 'self';",
-          "script-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:*;",
-        )
+        return html
+          .replace("script-src 'self';", "script-src 'self' 'unsafe-inline';")
+          .replace("connect-src 'self'", "connect-src 'self' ws://127.0.0.1:*")
       },
     },
   ],

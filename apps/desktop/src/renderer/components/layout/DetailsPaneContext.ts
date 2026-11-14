@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 
 type DetailsPaneState = {
   host: HTMLElement | null
-  setVisible: (visible: boolean) => void
+  setVisible: (visible: boolean) => Promise<void>
 }
 
 export const DetailsPaneContext = createContext<DetailsPaneState | null>(null)

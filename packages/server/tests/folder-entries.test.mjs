@@ -88,14 +88,64 @@ test('folder references reject paths outside their volume', async () => {
       kind: 'internal',
     })
 
-    await assert.rejects(
-      () =>
-        api.entries.listChildren({
-          volumeId: volume.id,
-          relativePath: '../outside',
-        }),
-      /outside its volume/,
-    )
+    const save = (relativePath, parentId, kind, size = null) =>
+      api.entries.upsert({
+        libraryId: library.id,
+        relativePath,
+        parentId,
+        kind,
+        size,
+        name: relativePath.split('/').at(-1) || 'root',
+        indexedAt: new Date(),
+      })
+
+    const root = await save('', null, 'directory')
+    const folder = await save('folder', root.id, 'directory', 999)
+    const nested = await save('folder/nested', folder.id, 'directory', 999)
+
+    await save('empty', root.id, 'directory')
+    await save('outside', root.id, 'file', 1000)
+    await save('folder/a', folder.id, 'file', 12)
+
+    const deep = await save('folder/nested/b', nested.id, 'file', 30)
+
+    await save('folder/link', folder.id, 'symlink', 5)
+
+    const sizes = async () =>
+      Object.fromEntries(
+        (
+          await api.entries.listChildren({
+            libraryId: library.id,
+            relativePath: '',
+          })
+        ).entries.map((entry) => [entry.name, entry.size]),
+      )
+
+    assert.deepEqual(await sizes(), { empty: 0, folder: 47, outside: 1000 })
+
+    const folderSize = async (options = {}) =>
+      (
+        await api.entries.listChildren({
+          libraryId: library.id,
+          relativePath: 'folder',
+          ...options,
+        })
+      ).folder.size
+
+    assert.equal(await folderSize(), 47)
+    assert.equal(await folderSize({ recursive: true }), 47)
+    assert.equal(await folderSize({ search: 'a' }), 47)
+    assert.equal(await folderSize({ search: 'missing' }), 47)
+    assert.equal(await folderSize({ relativePath: '' }), 1047)
+    assert.equal(await folderSize({ relativePath: 'empty' }), 0)
+
+    await save('folder/a', folder.id, 'file', 20)
+    assert.equal((await sizes()).folder, 55)
+    assert.equal(await folderSize(), 55)
+
+    await api.entries.completeScan(library.id, [deep.id])
+    assert.equal((await sizes()).folder, 25)
+    assert.equal(await folderSize(), 25)
   } finally {
     await connection?.close()
     await rm(directory, {

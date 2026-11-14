@@ -17,6 +17,7 @@ component in `../../components/Icon.tsx` preserves their paths, transforms,
 | `chevron-left` | `chevron.left.svg` |
 | `chevron-right` | `chevron.right.svg` |
 | `chevron-up` | `chevron.up.svg` |
+| `chevron-up-down` | `chevron.up.chevron.down.svg` |
 | `checkmark` | `checkmark.svg` |
 | `home` | `house.svg` |
 | `clock` | `clock.svg` |

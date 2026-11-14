@@ -1,7 +1,11 @@
+import type { IconTarget } from '@filejam/server/icons'
+import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import type { DragEventHandler, MouseEventHandler, ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useFolderDrop } from '../../hooks/useFolderDrop.js'
+import { useAppearance } from '../icons/AppearanceProvider.js'
+import ItemIcon from '../icons/ItemIcon.js'
 import FileName from './FileName.js'
 
 const styles = css`
@@ -12,18 +16,18 @@ const styles = css`
   }
 
   .card {
-    min-width: 0;
-    border-radius: var(--suzy-radius-4);
-    background: var(--suzy-gray-3);
-    &:hover, &:focus-within { background: var(--suzy-gray-4); }
-    &[data-selected='true'] {
+    /* min-width: 0; */
+    /* border-radius: var(--suzy-radius-4); */
+    /* background: var(--suzy-gray-3); */
+    /* &:hover, &:focus-within { background: var(--suzy-gray-4); } */
+    /* &[data-selected='true'] {
       background: var(--suzy-accent-9);
       color: var(--suzy-accent-1);
 
       [data-extension-color] {
         --file-name-color: var(--suzy-accent-1);
       }
-    }
+    } */
     &[data-folder-dragging='true'] {
       opacity: 0.45;
       animation: folder-drag-lift var(--suzy-duration-normal) cubic-bezier(0.2, 1.4, 0.4, 1) both;
@@ -50,10 +54,10 @@ const styles = css`
         outline-offset: -2px;
       }
 
-      .cardAction {
+      /* .cardAction {
         gap: 0;
         padding: 0;
-      }
+      } */
     }
   }
   .cardAction {
@@ -70,11 +74,11 @@ const styles = css`
     font: inherit;
     text-decoration: none;
     cursor: pointer;
-    &:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
   }
 `
 
 type GridCardProps = {
+  iconTarget?: IconTarget
   as?: 'div' | 'li'
   fileId?: number
   draggable?: boolean
@@ -100,26 +104,46 @@ type GridCardProps = {
 )
 
 export default function GridCard(props: GridCardProps) {
+  const { edit } = useAppearance()
   const folderDropProps = useFolderDrop(props.folderPath)
   const CardContainer = props.as ?? 'li'
   const content = (
     <>
       {props.children}
       {!props.previewOnly && (
-        <FileName
-          name={props.name}
-          isDirectory={props.isDirectory}
-          highlight={props.highlight}
-          showExtension={props.showExtension}
-        />
+        <span
+          style={{
+            display: 'inline-flex',
+            gap: 6,
+            alignItems: 'center',
+            maxWidth: '100%',
+          }}
+        >
+          {props.iconTarget && (
+            <ItemIcon target={props.iconTarget} size={16} fallback={null} />
+          )}
+          <FileName
+            name={props.name}
+            isDirectory={props.isDirectory}
+            highlight={props.highlight}
+            showExtension={props.showExtension}
+          />
+        </span>
       )}
     </>
   )
 
   return (
-    <CardContainer
+    <Surface
+      as={CardContainer}
+      onContextMenu={(event: React.MouseEvent<HTMLElement>) => {
+        if (props.iconTarget) {
+          event.preventDefault()
+          edit(props.iconTarget, props.name)
+        }
+      }}
       {...folderDropProps}
-      className={styles.card}
+      // className={styles.card}
       data-preview-only={props.previewOnly || undefined}
       data-selected={props.selected ?? false}
       data-file-id={props.fileId}
@@ -150,6 +174,6 @@ export default function GridCard(props: GridCardProps) {
           {content}
         </button>
       )}
-    </CardContainer>
+    </Surface>
   )
 }

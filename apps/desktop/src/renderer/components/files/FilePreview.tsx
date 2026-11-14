@@ -1,8 +1,11 @@
-﻿import { Button, Icon } from '@filejam/ui'
+import { imageMimeType } from '@filejam/preview-images/formats'
+import { iconTargetKey } from '@filejam/server/icons'
+import { Button, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { useEffect, useRef, useState } from 'react'
-import type { FileColor } from './FileName.js'
+import { useAppearance } from '../icons/AppearanceProvider.js'
+import { CustomIconImage } from '../icons/ItemIcon.js'
 
 const styles = css`
   .container {
@@ -12,12 +15,24 @@ const styles = css`
     max-width: 100%;
     flex-shrink: 0;
     aspect-ratio: 1;
+
+    button, button:hover {
+      background: transparent;
+      background-color: transparent;
+      box-shadow: none;
+    }
   }
 
-  .expandable {
+  .detail {
     position: relative;
     aspect-ratio: auto;
-    width: fit-content;
+    width: 100%;
+    height: min(50vh, 420px);
+
+    .thumbnail {
+      height: 100%;
+      align-items: center;
+    }
   }
 
   .natural {
@@ -25,7 +40,7 @@ const styles = css`
     height: auto;
     aspect-ratio: auto;
 
-    .preview {
+    .thumbnail, .preview {
       width: 100%;
     }
   }
@@ -52,6 +67,28 @@ const styles = css`
     corner-shape: var(--suzy-corner-shape);
   }
 
+  .thumbnail {
+    position: relative;
+    display: flex;
+    max-width: 100%;
+    max-height: 100%;
+
+    .preview {
+      max-height: inherit;
+    }
+  }
+
+  .videoIcon {
+    position: absolute;
+    right: calc(0px - var(--suzy-space-1));
+    bottom: calc(0px - var(--suzy-space-1));
+    padding: var(--suzy-space-2);
+    /* background: var(--suzy-accent-1); */
+    color: var(--suzy-accent-9);
+    border-radius: var(--suzy-radius-full);
+    pointer-events: none;
+  }
+
   .preview[src*='fallback=1'] {
     width: auto;
     max-width: min(100%, 48px);
@@ -60,7 +97,9 @@ const styles = css`
 `
 
 type Entry = {
-  volumeId: number
+  kind?: string
+  mimeType?: string | null
+  libraryId: number
   relativePath: string
   modifiedAt: Date | string | null
 }
@@ -71,13 +110,13 @@ const previewObserver =
   typeof IntersectionObserver === 'undefined'
     ? null
     : new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            visibilityListeners.get(entry.target)?.(entry.isIntersecting)
-          }
-        },
-        { rootMargin: '200px 0px' },
-      )
+      (entries) => {
+        for (const entry of entries) {
+          visibilityListeners.get(entry.target)?.(entry.isIntersecting)
+        }
+      },
+      { rootMargin: '200px 0px' },
+    )
 
 function observeVisibility(
   element: Element,
@@ -102,24 +141,36 @@ export default function FilePreview({
   entry,
   size = 40,
   variant = 'list',
-  color,
   onOpen,
   naturalSize = false,
 }: {
   entry: Entry
   size?: number | '100%'
   variant?: 'list' | 'grid'
-  color?: FileColor | undefined
   onOpen?: () => void
   naturalSize?: boolean
 }) {
+  const { icons } = useAppearance()
+  const [failedCustomAsset, setFailedCustomAsset] = useState('')
+  const customIcon = icons.get(
+    iconTargetKey({
+      kind: 'entry',
+      libraryId: entry.libraryId,
+      relativePath: entry.relativePath,
+    }),
+  )
+  const isVideo = entry.mimeType?.startsWith('video/')
+  const isMedia = entry.mimeType?.startsWith('image/') || isVideo
+  const showCustomIcon =
+    customIcon &&
+    (customIcon.kind !== 'upload' ||
+      customIcon.assetId !== failedCustomAsset) &&
+    !onOpen &&
+    (variant === 'list' || !isMedia)
   const containerRef = useRef<HTMLDivElement>(null)
   const [nearViewport, setNearViewport] = useState(Boolean(onOpen))
   const [loadedSource, setLoadedSource] = useState('')
   const [settledSource, setSettledSource] = useState('')
-  const [originalSource, setOriginalSource] = useState('')
-  const identity = `${entry.volumeId}:${entry.relativePath}:${entry.modifiedAt}`
-  const imageCandidate = Boolean(onOpen && originalSource === identity)
   const detail = Boolean(onOpen)
 
   const pixels = Math.min(
@@ -132,25 +183,6 @@ export default function FilePreview({
     ),
   )
 
-  useEffect(() => {
-    if (!detail) {
-      return
-    }
-
-    const controller = new AbortController()
-
-    void window.filejam
-      .previewCapabilities(entry.volumeId, entry.relativePath)
-      .then((result) => {
-        if (!controller.signal.aborted) {
-          setOriginalSource(result?.original ? identity : '')
-        }
-      })
-      .catch(() => undefined)
-
-    return () => controller.abort()
-  }, [detail, entry.volumeId, entry.relativePath, identity])
-
   const params = new URLSearchParams({
     volumeId: String(entry.volumeId),
     path: entry.relativePath,
@@ -159,8 +191,6 @@ export default function FilePreview({
     width: String(pixels),
     height: String(pixels),
     purpose: detail ? 'detail' : 'thumbnail',
-    ...(imageCandidate ? { original: '1' } : {}),
-    ...(color ? { color: color.light, darkColor: color.dark } : {}),
   })
 
   const source = `filejam-preview://preview-image?${params}`
@@ -169,70 +199,100 @@ export default function FilePreview({
   useEffect(() => {
     const container = containerRef.current
 
-    if (detail || !container) {
+    if (detail || showCustomIcon || !container) {
       return
     }
 
     return observeVisibility(container, setNearViewport)
-  }, [detail])
+  }, [detail, showCustomIcon])
+
+  if (showCustomIcon) {
+    return (
+      <CustomIconImage
+        icon={customIcon}
+        onError={() => {
+          if (customIcon.kind === 'upload') {
+            setFailedCustomAsset(customIcon.assetId)
+          }
+        }}
+        size={typeof size === 'number' ? size : 80}
+      />
+    )
+  }
 
   return (
     <div
       ref={containerRef}
       className={clsx(
         styles.container,
-        imageCandidate && styles.expandable,
+        detail && styles.detail,
         naturalSize && styles.natural,
       )}
       style={{
-        width: imageCandidate || naturalSize ? undefined : size,
-        height: naturalSize || typeof size !== 'number' ? 'auto' : size,
+        width: detail || naturalSize ? undefined : size,
+        height: detail
+          ? undefined
+          : naturalSize || typeof size !== 'number'
+            ? 'auto'
+            : size,
       }}
     >
       {shouldLoad && (
-        <img
-          key={source}
-          className={styles.preview}
-          src={source}
-          alt=""
-          loading="eager"
-          decoding="async"
-          fetchPriority={detail ? 'high' : 'low'}
-          onLoad={(event) => {
-            setSettledSource(source)
-
-            if (
-              !new URL(event.currentTarget.src).searchParams.has('fallback')
-            ) {
-              setLoadedSource(source)
-            }
-          }}
-          onError={(event) => {
-            setLoadedSource('')
-
-            // Retry through the native file icon path when a preview cannot decode.
-            const image = event.currentTarget
-
-            if (!new URL(image.src).searchParams.has('fallback')) {
-              const fallback = new URL(source)
-
-              fallback.searchParams.delete('original')
-              fallback.searchParams.set('fallback', '1')
-              image.src = fallback.href
-            }
-          }}
-        />
-      )}
-      {imageCandidate && loadedSource === source && (
-        <Button
-          className={styles.open}
-          onClick={onOpen}
-          title="Open full-size image"
-          aria-label="Open full-size image"
+        <div
+          className={styles.thumbnail}
+          style={{ maxHeight: typeof size === 'number' ? size : undefined }}
         >
-          <Icon name="magnifying-glass" size={16} />
-        </Button>
+          <img
+            key={source}
+            className={styles.preview}
+            src={source}
+            alt=""
+            loading="eager"
+            decoding="async"
+            fetchPriority={detail ? 'high' : 'low'}
+            onLoad={(event) => {
+              setSettledSource(source)
+
+              if (
+                !new URL(event.currentTarget.src).searchParams.has('fallback')
+              ) {
+                setLoadedSource(source)
+              }
+            }}
+            onError={(event) => {
+              setLoadedSource('')
+
+              // Retry through the native file icon path when a preview cannot decode.
+              const image = event.currentTarget
+
+              if (!new URL(image.src).searchParams.has('fallback')) {
+                const fallback = new URL(source)
+
+                fallback.searchParams.set('fallback', '1')
+                image.src = fallback.href
+              }
+            }}
+          />
+          {isVideo && loadedSource === source && (
+            <span className={styles.videoIcon} role="img" aria-label="Video">
+              {/* <Icon name="noto:movie-camera" size={24} /> */}
+              <span style={{ fontSize: 24 }}>📹</span>
+            </span>
+          )}
+        </div>
       )}
+      {detail &&
+        imageMimeType(entry.relativePath) &&
+        loadedSource === source && (
+          <Button
+            className={styles.open}
+            onClick={onOpen}
+            title="Open full-size image"
+            aria-label="Open full-size image"
+          >
+            <Icon name="search" size={16} />
+          </Button>
+        )}
     </div>
   )
 }

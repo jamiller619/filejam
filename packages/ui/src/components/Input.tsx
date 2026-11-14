@@ -4,8 +4,8 @@ import {
 } from '@base-ui/react/input'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
-import controlStyles from './Control.module.js'
-import Icon, { type IconName } from './Icon.js'
+import type { Size } from './@types.js'
+import Icon, { type IconName } from './Icon/index.js'
 
 const styles = css`
   .root {
@@ -32,18 +32,21 @@ const styles = css`
 
 export type InputProps = Omit<BaseUIInputProps, 'size'> & {
   icon?: IconName
-  size?: 'medium' | 'small'
+  size?: Size
 }
 
 /** A text input with an optional decorative leading icon. */
 export default function Input({
   icon,
-  size = 'medium',
+  size = 'md',
   className,
   ...props
 }: InputProps) {
-  const inputClassName = clsx(size === 'small' && styles.small, className)
-  const cssClassName = clsx(controlStyles.control, inputClassName)
+  const cssClassName = clsx(
+    styles.input,
+    size === 'sm' && styles.small,
+    className,
+  )
 
   if (!icon) {
     return <BaseUIInput {...props} className={cssClassName} />

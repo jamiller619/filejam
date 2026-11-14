@@ -88,7 +88,10 @@ export function createEntriesApi(db: Database) {
       const includeDescendants = folder.recursive || search.length > 0
 
       const [directory] = await db
-        .select(entryColumns)
+        .select({
+          ...getTableColumns(entries),
+          size: entrySize,
+        })
         .from(entries)
         .where(
           and(

@@ -1,13 +1,9 @@
-import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
-import { Fragment } from 'react'
 import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl } from '../../utils/folderUrl.js'
 import type { FileViewMode } from '../../utils/tablePreferences.js'
-import { fileColorForName } from './FileName.js'
 import FilePreview from './FilePreview.js'
-import { selectedFileColor } from './Files.constants.js'
 import type { FileEntry, FileRowGroup, Listing } from './Files.types.js'
 import FilesGroupToggle from './FilesGroupToggle.js'
 import GridCard from './GridCard.js'
@@ -74,6 +70,7 @@ export default function FilesGrid({
 
     return (
       <GridCard
+        key={entry.id}
         as={masonry ? 'div' : 'li'}
         name={displayName}
         isDirectory={entry.kind === 'directory'}
@@ -82,6 +79,11 @@ export default function FilesGrid({
         selected={selectedIds.has(entry.id)}
         previewOnly={masonry}
         fileId={entry.id}
+        iconTarget={{
+          kind: 'entry',
+          libraryId: entry.libraryId,
+          relativePath: entry.relativePath,
+        }}
         folderPath={folderPath}
         {...(entry.kind === 'directory'
           ? {
@@ -105,13 +107,6 @@ export default function FilesGrid({
           size="100%"
           variant="grid"
           naturalSize={masonry}
-          color={
-            entry.kind === 'directory'
-              ? undefined
-              : selectedIds.has(entry.id)
-                ? selectedFileColor
-                : fileColorForName(entry.name)
-          }
         />
       </GridCard>
     )
@@ -119,11 +114,11 @@ export default function FilesGrid({
 
   if (listing.scanned && listing.entries.length === 0) {
     return (
-      <Surface className={styles.scroll}>
+      <div className={styles.scroll}>
         <p role="status" className={styles.empty}>
           {search ? 'No matching files or folders.' : 'No files to display.'}
         </p>
-      </Surface>
+      </div>
     )
   }
 
@@ -157,23 +152,28 @@ export default function FilesGrid({
 
   return (
     <GridContainer aria-label={ariaLabel} cardSize={cardSize}>
-      {rowGroups.map((group) => (
-        <Fragment key={group.key}>
-          {group.label !== null && (
-            <li className={styles.groupHeading} data-group-heading="true">
-              <FilesGroupToggle
-                expanded={!collapsedGroupKeys.has(group.key)}
-                label={group.label}
-                onClick={() => onToggleGroup(group.key)}
-              />
-            </li>
-          )}
-          {!collapsedGroupKeys.has(group.key) &&
-            group.rows.map(({ original: entry }) => (
-              <Fragment key={entry.id}>{renderFileCard(entry, false)}</Fragment>
-            ))}
-        </Fragment>
-      ))}
+      {rowGroups.flatMap((group) => [
+        ...(group.label !== null
+          ? [
+              <li
+                key={`heading:${group.key}`}
+                className={styles.groupHeading}
+                data-group-heading="true"
+              >
+                <FilesGroupToggle
+                  expanded={!collapsedGroupKeys.has(group.key)}
+                  label={group.label}
+                  onClick={() => onToggleGroup(group.key)}
+                />
+              </li>,
+            ]
+          : []),
+        ...(collapsedGroupKeys.has(group.key)
+          ? []
+          : group.rows.map(({ original: entry }) =>
+              renderFileCard(entry, false),
+            )),
+      ])}
     </GridContainer>
   )
 }

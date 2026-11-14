@@ -17,14 +17,14 @@ const styles = css`
       border-radius: 100px;
       corner-shape: round;
       background: transparent;
-      margin: 1px;
+      margin: 2px;
 
-      &[data-disabled] {
+      /* &[data-disabled] {
         background: transparent;
-      }
+      } */
 
       &[aria-pressed='true'] {
-        background: var(--suzy-gray-6);
+        background: var(--suzy-gray-5);
       }
     }
   }

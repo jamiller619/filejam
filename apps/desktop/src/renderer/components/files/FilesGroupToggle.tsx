@@ -43,7 +43,7 @@ export default function FilesGroupToggle({
       aria-expanded={expanded}
       onClick={onClick}
     >
-      <Icon className={styles.chevron} name="chevron-right" size={12} />
+      <Icon className={styles.chevron} name="forward" size={12} />
       {label}
     </button>
   )

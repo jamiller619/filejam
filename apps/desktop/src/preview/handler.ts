@@ -24,6 +24,11 @@ const immutableHeaders = {
   'Cache-Control': 'private, max-age=31536000, immutable',
 }
 
+// Keep provider capability policy isolated from request routing.
+function supportsOriginal(file: string, service?: PreviewService) {
+  return service?.registry.capabilities(file).original ?? true
+}
+
 export function createPreviewHandler(
   volumes: Pick<ServerApi['volumes'], 'list'>,
   fetchFile: (url: string, init?: RequestInit) => Promise<Response>,
@@ -93,10 +98,9 @@ export function createPreviewHandler(
 
     const width = dimension('width')
     const height = dimension('height')
-    const original = url.searchParams.get('original') === '1'
+    const originalRequested = url.searchParams.get('original') === '1'
+    const detail = url.searchParams.get('purpose') === 'detail'
     const fallbackRequested = url.searchParams.get('fallback') === '1'
-    const responseHeaders =
-      url.searchParams.has('v') && !original ? immutableHeaders : noStoreHeaders
 
     if (
       url.host !== 'preview-image' ||
@@ -115,6 +119,18 @@ export function createPreviewHandler(
         volumeId,
         path,
       )
+      const original =
+        originalRequested ||
+        (detail &&
+          !fallbackRequested &&
+          info.isFile() &&
+          Boolean(previewMimeType(file)) &&
+          supportsOriginal(file, service))
+      const responseHeaders =
+        url.searchParams.has('v') && !original
+          ? immutableHeaders
+          : noStoreHeaders
+
       const variant =
         url.searchParams.get('variant') === 'grid' ? 'grid' : 'list'
       const presentation = entryRegistry
@@ -191,10 +207,7 @@ export function createPreviewHandler(
               source: { path: file, size: info.size, modifiedAt: info.mtimeMs },
               width,
               height,
-              purpose:
-                url.searchParams.get('purpose') === 'detail'
-                  ? 'detail'
-                  : 'thumbnail',
+              purpose: detail ? 'detail' : 'thumbnail',
             },
             request.signal,
           )

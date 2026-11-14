@@ -229,3 +229,73 @@ test('entry providers can redirect native icon lookup to a resolved target', asy
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+test('detail requests select originals in the handler and respect provider capability', async () => {
+  const rootPath = await mkdtemp(join(tmpdir(), 'filejam-detail-preview-'))
+  const generated = []
+  const fetched = []
+  let supportsOriginal = true
+
+  await writeFile(join(rootPath, 'photo.png'), 'image')
+  await writeFile(join(rootPath, 'notes.txt'), 'notes')
+
+  const handler = createPreviewHandler(
+    { list: async () => [{ id: 1, name: 'Library', rootPath }] },
+    async (url) => {
+      fetched.push(url)
+
+      return new Response('original')
+    },
+    {
+      registry: { capabilities: () => ({ original: supportsOriginal }) },
+      generate: async (request) => {
+        generated.push(request)
+
+        return {
+          bytes: new TextEncoder().encode('generated'),
+          mimeType: 'image/png',
+        }
+      },
+    },
+  )
+  const request = (path, extra = {}) =>
+    handler(
+      new Request(
+        'filejam-preview://preview-image?' +
+          new URLSearchParams({
+            libraryId: '1',
+            path,
+            purpose: 'detail',
+            v: '1',
+            ...extra,
+          }),
+      ),
+    )
+
+  try {
+    const original = await request('photo.png')
+
+    assert.equal(await original.text(), 'original')
+    assert.equal(original.headers.get('cache-control'), 'no-store')
+    assert.equal(generated.length, 0)
+
+    supportsOriginal = false
+    assert.equal(await (await request('photo.png')).text(), 'generated')
+    assert.equal(generated.at(-1).purpose, 'detail')
+
+    supportsOriginal = true
+    assert.equal(
+      await (await request('photo.png', { purpose: 'thumbnail' })).text(),
+      'generated',
+    )
+    assert.equal(generated.at(-1).purpose, 'thumbnail')
+    assert.equal(await (await request('notes.txt')).text(), 'generated')
+    assert.match(
+      await (await request('photo.png', { fallback: '1' })).text(),
+      /<svg/,
+    )
+    assert.equal(fetched.length, 1)
+  } finally {
+    await rm(rootPath, { recursive: true, force: true })
+  }
+})

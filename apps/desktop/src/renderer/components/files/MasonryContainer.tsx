@@ -1,4 +1,3 @@
-import { Surface } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import {
   type Positioner,
@@ -14,19 +13,19 @@ import {
   useRef,
   useState,
 } from 'react'
+import { findVerticalScrollElement } from './fileScroll.js'
 
 const masonryGap = 8
 
 const styles = css`
-  .surface {
-    padding-block-end: var(--suzy-space-2);
-    border-radius: var(--suzy-radius-4);
+  .section {
+    padding: var(--suzy-space-2) 0;
   }
   .section + .section {
     margin-block-start: var(--suzy-space-2);
   }
   .masonry {
-    padding: 0;
+    padding:0;
     margin: 0;
     list-style: none;
   }
@@ -67,6 +66,11 @@ function MasonryList({
   const measurementRef = useRef<HTMLDivElement | null>(null)
   const masonryRef = useRef<HTMLElement | null>(null)
   const [width, setWidth] = useState(0)
+  const [viewport, setViewport] = useState({
+    height: 0,
+    isScrolling: false,
+    scrollTop: 0,
+  })
 
   useLayoutEffect(() => {
     const container = measurementRef.current
@@ -75,13 +79,45 @@ function MasonryList({
       return
     }
 
-    const updateWidth = () => setWidth(container.clientWidth)
-    const observer = new ResizeObserver(updateWidth)
+    const scrollElement = findVerticalScrollElement(container)
+    let scrollEndTimer: ReturnType<typeof setTimeout> | undefined
+    const updateMeasurements = (isScrolling = false) => {
+      setWidth(container.clientWidth)
 
-    updateWidth()
+      if (!scrollElement) {
+        return
+      }
+
+      const offset =
+        container.getBoundingClientRect().top -
+        scrollElement.getBoundingClientRect().top +
+        scrollElement.scrollTop
+
+      setViewport({
+        height: scrollElement.clientHeight,
+        isScrolling,
+        scrollTop: scrollElement.scrollTop - offset,
+      })
+    }
+    const handleScroll = () => {
+      updateMeasurements(true)
+      clearTimeout(scrollEndTimer)
+      scrollEndTimer = setTimeout(() => updateMeasurements(false), 100)
+    }
+    const observer = new ResizeObserver(() => updateMeasurements())
+
+    updateMeasurements()
     observer.observe(container)
+    if (scrollElement) {
+      observer.observe(scrollElement)
+      scrollElement.addEventListener('scroll', handleScroll, { passive: true })
+    }
 
-    return () => observer.disconnect()
+    return () => {
+      clearTimeout(scrollEndTimer)
+      observer.disconnect()
+      scrollElement?.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   const masonryPositioner = usePositioner({
@@ -90,6 +126,7 @@ function MasonryList({
     columnGutter: masonryGap,
     rowGutter: masonryGap,
   })
+
   const positioner = useMemo<Positioner>(
     () => ({
       ...masonryPositioner,
@@ -110,6 +147,7 @@ function MasonryList({
     }),
     [masonryPositioner],
   )
+
   const resizeObserver = useMasonryResizeObserver(positioner)
 
   const masonry = useMasonry({
@@ -124,8 +162,9 @@ function MasonryList({
     itemAs: 'li',
     itemStyle: { listStyle: 'none' },
     itemKey: (item) => item.key,
-    height: Number.MAX_SAFE_INTEGER,
-    scrollTop: 0,
+    height: viewport.height,
+    scrollTop: viewport.scrollTop,
+    isScrolling: viewport.isScrolling,
     overscanBy: 1,
     render: ItemContent,
     style: { visibility: width === 0 ? 'hidden' : undefined },
@@ -144,7 +183,7 @@ export default function MasonryContainer({
   cardSize = 150,
 }: MasonryContainerProps) {
   return (
-    <Surface className={styles.surface}>
+    <>
       {sections.map((section) => (
         <div className={styles.section} key={section.key}>
           {section.heading}
@@ -157,6 +196,6 @@ export default function MasonryContainer({
           )}
         </div>
       ))}
-    </Surface>
+    </>
   )
 }
