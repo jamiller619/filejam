@@ -4,7 +4,6 @@ import type { ServerApi } from '@filejam/server'
 import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { authorizePreview } from '../preview/authorize.js'
 import { previewMimeType } from '../preview/formats.js'
-import type { PreviewRegistry } from '../preview/registry.js'
 import type { SettingsApi } from '../settings/index.js'
 import { readWindowState, trackWindowState } from '../window-state.js'
 import { authorizeRenderer, withIpcMiddleware } from './middleware.js'
@@ -12,33 +11,10 @@ import { authorizeRenderer, withIpcMiddleware } from './middleware.js'
 export function registerImageViewerIpc(
   owner: BrowserWindow,
   libraries: Pick<ServerApi['libraries'], 'list'>,
-  registry?: PreviewRegistry,
   settings?: SettingsApi,
 ) {
   const viewers = new Set<BrowserWindow>()
   const saveViewerStates = new Set<() => Promise<void>>()
-
-  ipcMain.handle(
-    'preview:capabilities',
-    withIpcMiddleware(async (_event, libraryId: unknown, path: unknown) => {
-      if (!Number.isSafeInteger(libraryId) || typeof path !== 'string') {
-        throw new Error('Invalid preview request')
-      }
-
-      const { file, info } = await authorizePreview(
-        libraries,
-        libraryId as number,
-        path,
-      )
-
-      return {
-        original:
-          info.isFile() &&
-          Boolean(previewMimeType(file)) &&
-          (registry?.capabilities(file).original ?? true),
-      }
-    }, authorizeRenderer(owner.webContents)),
-  )
 
   ipcMain.handle(
     'window:openImage',
@@ -154,7 +130,6 @@ export function registerImageViewerIpc(
 
   return async () => {
     ipcMain.removeHandler('window:openImage')
-    ipcMain.removeHandler('preview:capabilities')
 
     await Promise.all([...saveViewerStates].map((save) => save()))
 

@@ -1,3 +1,5 @@
+import { fileSizeRangeIndex } from './fileSizeRanges.js'
+
 export const fileColorNames = [
   'blue',
   'cyan',
@@ -149,10 +151,6 @@ function colorForDate(date: Date, referenceDate: Date): FileColorName {
 }
 
 function colorForSize(size: number): FileColorName {
-  const thresholds = [
-    1_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000, 10_000_000_000,
-    100_000_000_000,
-  ]
   const colors: FileColorName[] = [
     'green',
     'cyan',
@@ -163,9 +161,7 @@ function colorForSize(size: number): FileColorName {
     'yellow',
     'red',
   ]
-  const range = thresholds.findIndex((threshold) => size < threshold)
-
-  return colors[range === -1 ? colors.length - 1 : range] ?? 'red'
+  return colors[fileSizeRangeIndex(size)] ?? 'red'
 }
 
 export function colorForFileValue(

@@ -3,9 +3,7 @@ import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl } from '../../utils/folderUrl.js'
 import type { FileViewMode } from '../../utils/tablePreferences.js'
-import { fileColorForName } from './FileName.js'
 import FilePreview from './FilePreview.js'
-import { selectedFileColor } from './Files.constants.js'
 import type { FileEntry, FileRowGroup, Listing } from './Files.types.js'
 import FilesGroupToggle from './FilesGroupToggle.js'
 import GridCard from './GridCard.js'
@@ -65,9 +63,9 @@ export default function FilesGrid({
     const folderPath =
       entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
         ? formatFullPath(
-          libraryRoots.get(entry.libraryId) ?? '',
-          entry.relativePath,
-        )
+            libraryRoots.get(entry.libraryId) ?? '',
+            entry.relativePath,
+          )
         : undefined
 
     return (
@@ -89,33 +87,26 @@ export default function FilesGrid({
         folderPath={folderPath}
         {...(entry.kind === 'directory'
           ? {
-            ...folderDragProps(folderPath),
-            to: folderUrl({
-              libraryId: entry.libraryId,
-              relativePath: entry.relativePath,
-            }),
-          }
+              ...folderDragProps(folderPath),
+              to: folderUrl({
+                libraryId: entry.libraryId,
+                relativePath: entry.relativePath,
+              }),
+            }
           : {
-            onClick: () => onActivateFile(entry.id),
-            onDoubleClick: entry.presentation?.activation
-              ? () => onOpenEntry(entry.id)
-              : undefined,
-            'aria-label': `Show details for ${displayName}`,
-            'aria-expanded': selectedId === entry.id,
-          })}
+              onClick: () => onActivateFile(entry.id),
+              onDoubleClick: entry.presentation?.activation
+                ? () => onOpenEntry(entry.id)
+                : undefined,
+              'aria-label': `Show details for ${displayName}`,
+              'aria-expanded': selectedId === entry.id,
+            })}
       >
         <FilePreview
           entry={entry}
           size="100%"
           variant="grid"
           naturalSize={masonry}
-          color={
-            entry.kind === 'directory'
-              ? undefined
-              : selectedIds.has(entry.id)
-                ? selectedFileColor
-                : fileColorForName(entry.name)
-          }
         />
       </GridCard>
     )
@@ -151,9 +142,9 @@ export default function FilesGrid({
           items: collapsedGroupKeys.has(group.key)
             ? []
             : group.rows.map(({ original: entry }) => ({
-              key: entry.id,
-              content: renderFileCard(entry, true),
-            })),
+                key: entry.id,
+                content: renderFileCard(entry, true),
+              })),
         }))}
       />
     )
@@ -164,24 +155,24 @@ export default function FilesGrid({
       {rowGroups.flatMap((group) => [
         ...(group.label !== null
           ? [
-            <li
-              key={`heading:${group.key}`}
-              className={styles.groupHeading}
-              data-group-heading="true"
-            >
-              <FilesGroupToggle
-                expanded={!collapsedGroupKeys.has(group.key)}
-                label={group.label}
-                onClick={() => onToggleGroup(group.key)}
-              />
-            </li>,
-          ]
+              <li
+                key={`heading:${group.key}`}
+                className={styles.groupHeading}
+                data-group-heading="true"
+              >
+                <FilesGroupToggle
+                  expanded={!collapsedGroupKeys.has(group.key)}
+                  label={group.label}
+                  onClick={() => onToggleGroup(group.key)}
+                />
+              </li>,
+            ]
           : []),
         ...(collapsedGroupKeys.has(group.key)
           ? []
           : group.rows.map(({ original: entry }) =>
-            renderFileCard(entry, false),
-          )),
+              renderFileCard(entry, false),
+            )),
       ])}
     </GridContainer>
   )

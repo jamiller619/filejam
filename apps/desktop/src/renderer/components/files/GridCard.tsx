@@ -94,14 +94,14 @@ type GridCardProps = {
   selected?: boolean
   previewOnly?: boolean
 } & (
-    | { to: string }
-    | {
+  | { to: string }
+  | {
       onClick: () => void
       onDoubleClick?: MouseEventHandler<HTMLButtonElement> | undefined
       'aria-label'?: string
       'aria-expanded'?: boolean
     }
-  )
+)
 
 export default function GridCard(props: GridCardProps) {
   const { edit } = useAppearance()

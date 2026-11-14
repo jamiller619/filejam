@@ -1,3 +1,4 @@
+import { imageMimeType } from '@filejam/preview-images/formats'
 import { iconTargetKey } from '@filejam/server/icons'
 import { Button, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
@@ -5,7 +6,6 @@ import { css } from 'inline-css-modules'
 import { useEffect, useRef, useState } from 'react'
 import { useAppearance } from '../icons/AppearanceProvider.js'
 import { CustomIconImage } from '../icons/ItemIcon.js'
-import type { FileColor } from './FileName.js'
 
 const styles = css`
   .container {
@@ -23,10 +23,16 @@ const styles = css`
     }
   }
 
-  .expandable {
+  .detail {
     position: relative;
     aspect-ratio: auto;
-    width: fit-content;
+    width: 100%;
+    height: min(50vh, 420px);
+
+    .thumbnail {
+      height: 100%;
+      align-items: center;
+    }
   }
 
   .natural {
@@ -104,13 +110,13 @@ const previewObserver =
   typeof IntersectionObserver === 'undefined'
     ? null
     : new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          visibilityListeners.get(entry.target)?.(entry.isIntersecting)
-        }
-      },
-      { rootMargin: '200px 0px' },
-    )
+        (entries) => {
+          for (const entry of entries) {
+            visibilityListeners.get(entry.target)?.(entry.isIntersecting)
+          }
+        },
+        { rootMargin: '200px 0px' },
+      )
 
 function observeVisibility(
   element: Element,
@@ -135,14 +141,12 @@ export default function FilePreview({
   entry,
   size = 40,
   variant = 'list',
-  color,
   onOpen,
   naturalSize = false,
 }: {
   entry: Entry
   size?: number | '100%'
   variant?: 'list' | 'grid'
-  color?: FileColor | undefined
   onOpen?: () => void
   naturalSize?: boolean
 }) {
@@ -167,9 +171,6 @@ export default function FilePreview({
   const [nearViewport, setNearViewport] = useState(Boolean(onOpen))
   const [loadedSource, setLoadedSource] = useState('')
   const [settledSource, setSettledSource] = useState('')
-  const [originalSource, setOriginalSource] = useState('')
-  const identity = `${entry.libraryId}:${entry.relativePath}:${entry.modifiedAt}`
-  const imageCandidate = Boolean(onOpen && originalSource === identity)
   const detail = Boolean(onOpen)
 
   const pixels = Math.min(
@@ -182,25 +183,6 @@ export default function FilePreview({
     ),
   )
 
-  useEffect(() => {
-    if (!detail) {
-      return
-    }
-
-    const controller = new AbortController()
-
-    void window.filejam
-      .previewCapabilities(entry.libraryId, entry.relativePath)
-      .then((result) => {
-        if (!controller.signal.aborted) {
-          setOriginalSource(result?.original ? identity : '')
-        }
-      })
-      .catch(() => undefined)
-
-    return () => controller.abort()
-  }, [detail, entry.libraryId, entry.relativePath, identity])
-
   const params = new URLSearchParams({
     libraryId: String(entry.libraryId),
     path: entry.relativePath,
@@ -209,8 +191,6 @@ export default function FilePreview({
     width: String(pixels),
     height: String(pixels),
     purpose: detail ? 'detail' : 'thumbnail',
-    ...(imageCandidate ? { original: '1' } : {}),
-    ...(color ? { color: color.light, darkColor: color.dark } : {}),
   })
 
   const source = `filejam-preview://preview-image?${params}`
@@ -245,12 +225,16 @@ export default function FilePreview({
       ref={containerRef}
       className={clsx(
         styles.container,
-        imageCandidate && styles.expandable,
+        detail && styles.detail,
         naturalSize && styles.natural,
       )}
       style={{
-        width: imageCandidate || naturalSize ? undefined : size,
-        height: naturalSize || typeof size !== 'number' ? 'auto' : size,
+        width: detail || naturalSize ? undefined : size,
+        height: detail
+          ? undefined
+          : naturalSize || typeof size !== 'number'
+            ? 'auto'
+            : size,
       }}
     >
       {shouldLoad && (
@@ -284,7 +268,6 @@ export default function FilePreview({
               if (!new URL(image.src).searchParams.has('fallback')) {
                 const fallback = new URL(source)
 
-                fallback.searchParams.delete('original')
                 fallback.searchParams.set('fallback', '1')
                 image.src = fallback.href
               }
@@ -298,16 +281,18 @@ export default function FilePreview({
           )}
         </div>
       )}
-      {imageCandidate && loadedSource === source && (
-        <Button
-          className={styles.open}
-          onClick={onOpen}
-          title="Open full-size image"
-          aria-label="Open full-size image"
-        >
-          <Icon name="search" size={16} />
-        </Button>
-      )}
+      {detail &&
+        imageMimeType(entry.relativePath) &&
+        loadedSource === source && (
+          <Button
+            className={styles.open}
+            onClick={onOpen}
+            title="Open full-size image"
+            aria-label="Open full-size image"
+          >
+            <Icon name="search" size={16} />
+          </Button>
+        )}
     </div>
   )
 }

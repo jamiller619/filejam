@@ -135,7 +135,6 @@ async function createWindow() {
   removeImageViewerIpc = registerImageViewerIpc(
     current,
     server.api.libraries,
-    previews?.registry,
     currentSettingsApi,
   )
 

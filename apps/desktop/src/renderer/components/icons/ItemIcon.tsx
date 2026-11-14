@@ -11,19 +11,74 @@ import { useAppearance } from './AppearanceProvider.js'
 import { libraryIcons } from './library.js'
 
 const styles = css`
-  .icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; vertical-align: middle; }
-  .icon img { width: 100%; height: 100%; object-fit: contain; }
-  .icon[data-color='gray'] { color: var(--suzy-gray-11); }
-  .icon[data-color='red'] { color: light-dark(#ce2c31, #ff6369); }
-  .icon[data-color='orange'] { color: light-dark(#cc4e00, #ffa057); }
-  .icon[data-color='yellow'] { color: light-dark(#946800, #f5d90a); }
-  .icon[data-color='green'] { color: light-dark(#18794e, #4cc38a); }
-  .icon[data-color='blue'] { color: light-dark(#006adc, #70b8ff); }
-  .icon[data-color='purple'] { color: light-dark(#8145b5, #be93e4); }
-  .icon[data-color='pink'] { color: light-dark(#cd1d8d, #f65cb6); }
-  .button { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 6px; border: 0; border-radius: var(--suzy-radius-2); background: transparent; color: inherit; font: inherit; cursor: pointer; }
-  .button:hover { background: var(--suzy-gray-5); }
-  .button:focus-visible { outline: 2px solid var(--suzy-accent-9); outline-offset: 2px; }
+  .icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+  }
+
+  .icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .icon[data-color='gray'] {
+    color: var(--suzy-gray-11);
+  }
+
+  .icon[data-color='red'] {
+    color: light-dark(#ce2c31, #ff6369);
+  }
+
+  .icon[data-color='orange'] {
+    color: light-dark(#cc4e00, #ffa057);
+  }
+
+  .icon[data-color='yellow'] {
+    color: light-dark(#946800, #f5d90a);
+  }
+
+  .icon[data-color='green'] {
+    color: light-dark(#18794e, #4cc38a);
+  }
+
+  .icon[data-color='blue'] {
+    color: light-dark(#006adc, #70b8ff);
+  }
+
+  .icon[data-color='purple'] {
+    color: light-dark(#8145b5, #be93e4);
+  }
+
+  .icon[data-color='pink'] {
+    color: light-dark(#cd1d8d, #f65cb6);
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 6px;
+    border: 0;
+    border-radius: var(--suzy-radius-2);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .button:hover {
+    background: var(--suzy-gray-5);
+  }
+
+  .button:focus-visible {
+    outline: 2px solid var(--suzy-accent-9);
+    outline-offset: 2px;
+  }
 `
 
 export function CustomIconImage({
@@ -71,11 +126,11 @@ export function CustomIconImage({
 
 export default function ItemIcon({
   target,
-  size = 20,
+  size,
   fallback,
 }: {
   target: IconTarget
-  size?: number
+  size: number
   fallback?: ReactNode
 }) {
   const { icons } = useAppearance()
@@ -93,11 +148,13 @@ export function IconButton({
   name,
   label = false,
   fallback,
+  size = 20,
 }: {
   target: IconTarget
   name: string
   label?: boolean
   fallback?: ReactNode
+  size?: number
 }) {
   const { edit } = useAppearance()
 
@@ -109,7 +166,7 @@ export function IconButton({
       aria-label={`Change icon for ${name}`}
       onClick={() => edit(target, name)}
     >
-      <ItemIcon target={target} fallback={fallback} />
+      <ItemIcon target={target} fallback={fallback} size={size} />
       {label && <span>Change icon</span>}
     </button>
   )

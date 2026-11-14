@@ -1,8 +1,12 @@
 import type { DateFormat, FileColumn } from '../../utils/fileColumns.js'
-import { formatFileValue } from '../../utils/fileColumns.js'
+import { formatFileSize, formatFileValue } from '../../utils/fileColumns.js'
+import {
+  fileSizeRangeIndex,
+  fileSizeThresholds,
+} from '../../utils/fileSizeRanges.js'
 import type { FileRow, FileRowGroup } from './Files.types.js'
 
-type DateRangeGroup = {
+type RangeGroup = {
   key: string
   label: string
   order: number
@@ -12,7 +16,7 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
-function getDateRangeGroup(date: Date, referenceDate: Date): DateRangeGroup {
+function getDateRangeGroup(date: Date, referenceDate: Date): RangeGroup {
   const today = startOfDay(referenceDate)
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
@@ -58,6 +62,20 @@ function getDateRangeGroup(date: Date, referenceDate: Date): DateRangeGroup {
   return { key: 'older', label: 'Older', order: 7 }
 }
 
+function getSizeRangeGroup(size: number): RangeGroup {
+  const order = fileSizeRangeIndex(size)
+  const lower = fileSizeThresholds[order - 1] ?? 0
+  const upper = fileSizeThresholds[order]
+  const label =
+    upper === undefined
+      ? `${formatFileSize(lower)} and above`
+      : lower === 0
+        ? `Under ${formatFileSize(upper)}`
+        : `${formatFileSize(lower)} – under ${formatFileSize(upper)}`
+
+  return { key: String(order), label, order }
+}
+
 export function groupFileRows(
   rows: FileRow[],
   groupBy: FileColumn | null,
@@ -70,15 +88,17 @@ export function groupFileRows(
 
   const groups = rows.reduce((groups, row) => {
     const value = row.getValue(groupBy)
-    const dateRange =
+    const range =
       value instanceof Date
         ? getDateRangeGroup(value, referenceDate)
-        : undefined
-    const key = dateRange
-      ? `date:${dateRange.key}`
+        : groupBy === 'size' && typeof value === 'number'
+          ? getSizeRangeGroup(value)
+          : undefined
+    const key = range
+      ? `${value instanceof Date ? 'date' : 'size'}:${range.key}`
       : (JSON.stringify(value) ?? String(value))
-    const label = dateRange
-      ? dateRange.label
+    const label = range
+      ? range.label
       : groupBy === 'relativePath'
         ? row.getValue<string>(groupBy)
         : formatFileValue(row.original, groupBy, dateFormat)
@@ -90,7 +110,7 @@ export function groupFileRows(
       groups.set(key, {
         key,
         label,
-        order: dateRange?.order,
+        order: range?.order,
         rows: [row],
       })
     }

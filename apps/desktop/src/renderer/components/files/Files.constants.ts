@@ -1,7 +1,5 @@
 import type { FileColumn } from '../../utils/fileColumns.js'
 
-export const selectedFileColor = { light: '#f9feff', dark: '#0d141f' }
-
 export const defaultFileColumns: readonly FileColumn[] = [
   'name',
   'createdAt',

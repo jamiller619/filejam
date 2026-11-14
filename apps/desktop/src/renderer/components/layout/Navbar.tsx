@@ -1,13 +1,13 @@
 import type { Library } from '@filejam/server'
+import type { IconTarget } from '@filejam/server/icons'
 import { Button, Eyebrow, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
-import type { HTMLAttributes } from 'react'
-import { Link, NavLink, useLocation } from 'react-router'
+import type { HTMLAttributes, ReactNode } from 'react'
+import { Link, matchPath, useLocation, useResolvedPath } from 'react-router'
 import { useSettings } from '~/hooks/useSettings.js'
 import { useCollections } from '../../hooks/useCollections.js'
 import { useFavoriteFolderDrop } from '../../hooks/useFavoriteFolderDrop.js'
-import { useFolderDrag } from '../../hooks/useFolderDrag.js'
 import { useLibraries } from '../../hooks/useLibraries.js'
 import { folderUrl, isCurrentFolderUrl } from '../../utils/folderUrl.js'
 import { getLibraryIcon } from '../../utils/libraryIcon.js'
@@ -15,23 +15,6 @@ import { normalizePath } from '../../utils/normalizePath.js'
 import { IconButton } from '../icons/ItemIcon.js'
 
 const styles = css`
-  .item {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    border-radius: var(--suzy-radius-3);
-
-    > a {
-      flex: 1;
-      min-width: 0;
-      width: 0;
-    }
-
-    > a > span:last-child {
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
   .navbar {
     box-sizing: border-box;
     display: flex;
@@ -54,15 +37,12 @@ const styles = css`
       margin: var(--suzy-space-6) 0 0;
       padding: 0;
 
-      a {
-        padding: var(--suzy-space-1) var(--suzy-space-2);
-        width: stretch;
-        height: stretch;
-        line-height: 18px;
-        justify-content: start;
-      }
-
       .item {
+        display: flex;
+        align-items: stretch;
+        flex-shrink: 0;
+        min-width: 0;
+        border-radius: var(--suzy-radius-3);
         corner-shape: var(--suzy-corner-shape);
         transition: background var(--suzy-duration-fast) var(--suzy-ease-enter);
 
@@ -85,17 +65,40 @@ const styles = css`
         }
       }
 
+      .item > a,
       .item > button {
-        align-self: stretch;
-        min-height: 0;
+        box-sizing: border-box;
+        min-height: calc(20px + 2 * var(--suzy-space-1));
         padding: var(--suzy-space-1) var(--suzy-space-2);
-        line-height: 1;
-        background: transparent;
+        gap: var(--suzy-space-2);
+        font: inherit;
+        line-height: 20px;
+      }
+
+      .item > a {
+        flex: 1;
+        min-width: 0;
+        justify-content: start;
+      }
+
+      .item > a > span:last-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .item:has(> button) > a {
         padding-inline-start: 0;
       }
+    }
+
+    .staticIcon {
+      display: inline-flex;
+      flex: 0 0 20px;
+      align-items: center;
+      justify-content: center;
+      height: 20px;
     }
 
     .favorites {
@@ -127,13 +130,11 @@ const styles = css`
 `
 
 export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
-  const location = useLocation()
   const { libraries, loadFailed } = useLibraries()
 
   const { collections, loadFailed: collectionsFailed } = useCollections()
 
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
-  const folderDragProps = useFolderDrag()
   const favoriteFolders = useFavoriteFolders(libraries)
 
   const favoriteLibraryIds = new Set(
@@ -148,25 +149,10 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
 
   const trashLibraries = libraries.filter((library) => library.isTrash)
 
-  const currentFolder = (libraryId: number, relativePath = '') =>
-    isCurrentFolderUrl(location, { libraryId, relativePath })
-
   return (
     <nav {...props} className={clsx(styles.navbar, props.className)}>
       <ol>
-        <li className={styles.item}>
-          <Button
-            as={NavLink}
-            variant="link"
-            to="/"
-            end
-            title="Home"
-            viewTransition
-          >
-            <Icon name="home" size="20" />
-            <span>Home</span>
-          </Button>
-        </li>
+        <NavItem href="/" name="Home" icon={<Icon name="home" size={20} />} />
         <li className={styles.favorites} {...dropTargetProps}>
           <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
           {favoriteFolders.length === 0 && (
@@ -174,43 +160,27 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           )}
           <ol aria-label="Favorite folders">
             {favoriteFolders.map(({ path, library, relativePath }) => (
-              <li key={path} className={styles.item}>
-                <IconButton
-                  name={
-                    relativePath.split('/').filter(Boolean).at(-1) ??
-                    library.name
-                  }
-                  target={{
-                    kind: 'entry',
-                    libraryId: library.id,
-                    relativePath,
-                  }}
-                  fallback={
-                    <Icon
-                      name={
-                        relativePath ? 'folder' : getLibraryIcon(library.name)
-                      }
-                      size={20}
-                    />
-                  }
-                />
-                <Button
-                  as={Link}
-                  variant="link"
-                  to={folderUrl({ libraryId: library.id, relativePath })}
-                  title={path}
-                  viewTransition
-                  aria-current={
-                    currentFolder(library.id, relativePath) ? 'page' : undefined
-                  }
-                  {...folderDragProps(path)}
-                >
-                  <span>
-                    {relativePath.split('/').filter(Boolean).at(-1) ??
-                      library.name}
-                  </span>
-                </Button>
-              </li>
+              <NavItem
+                key={path}
+                href={folderUrl({ libraryId: library.id, relativePath })}
+                name={
+                  relativePath.split('/').filter(Boolean).at(-1) ?? library.name
+                }
+                title={path}
+                iconTarget={{
+                  kind: 'entry',
+                  libraryId: library.id,
+                  relativePath,
+                }}
+                icon={
+                  <Icon
+                    name={
+                      relativePath ? 'folder' : getLibraryIcon(library.name)
+                    }
+                    size={20}
+                  />
+                }
+              />
             ))}
           </ol>
           {dropError && <p role="alert">{dropError}</p>}
@@ -219,28 +189,18 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
           <Eyebrow className={styles.eyebrow}>Libraries</Eyebrow>
         </li>
         {otherLibraries.map((library) => (
-          <li key={library.id} className={styles.item}>
-            <IconButton
-              name={library.name}
-              target={{
-                kind: 'entry',
-                libraryId: library.id,
-                relativePath: '',
-              }}
-              fallback={<Icon name={getLibraryIcon(library.name)} size={20} />}
-            />
-            <Button
-              as={Link}
-              variant="link"
-              to={`/libraries/${library.id}`}
-              title={library.rootPath}
-              viewTransition
-              aria-current={currentFolder(library.id) ? 'page' : undefined}
-              {...folderDragProps(library.rootPath)}
-            >
-              <span>{library.name}</span>
-            </Button>
-          </li>
+          <NavItem
+            key={library.id}
+            href={folderUrl({ libraryId: library.id, relativePath: '' })}
+            name={library.name}
+            title={library.rootPath}
+            iconTarget={{
+              kind: 'entry',
+              libraryId: library.id,
+              relativePath: '',
+            }}
+            icon={<Icon name={getLibraryIcon(library.name)} size={20} />}
+          />
         ))}
         {loadFailed && <li role="status">Unable to load libraries</li>}
         {trashLibraries.map((library) => {
@@ -252,39 +212,25 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
               : library.name
 
           return (
-            <li key={library.id} className={styles.item}>
-              <Button
-                as={Link}
-                variant="link"
-                to={`/libraries/${library.id}`}
-                title={library.rootPath}
-                viewTransition
-                aria-current={currentFolder(library.id) ? 'page' : undefined}
-              >
-                <Icon name="trash" size="20" />
-                <span>{label}</span>
-              </Button>
-            </li>
+            <NavItem
+              key={library.id}
+              href={folderUrl({ libraryId: library.id, relativePath: '' })}
+              name={label}
+              title={library.rootPath}
+              icon={<Icon name="trash" size={20} />}
+            />
           )
         })}
         <li>
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>
         {collections.map((collection) => (
-          <li key={collection.id} className={styles.item}>
-            <IconButton
-              target={{ kind: 'collection', id: collection.id }}
-              name={collection.name}
-            />
-            <Button
-              as={Link}
-              variant="link"
-              to={`/collections/${collection.id}`}
-              viewTransition
-            >
-              <span>{collection.name}</span>
-            </Button>
-          </li>
+          <NavItem
+            key={collection.id}
+            href={`/collections/${collection.id}`}
+            name={collection.name}
+            iconTarget={{ kind: 'collection', id: collection.id }}
+          />
         ))}
         {collectionsFailed && (
           <li role="status">Unable to load collections.</li>
@@ -299,20 +245,69 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             <span>Add collection</span>
           </Button>
         </li>
-        <li className={clsx(styles.item, styles.settings)}>
-          <Button
-            as={NavLink}
-            variant="link"
-            to="/settings"
-            title="Settings"
-            viewTransition
-          >
-            <Icon name="settings" size="20" />
-            <span>Settings</span>
-          </Button>
-        </li>
+        <NavItem
+          className={styles.settings}
+          href="/settings"
+          name="Settings"
+          icon={<Icon name="settings" size={20} />}
+        />
       </ol>
     </nav>
+  )
+}
+
+type NavItemProps = HTMLAttributes<HTMLLIElement> & {
+  name: string
+  href: string
+  icon?: ReactNode
+  iconTarget?: IconTarget
+}
+
+function NavItem({
+  name,
+  href,
+  icon,
+  iconTarget,
+  title = name,
+  className,
+  ...props
+}: NavItemProps) {
+  const location = useLocation()
+  const destination = useResolvedPath(href)
+  const libraryRoute = matchPath('/libraries/:libraryId', destination.pathname)
+
+  const current = libraryRoute
+    ? isCurrentFolderUrl(location, {
+        libraryId: Number(libraryRoute.params.libraryId),
+        relativePath:
+          new URLSearchParams(destination.search).get('folder') ?? '',
+      })
+    : !!matchPath(
+        { path: destination.pathname, end: destination.pathname === '/' },
+        location.pathname,
+      )
+
+  return (
+    <li className={clsx(styles.item, className)} {...props}>
+      {iconTarget && (
+        <IconButton target={iconTarget} name={name} fallback={icon} size={20} />
+      )}
+      <Button
+        as={Link}
+        variant="link"
+        to={href}
+        title={title}
+        viewTransition
+        aria-current={current ? 'page' : undefined}
+      >
+        {!iconTarget && (
+          <span className={styles.staticIcon} aria-hidden="true">
+            {icon}
+          </span>
+        )}
+        <span>{name}</span>
+      </Button>
+    </li>
   )
 }
 

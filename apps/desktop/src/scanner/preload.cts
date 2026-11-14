@@ -16,10 +16,6 @@ type FilejamApi = {
   getDroppedFilePath: (file: File) => string
   addFavoriteFolders: (paths: string[]) => Promise<string[]>
   openImage: (libraryId: number, path: string) => Promise<void>
-  previewCapabilities: (
-    libraryId: number,
-    path: string,
-  ) => Promise<{ original: boolean }>
   setControlsColor: (color: string) => Promise<void>
   appearance: Pick<ServerApi['appearance'], 'list' | 'set'> & {
     import: () => Promise<CustomIcon | null>
@@ -48,8 +44,6 @@ const filejam: FilejamApi = {
     ipcRenderer.invoke('favorites:addFolders', paths),
   openImage: (libraryId, path) =>
     ipcRenderer.invoke('window:openImage', libraryId, path),
-  previewCapabilities: (libraryId, path) =>
-    ipcRenderer.invoke('preview:capabilities', libraryId, path),
   setControlsColor: (color) =>
     ipcRenderer.invoke('window:setControlsColor', color),
   appearance: {

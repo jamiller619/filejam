@@ -17,9 +17,9 @@ import {
 import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl } from '../../utils/folderUrl.js'
 import { useAppearance } from '../icons/AppearanceProvider.js'
-import FileName, { fileColorForName } from './FileName.js'
+import FileName from './FileName.js'
 import FilePreview from './FilePreview.js'
-import { minimumNameColumnWidth, selectedFileColor } from './Files.constants.js'
+import { minimumNameColumnWidth } from './Files.constants.js'
 import type {
   FileRowGroup,
   FilesTableModel,
@@ -274,10 +274,10 @@ export default function FilesTable({
         ...(collapsedGroupKeys.has(group.key)
           ? []
           : group.rows.map((row) => ({
-            key: `row:${row.id}`,
-            type: 'row' as const,
-            row,
-          }))),
+              key: `row:${row.id}`,
+              type: 'row' as const,
+              row,
+            }))),
       ]),
     [collapsedGroupKeys, rowGroups],
   )
@@ -320,8 +320,8 @@ export default function FilesTable({
       if (scrollElement && tableBody) {
         setScrollMargin(
           tableBody.getBoundingClientRect().top -
-          scrollElement.getBoundingClientRect().top +
-          scrollElement.scrollTop,
+            scrollElement.getBoundingClientRect().top +
+            scrollElement.scrollTop,
         )
       }
     }
@@ -472,9 +472,9 @@ export default function FilesTable({
               const entryPath =
                 entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
                   ? formatFullPath(
-                    libraryRoots.get(entry.libraryId) ?? '',
-                    entry.relativePath,
-                  )
+                      libraryRoots.get(entry.libraryId) ?? '',
+                      entry.relativePath,
+                    )
                   : undefined
 
               return (
@@ -519,16 +519,7 @@ export default function FilesTable({
                       >
                         {column === 'name' ? (
                           <span className={styles.file}>
-                            <FilePreview
-                              entry={entry}
-                              color={
-                                entry.kind === 'directory'
-                                  ? undefined
-                                  : selectedIds.has(entry.id)
-                                    ? selectedFileColor
-                                    : fileColorForName(entry.name)
-                              }
-                            />
+                            <FilePreview entry={entry} />
                             {entry.kind === 'directory' ? (
                               <FolderNameLink
                                 entry={entry}
