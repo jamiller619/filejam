@@ -1,8 +1,4 @@
-import type {
-  ClientEvent,
-  Entry,
-  ViewOptions,
-} from '../../live-browser/protocol.js'
+import type { ClientEvent, Entry, ViewOptions } from '../../browser/protocol.js'
 
 export type BrowserState = {
   generation: number

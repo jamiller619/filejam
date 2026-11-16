@@ -7,6 +7,6 @@ dist/
 !.env.example
 .DS_Store
 *.log
-docs/live-browser-poc
+docs/browser-poc
 /packages/fs-service/target/
 /.poc-output/

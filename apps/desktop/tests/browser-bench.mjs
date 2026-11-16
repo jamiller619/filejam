@@ -3,15 +3,15 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { app, BrowserWindow } from 'electron'
-import { LiveBrowserClient } from '../dist/live-browser/client.js'
-import { expectedBenchmarkNames, statistics } from './live-browser-fixtures.mjs'
-import { startSampler } from './live-browser-sampler.mjs'
+import { BrowserClient } from '../dist/browser/client.js'
+import { expectedBenchmarkNames, statistics } from './browser-fixtures.mjs'
+import { startSampler } from './browser-sampler.mjs'
 
 const directory = process.env.FILEJAM_BENCH_DIRECTORY
 app.setPath('userData', process.env.FILEJAM_TEST_USER_DATA)
 let client
-const originalList = LiveBrowserClient.prototype.list
-LiveBrowserClient.prototype.list = function (...args) {
+const originalList = BrowserClient.prototype.list
+BrowserClient.prototype.list = function (...args) {
   client = this
   return originalList.apply(this, args)
 }
@@ -57,9 +57,7 @@ async function run() {
     const evaluate = (script) => window.webContents.executeJavaScript(script)
     await waitFor(
       () =>
-        evaluate(
-          'Boolean(document.querySelector("[data-testid=live-browser]"))',
-        ),
+        evaluate('Boolean(document.querySelector("[data-testid=browser]"))'),
       'renderer',
     )
     const input = (id, value) =>
@@ -82,7 +80,7 @@ async function run() {
     }
     const snapshot = () =>
       evaluate(
-        `({generation:Number(document.querySelector('[data-testid=live-browser]').dataset.generation),phase:document.querySelector('[data-testid=live-browser]').dataset.phase,total:Number(document.querySelector('[data-testid=live-browser]').dataset.total),names:[...document.querySelectorAll('[data-testid=entry-name]')].map(node=>node.textContent),timings:JSON.parse(document.querySelector('[data-testid=timings]').textContent||'null')})`,
+        `({generation:Number(document.querySelector('[data-testid=browser]').dataset.generation),phase:document.querySelector('[data-testid=browser]').dataset.phase,total:Number(document.querySelector('[data-testid=browser]').dataset.total),names:[...document.querySelectorAll('[data-testid=entry-name]')].map(node=>node.textContent),timings:JSON.parse(document.querySelector('[data-testid=timings]').textContent||'null')})`,
       )
     for (const size of JSON.parse(process.env.FILEJAM_BENCH_SIZES)) {
       for (const options of [

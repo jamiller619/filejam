@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { runCommand } from '../../../docs/live-browser-poc/automation.mjs'
+import { runCommand } from '../../../docs/browser-poc/automation.mjs'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 process.env.FILEJAM_FS_SERVICE = resolve(
@@ -13,7 +13,7 @@ process.env.FILEJAM_FS_SERVICE = resolve(
     : 'filejam-fs-service',
 )
 const tests = (await readdir(resolve(root, 'apps/desktop/tests')))
-  .filter((name) => /^live-browser-.*\.test\.mjs$/.test(name))
+  .filter((name) => /^browser-.*\.test\.mjs$/.test(name))
   .sort()
   .map((name) => `apps/desktop/tests/${name}`)
 const commands = [
@@ -38,11 +38,11 @@ const commands = [
     'node',
     '--test',
     ...tests,
-    'docs/live-browser-poc/checks/service-contract.test.mjs',
-    'docs/live-browser-poc/checks/state-contract.test.mjs',
+    'docs/browser-poc/checks/service-contract.test.mjs',
+    'docs/browser-poc/checks/state-contract.test.mjs',
   ],
-  ['node', 'apps/desktop/tests/run-live-browser-smoke.mjs'],
-  ['node', 'apps/desktop/tests/run-live-browser-smoke.mjs', '--shutdown'],
+  ['node', 'apps/desktop/tests/run-browser-smoke.mjs'],
+  ['node', 'apps/desktop/tests/run-browser-smoke.mjs', '--shutdown'],
 ]
 
 for (const [index, [program, ...args]] of commands.entries()) {

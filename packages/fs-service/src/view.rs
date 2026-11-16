@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn supplied_view_cases_match_exact_name_arrays() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../docs/live-browser-poc/fixtures/view-cases.json"
+            "../../../docs/browser-poc/fixtures/view-cases.json"
         ))
         .unwrap();
         let root = Path::new(if cfg!(windows) {

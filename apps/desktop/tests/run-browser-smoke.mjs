@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import electron from 'electron'
-import { createLiveBrowserFixture } from './live-browser-fixtures.mjs'
+import { createBrowserFixture } from './browser-fixtures.mjs'
 
-const directory = await mkdtemp(join(tmpdir(), 'filejam-live-browser-'))
+const directory = await mkdtemp(join(tmpdir(), 'filejam-browser-'))
 const userData = join(directory, 'user-data')
 const config = join(directory, 'invalid-legacy-config.json')
 let child
@@ -16,12 +16,12 @@ const deadline = setTimeout(() => {
 }, 60000)
 
 try {
-  await createLiveBrowserFixture(directory)
+  await createBrowserFixture(directory)
   await writeFile(config, '{ deliberately invalid JSON')
 
   const env = {
     ...process.env,
-    FILEJAM_LIVE_BROWSER_POC: '1',
+    FILEJAM_BROWSER_POC: '1',
     FILEJAM_TEST_USER_DATA: userData,
     FILEJAM_CONFIG_FILE: config,
     FILEJAM_SMOKE_SHUTDOWN: process.argv.includes('--shutdown') ? '1' : '0',
@@ -30,7 +30,7 @@ try {
 
   child = spawn(
     electron,
-    [fileURLToPath(new URL('./live-browser-smoke.mjs', import.meta.url))],
+    [fileURLToPath(new URL('./browser-smoke.mjs', import.meta.url))],
     { env, stdio: 'inherit' },
   )
 

@@ -4,12 +4,12 @@ import { createRequire, syncBuiltinESMExports } from 'node:module'
 import { dirname, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
-import cases from '../../../docs/live-browser-poc/fixtures/view-cases.json' with {
+import cases from '../../../docs/browser-poc/fixtures/view-cases.json' with {
   type: 'json',
 }
 
 const userData = process.env.FILEJAM_TEST_USER_DATA
-assert.ok(userData, 'Live browser smoke user data must be isolated')
+assert.ok(userData, 'Browser smoke user data must be isolated')
 app.setPath('userData', userData)
 const require = createRequire(import.meta.url)
 const childProcess = require('node:child_process')
@@ -36,7 +36,7 @@ let nextGate = null
 let nextEnteredResolve = null
 ipcMain.handle = (channel, listener) => {
   registrations.push(channel)
-  if (channel === 'live-browser:start') {
+  if (channel === 'browser:start') {
     return originalHandle(channel, async (...args) => {
       const gate = startGate
       startGate = null
@@ -45,7 +45,7 @@ ipcMain.handle = (channel, listener) => {
     })
   }
 
-  if (channel === 'live-browser:next') {
+  if (channel === 'browser:next') {
     return originalHandle(channel, async (...args) => {
       const gate = nextGate
       if (gate) {
@@ -61,7 +61,7 @@ ipcMain.handle = (channel, listener) => {
 }
 
 const timeout = setTimeout(() => {
-  console.error('Live browser smoke test timed out')
+  console.error('Browser smoke test timed out')
   app.exit(1)
 }, 55000)
 
@@ -106,9 +106,9 @@ async function run() {
     await waitFor(
       () =>
         window.webContents.executeJavaScript(
-          'Boolean(document.querySelector("[data-testid=live-browser]"))',
+          'Boolean(document.querySelector("[data-testid=browser]"))',
         ),
-      'live browser root',
+      'browser root',
     )
 
     assert.equal(
@@ -117,7 +117,7 @@ async function run() {
     )
     assert.equal(
       await window.webContents.executeJavaScript(
-        'Boolean(window.liveBrowser) && Boolean(window.liveBrowser.mode === "live-browser-poc")',
+        'Boolean(window.browser) && Boolean(window.browser.mode === "browser-poc")',
       ),
       true,
     )
@@ -136,10 +136,10 @@ async function run() {
     )
 
     assert.deepEqual(registrations, [
-      'live-browser:choose-folder',
-      'live-browser:start',
-      'live-browser:next',
-      'live-browser:cancel',
+      'browser:choose-folder',
+      'browser:start',
+      'browser:next',
+      'browser:cancel',
     ])
 
     const evaluate = async (script) => {
@@ -169,14 +169,14 @@ async function run() {
       waitFor(
         () =>
           evaluate(
-            'document.querySelector("[data-testid=live-browser]")?.dataset.phase === "complete"',
+            'document.querySelector("[data-testid=browser]")?.dataset.phase === "complete"',
           ),
         'listing completion',
       )
     const snapshot = () =>
       evaluate(`({
-      generation: Number(document.querySelector('[data-testid="live-browser"]').dataset.generation),
-      phase: document.querySelector('[data-testid="live-browser"]').dataset.phase,
+      generation: Number(document.querySelector('[data-testid="browser"]').dataset.generation),
+      phase: document.querySelector('[data-testid="browser"]').dataset.phase,
       names: [...document.querySelectorAll('[data-testid="entry-name"]')].map((node) => node.textContent),
       status: document.querySelector('[data-testid="status"]').textContent,
     })`)
@@ -186,7 +186,7 @@ async function run() {
       )
     const generation = async () =>
       evaluate(
-        'Number(document.querySelector("[data-testid=live-browser]").dataset.generation)',
+        'Number(document.querySelector("[data-testid=browser]").dataset.generation)',
       )
     const chooseOption = async (testId, value) => {
       const label = testId === 'kind-filter' ? 'Kind' : 'Sort direction'
@@ -219,7 +219,7 @@ async function run() {
     await click('go')
     await waitComplete()
     const listing = await evaluate(`({
-      count: Number(document.querySelector('[data-testid="live-browser"]').dataset.total),
+      count: Number(document.querySelector('[data-testid="browser"]').dataset.total),
       names: [...document.querySelectorAll('[data-testid="entry-name"]')].map((node) => node.textContent),
     })`)
     assert.equal(listing.count, 8, 'fixture listing count')
@@ -503,7 +503,7 @@ async function run() {
     await click('go')
     await waitComplete()
     const largeListing = await evaluate(`({
-      count: Number(document.querySelector('[data-testid="live-browser"]').dataset.total),
+      count: Number(document.querySelector('[data-testid="browser"]').dataset.total),
       renderedRows: document.querySelectorAll('[data-entry-path]').length,
     })`)
     assert.equal(largeListing.count, 10000, 'large fixture listing count')
@@ -610,11 +610,11 @@ async function run() {
       'utf8',
     )
     const proofBootstrap = await readFile(
-      new URL('../src/live-browser/bootstrap.ts', import.meta.url),
+      new URL('../src/browser/bootstrap.ts', import.meta.url),
       'utf8',
     )
-    assert.match(proofEntry, /FILEJAM_LIVE_BROWSER_POC/)
-    assert.match(proofEntry, /import\('\.\/live-browser\/bootstrap\.js'\)/)
+    assert.match(proofEntry, /FILEJAM_BROWSER_POC/)
+    assert.match(proofEntry, /import\('\.\/browser\/bootstrap\.js'\)/)
     assert.doesNotMatch(proofBootstrap, /@filejam\/server|\.\.\/normal|scanner/)
 
     const inspectArtifacts = async (directory) => {
@@ -649,7 +649,7 @@ async function run() {
     )
 
     console.log(
-      'Live browser Electron smoke passed: fixture browsing, sandbox, proof imports, IPC, and isolated artifacts verified',
+      'Browser Electron smoke passed: fixture browsing, sandbox, proof imports, IPC, and isolated artifacts verified',
     )
     clearTimeout(timeout)
     app.quit()

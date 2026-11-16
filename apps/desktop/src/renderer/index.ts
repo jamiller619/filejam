@@ -12,8 +12,8 @@ const report = (error: unknown) => {
 }
 
 const render = async () => {
-  if (window.liveBrowser?.mode === 'live-browser-poc') {
-    const { default: Browser } = await import('./live-browser/Browser.js')
+  if (window.browser?.mode === 'browser-poc') {
+    const { default: Browser } = await import('./browser/Browser.js')
     createRoot(root).render(createElement(Browser))
     return
   }

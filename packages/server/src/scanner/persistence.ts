@@ -31,12 +31,13 @@ export async function openScanDatabase(
       // are resolved later, in parent-first order.
       const metadata = snapshot ?? (await stat(path))
       const key = pathKey(path)
+      let kind: 'file' | 'directory' | 'symlink' = 'file'
 
-      const kind = metadata.isDirectory()
-        ? 'directory'
-        : metadata.isSymbolicLink()
-          ? 'symlink'
-          : 'file'
+      if (metadata.isDirectory()) {
+        kind = 'directory'
+      } else if (metadata.isSymbolicLink()) {
+        kind = 'symlink'
+      }
 
       const name = isTrash
         ? await getTrashEntryName(root, path)

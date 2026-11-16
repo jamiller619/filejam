@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { registerLiveBrowserIpc } from '../dist/live-browser/ipc.js'
+import { registerBrowserIpc } from '../dist/browser/ipc.js'
 
 const desktopDirectory = fileURLToPath(new URL('../', import.meta.url))
 
@@ -44,7 +44,7 @@ function setup() {
       return { canceled: true, filePaths: [] }
     },
   }
-  const dispose = registerLiveBrowserIpc(window, client, main, folderDialog)
+  const dispose = registerBrowserIpc(window, client, main, folderDialog)
   const invoke = (
     channel,
     sender = window.webContents,
@@ -68,11 +68,11 @@ function setup() {
 test('rejects other windows and subframes before validating or calling handlers', async () => {
   const state = setup()
   await assert.rejects(
-    state.invoke('live-browser:start', {}, state.frame, null),
+    state.invoke('browser:start', {}, state.frame, null),
     /Unauthorized IPC/,
   )
   await assert.rejects(
-    state.invoke('live-browser:start', state.window.webContents, {}, null),
+    state.invoke('browser:start', state.window.webContents, {}, null),
     /Unauthorized IPC/,
   )
   assert.equal(state.calls.lists.length, 0)
@@ -86,25 +86,25 @@ test('validates options and strictly increasing positive generations', async () 
     options: { nameContains: '', kind: 'all', sortDirection: 'asc' },
   }
   await assert.rejects(
-    state.invoke('live-browser:start', undefined, undefined, {
+    state.invoke('browser:start', undefined, undefined, {
       ...valid,
       options: { ...valid.options, kind: 'bogus' },
     }),
     /Invalid start input/,
   )
   await assert.rejects(
-    state.invoke('live-browser:start', undefined, undefined, {
+    state.invoke('browser:start', undefined, undefined, {
       ...valid,
       generation: 0,
     }),
     /Invalid start generation/,
   )
   assert.deepEqual(
-    await state.invoke('live-browser:start', undefined, undefined, valid),
+    await state.invoke('browser:start', undefined, undefined, valid),
     { id: 'r-1' },
   )
   await assert.rejects(
-    state.invoke('live-browser:start', undefined, undefined, valid),
+    state.invoke('browser:start', undefined, undefined, valid),
     /Invalid start generation/,
   )
   assert.equal(state.calls.lists.length, 1)
@@ -118,7 +118,7 @@ test('forwards generation, retires canceled ids, and removes all invoke handlers
     options: { nameContains: '', kind: 'all', sortDirection: 'desc' },
   }
   const { id } = await state.invoke(
-    'live-browser:start',
+    'browser:start',
     undefined,
     undefined,
     input,
@@ -133,25 +133,25 @@ test('forwards generation, retires canceled ids, and removes all invoke handlers
     total: 0,
     metrics: { enumerationMs: 0, filterSortMs: 0 },
   })
-  assert.equal(state.sent[0][0], 'live-browser:event')
+  assert.equal(state.sent[0][0], 'browser:event')
   assert.equal(state.sent[0][1].generation, 4)
-  await state.invoke('live-browser:cancel', undefined, undefined, id)
-  await state.invoke('live-browser:next', undefined, undefined, id)
+  await state.invoke('browser:cancel', undefined, undefined, id)
+  await state.invoke('browser:next', undefined, undefined, id)
   assert.deepEqual(state.calls.cancel, [id])
   assert.deepEqual(state.calls.next, [])
-  await state.invoke('live-browser:choose-folder')
+  await state.invoke('browser:choose-folder')
   assert.equal(state.pickerOptions[0][0], state.window)
   assert.deepEqual(state.pickerOptions[0][1], { properties: ['openDirectory'] })
-  assert.equal(await state.invoke('live-browser:choose-folder'), null)
+  assert.equal(await state.invoke('browser:choose-folder'), null)
   state.dispose()
   state.dispose()
   assert.deepEqual(
     state.removed.sort(),
     [
-      'live-browser:choose-folder',
-      'live-browser:start',
-      'live-browser:next',
-      'live-browser:cancel',
+      'browser:choose-folder',
+      'browser:start',
+      'browser:next',
+      'browser:cancel',
     ].sort(),
   )
   assert.equal(state.handlers.size, 0)
@@ -169,12 +169,12 @@ test('compiled sandbox preload exposes fixed bridge methods and isolated listene
   require.cache[electronPath] = { exports: electron }
 
   try {
-    const preloadPath = join(desktopDirectory, 'dist/live-browser/preload.cjs')
+    const preloadPath = join(desktopDirectory, 'dist/browser/preload.cjs')
     delete require.cache[preloadPath]
     require(preloadPath)
 
     assert.equal(exposed.length, 1)
-    assert.equal(exposed[0][0], 'liveBrowser')
+    assert.equal(exposed[0][0], 'browser')
     const bridge = exposed[0][1]
     assert.deepEqual(Object.keys(bridge).sort(), [
       'cancel',
@@ -184,7 +184,7 @@ test('compiled sandbox preload exposes fixed bridge methods and isolated listene
       'onEvent',
       'start',
     ])
-    assert.equal(bridge.mode, 'live-browser-poc')
+    assert.equal(bridge.mode, 'browser-poc')
     for (const method of ['chooseFolder', 'start', 'next', 'cancel']) {
       assert.equal(typeof bridge[method], 'function')
     }
@@ -198,10 +198,10 @@ test('compiled sandbox preload exposes fixed bridge methods and isolated listene
     await bridge.next('id')
     await bridge.cancel('id')
     assert.deepEqual(invokeChannels, [
-      'live-browser:choose-folder',
-      'live-browser:start',
-      'live-browser:next',
-      'live-browser:cancel',
+      'browser:choose-folder',
+      'browser:start',
+      'browser:next',
+      'browser:cancel',
     ])
 
     const source = await readFile(preloadPath, 'utf8')
@@ -213,9 +213,9 @@ test('compiled sandbox preload exposes fixed bridge methods and isolated listene
     const unsubscribe = bridge.onEvent((event) => firstEvents.push(event))
     bridge.onEvent((event) => secondEvents.push(event))
     const payload = { v: 1, type: 'done', id: 'id', total: 0, generation: 1 }
-    electron.ipcRenderer.emit('live-browser:event', {}, payload)
+    electron.ipcRenderer.emit('browser:event', {}, payload)
     unsubscribe()
-    electron.ipcRenderer.emit('live-browser:event', {}, payload)
+    electron.ipcRenderer.emit('browser:event', {}, payload)
     assert.deepEqual(firstEvents, [payload])
     assert.deepEqual(secondEvents, [payload, payload])
   } finally {

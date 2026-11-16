@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn prepares_one_complete_top_level_fixture_listing() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../docs/live-browser-poc/fixtures/view-cases.json"
+            "../../../docs/browser-poc/fixtures/view-cases.json"
         ))
         .unwrap();
         let root = tempfile::tempdir().unwrap();

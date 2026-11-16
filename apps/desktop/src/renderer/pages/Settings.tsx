@@ -354,20 +354,27 @@ export default function Settings() {
           headingId="libraries-heading"
           headerActions={<AddLibrary />}
         >
-          {librariesLoadFailed ? (
+          {librariesLoadFailed && (
             <p className={`${styles.emptyState} ${styles.error}`} role="alert">
               Unable to load libraries.
             </p>
-          ) : librariesLoading ? (
+          )}
+          {!librariesLoadFailed && librariesLoading && (
             <p className={styles.emptyState} role="status">
               Loading libraries...
             </p>
-          ) : userLibraries.length === 0 ? (
-            <div className={styles.emptyState}>
-              <Icon className={styles.emptyIcon} name="folder" size={24} />
-              No libraries added yet. Add a folder to start indexing it.
-            </div>
-          ) : (
+          )}
+          {!librariesLoadFailed &&
+            !librariesLoading &&
+            userLibraries.length === 0 && (
+              <div className={styles.emptyState}>
+                <Icon className={styles.emptyIcon} name="folder" size={24} />
+                No libraries added yet. Add a folder to start indexing it.
+              </div>
+            )}
+          {!librariesLoadFailed &&
+            !librariesLoading &&
+            userLibraries.length > 0 &&
             userLibraries.map((library) => (
               <SettingRow
                 key={library.id}
@@ -383,8 +390,7 @@ export default function Settings() {
               >
                 <Icon name="forward" size={12} />
               </SettingRow>
-            ))
-          )}
+            ))}
         </Section>
         <Section
           title="Collections"
@@ -401,20 +407,27 @@ export default function Settings() {
             </Button>
           }
         >
-          {collectionsLoadFailed ? (
+          {collectionsLoadFailed && (
             <p className={`${styles.emptyState} ${styles.error}`} role="alert">
               Unable to load collections.
             </p>
-          ) : collectionsLoading ? (
+          )}
+          {!collectionsLoadFailed && collectionsLoading && (
             <p className={styles.emptyState} role="status">
               Loading collections...
             </p>
-          ) : collections.length === 0 ? (
-            <div className={styles.emptyState}>
-              <Icon className={styles.emptyIcon} name="folder" size={24} />
-              No collections added yet.
-            </div>
-          ) : (
+          )}
+          {!collectionsLoadFailed &&
+            !collectionsLoading &&
+            collections.length === 0 && (
+              <div className={styles.emptyState}>
+                <Icon className={styles.emptyIcon} name="folder" size={24} />
+                No collections added yet.
+              </div>
+            )}
+          {!collectionsLoadFailed &&
+            !collectionsLoading &&
+            collections.length > 0 &&
             collections.map((collection) => (
               <SettingRow
                 key={collection.id}
@@ -430,8 +443,7 @@ export default function Settings() {
               >
                 <Icon name="forward" size={12} />
               </SettingRow>
-            ))
-          )}
+            ))}
         </Section>
         {collectionError && (
           <p className={`${styles.status} ${styles.error}`} role="alert">

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { BrowserController } from '../dist/renderer/live-browser/controller.js'
+import { BrowserController } from '../dist/renderer/browser/controller.js'
 
 function deferred() {
   let resolve
@@ -42,7 +42,7 @@ function setup() {
   const listeners = new Set()
   let unsubscribes = 0
   const api = {
-    mode: 'live-browser-poc',
+    mode: 'browser-poc',
     chooseFolder: async () => null,
     start(input) {
       const result = deferred()

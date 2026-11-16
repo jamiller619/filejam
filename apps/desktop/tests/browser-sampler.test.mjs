@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { startSampler } from './live-browser-sampler.mjs'
+import { startSampler } from './browser-sampler.mjs'
 
 test('sampler converts KiB, explains unsupported values, and stops idempotently', async () => {
   const sampler = startSampler({

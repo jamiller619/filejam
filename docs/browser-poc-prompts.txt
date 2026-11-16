@@ -1,6 +1,6 @@
-FILEJAM LIVE BROWSER PROOF -- START HERE
+FILEJAM BROWSER PROOF -- START HERE
 COMPLETED: all 50 tasks have PASS receipts. Tasks 42-50 were finished directly.
-Handoff and measured baseline: docs/live-browser-poc-completion.md
+Handoff and measured baseline: docs/browser-poc-completion.md
 Launch: pnpm poc:live | Tests: pnpm poc:test | Benchmark: pnpm poc:bench
 
 Revision 3: one index, small task packets, supplied code and independent checks.
@@ -21,7 +21,7 @@ with filesystem/shell tools and should be treated as a short-lived experiment.
 These are API rates, not exact Codex subscription/credit charges or task quotes.
 Reasoning tokens, tool output and retries count. The kit has not been benchmarked
 against these models; success or a fixed task cost is not guaranteed.
-Sources and explanation: docs/live-browser-poc/model-options.md
+Sources and explanation: docs/browser-poc/model-options.md
 Official source: https://developers.openai.com/api/docs/pricing
 
 WHAT CHANGED
@@ -34,19 +34,19 @@ No application implementation has been installed by creating this kit.
 
 AUTOMATIC QUEUE (NO COPYING BETWEEN CHATS)
 From this checkout, run:
-  node docs/live-browser-poc/automation.mjs
+  node docs/browser-poc/automation.mjs
 
 Preview without starting agents:
-  node docs/live-browser-poc/automation.mjs --dry-run
+  node docs/browser-poc/automation.mjs --dry-run
 
 The runner uses Codex CLI, starts a fresh context per task, verifies required
 commands independently, saves progress, and advances sequentially. Run the same
-command again to resume. Full instructions: docs/live-browser-poc/automation.txt
+command again to resume. Full instructions: docs/browser-poc/automation.txt
 
 HOW TO RUN A TASK MANUALLY
 Open a fresh coding-agent chat in this existing checkout and send:
 
-  Run node docs/live-browser-poc/packet.mjs 01.
+  Run node docs/browser-poc/packet.mjs 01.
   Execute only the task packet it prints. Read root AGENTS.md and the named
   source files. Preserve current user changes. Run the packet's checks and
   write its result receipt. Do not read all other tasks or execute the next one.
@@ -59,9 +59,9 @@ Give the agent tools to read/edit local files and run commands; plain chat-only
 text generation cannot execute the acceptance checks.
 
 Useful commands:
-  node docs/live-browser-poc/packet.mjs --list
-  node docs/live-browser-poc/packet.mjs --check
-  node docs/live-browser-poc/packet.mjs 05
+  node docs/browser-poc/packet.mjs --list
+  node docs/browser-poc/packet.mjs --check
+  node docs/browser-poc/packet.mjs 05
 
 ORDER
   01       Baseline and prerequisites

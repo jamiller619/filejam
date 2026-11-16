@@ -106,9 +106,8 @@ export function CustomIconImage({
       data-color={icon?.kind === 'library' ? icon.color : undefined}
       aria-hidden="true"
     >
-      {data ? (
-        <LibraryIcon icon={data} width={size} height={size} />
-      ) : upload ? (
+      {data && <LibraryIcon icon={data} width={size} height={size} />}
+      {!data && upload && (
         <img
           src={`filejam-icon://asset/${upload}`}
           alt=""
@@ -117,9 +116,8 @@ export function CustomIconImage({
             onError?.()
           }}
         />
-      ) : (
-        fallback
       )}
+      {!data && !upload && fallback}
     </span>
   )
 }

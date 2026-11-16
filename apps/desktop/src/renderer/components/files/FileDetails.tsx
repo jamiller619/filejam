@@ -172,6 +172,9 @@ export default function FileDetails({
   const activeSection =
     sectionSelection.entryId === entry.id ? sectionSelection.name : 'preview'
 
+  const fullPath =
+    rootPath === undefined ? '—' : formatFullPath(rootPath, entry.relativePath)
+
   return (
     <DetailsPane
       bodyClassName={styles.details}
@@ -259,9 +262,7 @@ export default function FileDetails({
             <dt>{fileColumnLabels[column]}</dt>
             <dd title={formatFileValueTitle(entry, column, dateFormat)}>
               {column === 'relativePath'
-                ? rootPath === undefined
-                  ? '—'
-                  : formatFullPath(rootPath, entry.relativePath)
+                ? fullPath
                 : formatFileValue(entry, column, dateFormat)}
             </dd>
           </div>

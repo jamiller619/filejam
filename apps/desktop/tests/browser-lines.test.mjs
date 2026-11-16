@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { JsonLineReader } from '../dist/live-browser/lines.js'
+import { JsonLineReader } from '../dist/browser/lines.js'
 
 const ready = Buffer.from('{"v":1,"type":"ready"}\n')
 

@@ -5,7 +5,7 @@ import { cpus, platform, release, tmpdir, totalmem } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import electron from 'electron'
-import { createBenchmarkFixture } from './live-browser-fixtures.mjs'
+import { createBenchmarkFixture } from './browser-fixtures.mjs'
 
 const args = process.argv.slice(2)
 assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--sizes'))
@@ -45,7 +45,7 @@ try {
   )
   const env = {
     ...process.env,
-    FILEJAM_LIVE_BROWSER_POC: '1',
+    FILEJAM_BROWSER_POC: '1',
     FILEJAM_BENCH_DIRECTORY: directory,
     FILEJAM_BENCH_SIZES: JSON.stringify(sizes),
     FILEJAM_BENCH_OUTPUT: output,
@@ -54,7 +54,7 @@ try {
   delete env.ELECTRON_RUN_AS_NODE
   child = spawn(
     electron,
-    [fileURLToPath(new URL('./live-browser-bench.mjs', import.meta.url))],
+    [fileURLToPath(new URL('./browser-bench.mjs', import.meta.url))],
     { env, stdio: 'inherit' },
   )
   deadline = setTimeout(() => child.kill(), 30 * 60_000)

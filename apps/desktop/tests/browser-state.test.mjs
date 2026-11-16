@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   createInitialState,
   reduceBrowserState,
-} from '../dist/renderer/live-browser/state.js'
+} from '../dist/renderer/browser/state.js'
 
 const options = { nameContains: 'photo', kind: 'file', sortDirection: 'desc' }
 const entry = { path: '/photos/a.jpg', name: 'a.jpg', kind: 'file' }

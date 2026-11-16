@@ -348,27 +348,32 @@ export class FileScanner implements ScannerApi {
     const active = this.#slots.flatMap((slot) => (slot.root ? [slot.root] : []))
     const queued = [...this.#queue]
 
-    const state =
-      active.length || queued.length
-        ? 'scanning'
-        : libraries.some((s) => s.state === 'cancelled')
-          ? 'cancelled'
-          : libraries.some((s) => s.state === 'failed')
-            ? 'failed'
-            : libraries.length
-              ? 'completed'
-              : 'idle'
+    let state: ScannerStatus['state'] = 'idle'
+
+    if (active.length || queued.length) {
+      state = 'scanning'
+    } else if (libraries.some((s) => s.state === 'cancelled')) {
+      state = 'cancelled'
+    } else if (libraries.some((s) => s.state === 'failed')) {
+      state = 'failed'
+    } else if (libraries.length) {
+      state = 'completed'
+    }
+
+    let phase: ScannerStatus['phase'] = 'idle'
+
+    if (active.length) {
+      phase = libraries.some(
+        (s) => s.state === 'scanning' && s.phase === 'checking',
+      )
+        ? 'checking'
+        : 'crawling'
+    }
 
     return {
       state,
       root: libraries.length === 1 ? (libraries[0]?.root ?? null) : null,
-      phase: active.length
-        ? libraries.some(
-            (s) => s.state === 'scanning' && s.phase === 'checking',
-          )
-          ? 'checking'
-          : 'crawling'
-        : 'idle',
+      phase,
       total: libraries.reduce((n, s) => n + s.total, 0),
       processed: libraries.reduce((n, s) => n + s.processed, 0),
       error: libraries.find((s) => s.error)?.error ?? null,

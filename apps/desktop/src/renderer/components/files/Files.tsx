@@ -201,20 +201,22 @@ function FolderContents({
       header: fileColumnLabels[column],
     }))
   }, [columns, libraryRoots])
-  const request = useCallback(
-    () =>
-      collectionId
-        ? api.collections.listEntries(collectionId)
-        : libraryId !== undefined && relativePath !== undefined
-          ? api.entries.listChildren({
-              libraryId,
-              relativePath,
-              recursive: effectiveFlatten,
-              ...(search ? { search } : {}),
-            })
-          : Promise.reject(new Error('Missing file source')),
-    [api, collectionId, effectiveFlatten, libraryId, relativePath, search],
-  )
+  const request = useCallback(() => {
+    if (collectionId) {
+      return api.collections.listEntries(collectionId)
+    }
+
+    if (libraryId !== undefined && relativePath !== undefined) {
+      return api.entries.listChildren({
+        libraryId,
+        relativePath,
+        recursive: effectiveFlatten,
+        ...(search ? { search } : {}),
+      })
+    }
+
+    return Promise.reject(new Error('Missing file source'))
+  }, [api, collectionId, effectiveFlatten, libraryId, relativePath, search])
   const queryKey = useMemo(
     () =>
       queryKeys.files({
@@ -458,9 +460,8 @@ function FolderContents({
           setPreferences((current) => ({ ...current, viewMode }))
         }
       />
-      {!listing ? (
-        <p role="status">Loading files…</p>
-      ) : viewMode === 'list' ? (
+      {!listing && <p role="status">Loading files…</p>}
+      {listing && viewMode === 'list' && (
         <FilesTable
           table={table}
           listing={listing}
@@ -479,7 +480,8 @@ function FolderContents({
           onToggleGroup={toggleGroup}
           onWidthChange={setTableWidth}
         />
-      ) : (
+      )}
+      {listing && viewMode !== 'list' && (
         <FilesGrid
           listing={listing}
           viewMode={viewMode}

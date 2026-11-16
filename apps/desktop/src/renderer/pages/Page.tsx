@@ -216,12 +216,13 @@ function PageContents({ children, split }: PageContentsProps) {
     })
   }
 
-  const splitView =
-    splitViewState.storageKey === storageKey
-      ? splitViewState.value
-      : storageKey
-        ? readSplitViewState(storageKey)
-        : { open: false, layout: defaultSplitLayout }
+  let splitView = splitViewState.value
+
+  if (splitViewState.storageKey !== storageKey) {
+    splitView = storageKey
+      ? readSplitViewState(storageKey)
+      : { open: false, layout: defaultSplitLayout }
+  }
 
   function updateSplitView(
     update: (current: SplitViewState) => SplitViewState,

@@ -195,6 +195,8 @@ export default function FilePreview({
 
   const source = `filejam-preview://preview-image?${params}`
   const shouldLoad = detail || nearViewport || settledSource === source
+  const thumbnailHeight =
+    naturalSize || typeof size !== 'number' ? 'auto' : size
 
   useEffect(() => {
     const container = containerRef.current
@@ -230,11 +232,7 @@ export default function FilePreview({
       )}
       style={{
         width: detail || naturalSize ? undefined : size,
-        height: detail
-          ? undefined
-          : naturalSize || typeof size !== 'number'
-            ? 'auto'
-            : size,
+        height: detail ? undefined : thumbnailHeight,
       }}
     >
       {shouldLoad && (

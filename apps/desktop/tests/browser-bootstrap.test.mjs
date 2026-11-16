@@ -5,27 +5,25 @@ import {
   createProofCleanup,
   proofWindowOptions,
   resolveProofPaths,
-} from '../dist/live-browser/bootstrap.js'
+} from '../dist/browser/bootstrap.js'
 
 test('proof paths resolve from the module URL independently of cwd', () => {
-  const moduleUrl = new URL(
-    '../dist/live-browser/bootstrap.js',
-    import.meta.url,
-  ).href
+  const moduleUrl = new URL('../dist/browser/bootstrap.js', import.meta.url)
+    .href
   const paths = resolveProofPaths(moduleUrl, 'win32')
 
   assert.equal(
     paths.executable,
     fileURLToPath(
       new URL(
-        '../dist/live-browser/../../../../packages/fs-service/target/release/filejam-fs-service.exe',
+        '../dist/browser/../../../../packages/fs-service/target/release/filejam-fs-service.exe',
         import.meta.url,
       ),
     ),
   )
   assert.equal(
     paths.preload,
-    fileURLToPath(new URL('../dist/live-browser/preload.cjs', import.meta.url)),
+    fileURLToPath(new URL('../dist/browser/preload.cjs', import.meta.url)),
   )
   assert.equal(
     paths.renderer,

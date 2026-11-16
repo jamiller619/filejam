@@ -20,10 +20,16 @@ type RegisteredProvider = {
 export class EntryRegistry {
   readonly providers: RegisteredProvider[] = []
 
+  readonly #platform: EntryPlatform
+  readonly #log: (message: string) => void
+
   constructor(
-    private readonly platform: EntryPlatform,
-    private readonly log: (message: string) => void = () => undefined,
-  ) {}
+    platform: EntryPlatform,
+    log: (message: string) => void = () => undefined,
+  ) {
+    this.#platform = platform
+    this.#log = log
+  }
 
   register(manifest: EntryManifest, provider: EntryProvider) {
     validateManifest(manifest)
@@ -90,7 +96,8 @@ export class EntryRegistry {
 
     for (const { manifest } of this.providers) {
       const contribution = manifest.folders.find(
-        (folder) => folder.typeId === typeId && this.supports(folder.platforms),
+        (folder) =>
+          folder.typeId === typeId && this.#supports(folder.platforms),
       )
 
       if (contribution) {
@@ -107,7 +114,7 @@ export class EntryRegistry {
     for (const { manifest, provider } of this.providers) {
       const types = manifest.entries.filter(
         (entry) =>
-          this.supports(entry.platforms) &&
+          this.#supports(entry.platforms) &&
           entry.kinds.includes(request.kind) &&
           entry.extensions.includes(extension),
       )
@@ -118,7 +125,7 @@ export class EntryRegistry {
 
       const resolution = await provider.resolve(request, {
         signal: AbortSignal.timeout(5_000),
-        log: (message) => this.log(`[${manifest.id}] ${message}`),
+        log: (message) => this.#log(`[${manifest.id}] ${message}`),
       })
 
       if (!resolution) {
@@ -137,8 +144,8 @@ export class EntryRegistry {
     return null
   }
 
-  private supports(platforms: EntryPlatform[] | undefined) {
-    return !platforms || platforms.includes(this.platform)
+  #supports(platforms: EntryPlatform[] | undefined) {
+    return !platforms || platforms.includes(this.#platform)
   }
 }
 

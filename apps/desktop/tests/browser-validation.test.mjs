@@ -4,7 +4,7 @@ import {
   parseServiceEvent,
   validateRequestId,
   validateStartInput,
-} from '../dist/live-browser/validate.js'
+} from '../dist/browser/validate.js'
 
 const options = { nameContains: '', kind: 'all', sortDirection: 'asc' }
 const id = 'r-1'

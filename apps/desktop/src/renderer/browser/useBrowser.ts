@@ -1,12 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type {
-  LiveBrowserApi,
-  ViewOptions,
-} from '../../live-browser/protocol.js'
+import type { BrowserApi, ViewOptions } from '../../browser/protocol.js'
 import { BrowserController } from './controller.js'
 import { type BrowserState, createInitialState } from './state.js'
 
-export function useLiveBrowser(api: LiveBrowserApi) {
+export function useBrowser(api: BrowserApi) {
   const [state, setState] = useState<BrowserState>(createInitialState)
   const [controller, setController] = useState<BrowserController | null>(null)
   const timingNode = useRef<HTMLOutputElement>(null)

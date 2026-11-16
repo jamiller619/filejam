@@ -5,8 +5,8 @@ const MAX_LINE_BYTES = 1_048_576
 const decoder = new TextDecoder('utf-8', { fatal: true })
 
 export class JsonLineReader {
-  private fragments: Buffer[] = []
-  private pendingBytes = 0
+  #fragments: Buffer[] = []
+  #pendingBytes = 0
 
   push(chunk: Buffer): ServiceEvent[] {
     const events: ServiceEvent[] = []
@@ -17,10 +17,10 @@ export class JsonLineReader {
         continue
       }
 
-      this.append(chunk.subarray(start, index))
-      let frame = Buffer.concat(this.fragments, this.pendingBytes)
-      this.fragments = []
-      this.pendingBytes = 0
+      this.#append(chunk.subarray(start, index))
+      let frame = Buffer.concat(this.#fragments, this.#pendingBytes)
+      this.#fragments = []
+      this.#pendingBytes = 0
 
       if (frame.length > 0 && frame[frame.length - 1] === 0x0d) {
         frame = frame.subarray(0, frame.length - 1)
@@ -35,26 +35,26 @@ export class JsonLineReader {
       start = index + 1
     }
 
-    this.append(chunk.subarray(start))
+    this.#append(chunk.subarray(start))
     return events
   }
 
   end(): void {
-    if (this.pendingBytes !== 0) {
+    if (this.#pendingBytes !== 0) {
       throw new TypeError('Unexpected end of JSON line')
     }
   }
 
-  private append(fragment: Buffer): void {
+  #append(fragment: Buffer): void {
     if (fragment.length === 0) {
       return
     }
 
-    if (this.pendingBytes + fragment.length > MAX_LINE_BYTES + 1) {
+    if (this.#pendingBytes + fragment.length > MAX_LINE_BYTES + 1) {
       throw new RangeError('JSON line exceeds maximum size')
     }
 
-    this.fragments.push(fragment)
-    this.pendingBytes += fragment.length
+    this.#fragments.push(fragment)
+    this.#pendingBytes += fragment.length
   }
 }

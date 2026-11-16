@@ -1,8 +1,8 @@
 import { Button, Input, Select, Theme } from '@filejam/ui'
 import { useState } from 'react'
-import type { ViewOptions } from '../../live-browser/protocol.js'
+import type { ViewOptions } from '../../browser/protocol.js'
 import EntryList from './EntryList.js'
-import { useLiveBrowser } from './useLiveBrowser.js'
+import { useBrowser } from './useBrowser.js'
 
 const initialOptions: ViewOptions = {
   nameContains: '',
@@ -11,10 +11,10 @@ const initialOptions: ViewOptions = {
 }
 
 export default function Browser() {
-  const api = window.liveBrowser
+  const api = window.browser
   const [draftPath, setDraftPath] = useState('')
   const [draftOptions, setDraftOptions] = useState(initialOptions)
-  const { state, navigate, select, timingNode } = useLiveBrowser(
+  const { state, navigate, select, timingNode } = useBrowser(
     api ?? unavailableApi,
   )
   const location = state.resolvedPath
@@ -46,24 +46,27 @@ export default function Browser() {
     }
   }
 
-  const status = !api
-    ? 'Live browser service unavailable'
-    : state.phase === 'loading'
-      ? 'Loading'
-      : state.phase === 'receiving'
-        ? `Loading ${state.entries.length} of ${state.total ?? 0}`
-        : state.phase === 'error'
-          ? (state.error ?? 'Unknown error')
-          : state.phase === 'complete'
-            ? state.entries.length === 0
-              ? 'No matching entries'
-              : `${state.total ?? state.entries.length} entries`
-            : 'Choose a folder'
+  let status = 'Choose a folder'
+
+  if (!api) {
+    status = 'Browser service unavailable'
+  } else if (state.phase === 'loading') {
+    status = 'Loading'
+  } else if (state.phase === 'receiving') {
+    status = `Loading ${state.entries.length} of ${state.total ?? 0}`
+  } else if (state.phase === 'error') {
+    status = state.error ?? 'Unknown error'
+  } else if (state.phase === 'complete') {
+    status =
+      state.entries.length === 0
+        ? 'No matching entries'
+        : `${state.total ?? state.entries.length} entries`
+  }
 
   return (
     <Theme>
       <main
-        data-testid="live-browser"
+        data-testid="browser"
         data-generation={state.generation}
         data-phase={state.phase}
         data-received={state.entries.length}
@@ -198,7 +201,7 @@ export default function Browser() {
 }
 
 const unavailableApi = {
-  mode: 'live-browser-poc',
+  mode: 'browser-poc',
   chooseFolder: async () => null,
   start: async () => ({ id: '' }),
   next: async () => {},

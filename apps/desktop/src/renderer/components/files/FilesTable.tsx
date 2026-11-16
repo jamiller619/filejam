@@ -29,6 +29,12 @@ import type {
 import FilesGroupToggle from './FilesGroupToggle.js'
 import { findVerticalScrollElement } from './fileScroll.js'
 
+const ariaSortLabels = {
+  asc: 'ascending',
+  desc: 'descending',
+  none: 'none',
+} as const
+
 const styles = css`
   @keyframes folder-drag-lift {
     0% { transform: translateY(0) scale(1); }
@@ -358,11 +364,7 @@ export default function FilesTable({
                   data-type={fileColumnTypes[header.column.id as FileColumn]}
                   scope="col"
                   aria-sort={
-                    header.column.getIsSorted() === 'asc'
-                      ? 'ascending'
-                      : header.column.getIsSorted() === 'desc'
-                        ? 'descending'
-                        : 'none'
+                    ariaSortLabels[header.column.getIsSorted() || 'none']
                   }
                 >
                   <button

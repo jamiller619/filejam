@@ -7,7 +7,7 @@ import {
   createBenchmarkFixture,
   expectedBenchmarkNames,
   statistics,
-} from './live-browser-fixtures.mjs'
+} from './browser-fixtures.mjs'
 
 test('statistics preserve all samples and use nearest-rank p95', () => {
   assert.deepEqual(statistics([]), { count: 0, median: null, p95: null })

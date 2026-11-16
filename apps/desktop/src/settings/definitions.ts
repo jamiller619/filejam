@@ -48,15 +48,17 @@ export function createSettingDefinitions(
         return []
       }
 
-      const control = property.enum
-        ? 'select'
-        : property.type === 'boolean'
-          ? 'switch'
-          : property.type === 'string'
-            ? 'text'
-            : property.type === 'number' || property.type === 'integer'
-              ? 'number'
-              : null
+      let control: SettingDefinition['control'] | undefined
+
+      if (property.enum) {
+        control = 'select'
+      } else if (property.type === 'boolean') {
+        control = 'switch'
+      } else if (property.type === 'string') {
+        control = 'text'
+      } else if (property.type === 'number' || property.type === 'integer') {
+        control = 'number'
+      }
 
       if (!control) {
         throw new Error(
@@ -126,8 +128,17 @@ export function getSettingGroups() {
 export function formatSettingValue(setting: SettingDefinition, value: unknown) {
   const current = value ?? setting.defaultValue
 
-  return (
-    setting.options.find((option) => option.value === current)?.label ??
-    (typeof current === 'boolean' ? (current ? 'On' : 'Off') : String(current))
-  )
+  const label = setting.options.find(
+    (option) => option.value === current,
+  )?.label
+
+  if (label !== undefined) {
+    return label
+  }
+
+  if (typeof current === 'boolean') {
+    return current ? 'On' : 'Off'
+  }
+
+  return String(current)
 }

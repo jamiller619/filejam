@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useRef } from 'react'
-import type { Entry } from '../../live-browser/protocol.js'
+import type { Entry } from '../../browser/protocol.js'
 
 type EntryListProps = {
   entries: Entry[]
@@ -61,7 +61,7 @@ export default function EntryList({
         overflow: 'auto',
         position: 'relative',
       }}
-      className="live-browser-entry-list"
+      className="browser-entry-list"
     >
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
         {virtualizer.getVirtualItems().map((row) => {
@@ -120,7 +120,7 @@ export default function EntryList({
           )
         })}
       </div>
-      <style>{`.live-browser-entry-list:focus-visible { outline: 2px solid var(--suzy-accent-9); outline-offset: -2px; }`}</style>
+      <style>{`.browser-entry-list:focus-visible { outline: 2px solid var(--suzy-accent-9); outline-offset: -2px; }`}</style>
     </div>
   )
 }

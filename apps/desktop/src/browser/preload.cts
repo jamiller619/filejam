@@ -1,19 +1,19 @@
-import type { BridgeEvent, LiveBrowserApi } from './protocol.js'
+import type { BridgeEvent, BrowserApi } from './protocol.js'
 
 import electron = require('electron')
 
 const { contextBridge, ipcRenderer } = electron
 
 const channels = {
-  chooseFolder: 'live-browser:choose-folder',
-  start: 'live-browser:start',
-  next: 'live-browser:next',
-  cancel: 'live-browser:cancel',
-  event: 'live-browser:event',
+  chooseFolder: 'browser:choose-folder',
+  start: 'browser:start',
+  next: 'browser:next',
+  cancel: 'browser:cancel',
+  event: 'browser:event',
 } as const
 
-const liveBrowser: LiveBrowserApi = {
-  mode: 'live-browser-poc',
+const browser: BrowserApi = {
+  mode: 'browser-poc',
   chooseFolder: () => ipcRenderer.invoke(channels.chooseFolder),
   start: (input) => ipcRenderer.invoke(channels.start, input),
   next: (id) => ipcRenderer.invoke(channels.next, id),
@@ -31,4 +31,4 @@ const liveBrowser: LiveBrowserApi = {
   },
 }
 
-contextBridge.exposeInMainWorld('liveBrowser', liveBrowser)
+contextBridge.exposeInMainWorld('browser', browser)

@@ -59,8 +59,8 @@ export type StartInput = {
   options: ViewOptions
 }
 
-export type LiveBrowserApi = {
-  readonly mode: 'live-browser-poc'
+export type BrowserApi = {
+  readonly mode: 'browser-poc'
   chooseFolder(): Promise<string | null>
   start(input: StartInput): Promise<{ id: string }>
   next(id: string): Promise<void>
@@ -70,6 +70,6 @@ export type LiveBrowserApi = {
 
 declare global {
   interface Window {
-    liveBrowser?: LiveBrowserApi
+    browser?: BrowserApi
   }
 }

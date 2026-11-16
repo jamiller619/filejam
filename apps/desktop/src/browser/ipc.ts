@@ -1,16 +1,16 @@
 import { createRequire } from 'node:module'
 import type { BrowserWindow, IpcMain, OpenDialogOptions } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
-import type { LiveBrowserClient } from './client.js'
+import type { BrowserClient } from './client.js'
 import type { BridgeEvent } from './protocol.js'
 import { validateRequestId, validateStartInput } from './validate.js'
 
 const channels = {
-  chooseFolder: 'live-browser:choose-folder',
-  start: 'live-browser:start',
-  next: 'live-browser:next',
-  cancel: 'live-browser:cancel',
-  event: 'live-browser:event',
+  chooseFolder: 'browser:choose-folder',
+  start: 'browser:start',
+  next: 'browser:next',
+  cancel: 'browser:cancel',
+  event: 'browser:event',
 } as const
 
 const require = createRequire(import.meta.url)
@@ -23,10 +23,10 @@ type DialogRegistry = {
   ) => Promise<{ canceled: boolean; filePaths: string[] }>
 }
 
-type Client = Pick<LiveBrowserClient, 'list' | 'next' | 'cancel'>
+type Client = Pick<BrowserClient, 'list' | 'next' | 'cancel'>
 
 /** Register the proof-only IPC surface for one owning window. */
-export function registerLiveBrowserIpc(
+export function registerBrowserIpc(
   window: BrowserWindow,
   client: Client,
   main?: IpcRegistry,

@@ -18,6 +18,7 @@
     "rules": {
       "preset": "recommended",
       "style": {
+        "noNestedTernary": "error",
         "useBlockStatements": "error"
       }
     }

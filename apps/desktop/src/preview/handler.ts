@@ -137,6 +137,14 @@ export function createPreviewHandler(
 
       const variant =
         url.searchParams.get('variant') === 'grid' ? 'grid' : 'list'
+      let kind: 'file' | 'directory' | 'symlink' = 'file'
+
+      if (info.isDirectory()) {
+        kind = 'directory'
+      } else if (info.isSymbolicLink()) {
+        kind = 'symlink'
+      }
+
       const presentation = entryRegistry
         ? await entryRegistry.resolve({
             path: file,
@@ -144,11 +152,7 @@ export function createPreviewHandler(
               library.rootPath === file
                 ? library.name
                 : (path.split('/').at(-1) ?? path),
-            kind: info.isDirectory()
-              ? 'directory'
-              : info.isSymbolicLink()
-                ? 'symlink'
-                : 'file',
+            kind,
           })
         : null
 

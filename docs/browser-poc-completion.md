@@ -60,7 +60,7 @@ the frozen baseline. `pnpm check` therefore still exits 1; this is not a clean-l
 Benchmark JSON and run logs are ignored local artifacts. The task kit itself is also
 currently ignored by the repository's existing `.gitignore` configuration.
 
-Final measured results and task receipts are recorded under `docs/live-browser-poc/results/`.
+Final measured results and task receipts are recorded under `docs/browser-poc/results/`.
 
 ## Final measured baseline
 

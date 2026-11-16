@@ -2,13 +2,13 @@ import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { BrowserWindow } from 'electron'
-import { LiveBrowserClient } from './client.js'
-import { registerLiveBrowserIpc } from './ipc.js'
+import { BrowserClient } from './client.js'
+import { registerBrowserIpc } from './ipc.js'
 
-type ProofSession = { window: BrowserWindow; client: LiveBrowserClient }
+type ProofSession = { window: BrowserWindow; client: BrowserClient }
 type ProofPaths = { executable: string; preload: string; renderer: string }
 type CleanupSession = {
-  client: Pick<LiveBrowserClient, 'close'>
+  client: Pick<BrowserClient, 'close'>
   disposeIpc: () => void
   closeWindow: () => void
 }
@@ -17,7 +17,7 @@ let session: ProofSession | null = null
 let cleanupPromise: Promise<void> | null = null
 let cleanupComplete = false
 let quitPending = false
-let proofClient: LiveBrowserClient | null = null
+let proofClient: BrowserClient | null = null
 let disposeProofIpc: (() => void) | null = null
 let windowClosed = false
 const require = createRequire(import.meta.url)
@@ -100,7 +100,7 @@ export async function startProof(): Promise<void> {
     await app.whenReady()
 
     const paths = resolveProofPaths(import.meta.url)
-    const client = new LiveBrowserClient(paths.executable)
+    const client = new BrowserClient(paths.executable)
     proofClient = client
     const startPromise = client.start()
     if (windowClosed || quitPending) {
@@ -117,7 +117,7 @@ export async function startProof(): Promise<void> {
 
     const window = new BrowserWindow(proofWindowOptions(paths.preload))
     session = { window, client }
-    disposeProofIpc = registerLiveBrowserIpc(window, client)
+    disposeProofIpc = registerBrowserIpc(window, client)
     const rendererUrl = pathToFileURL(paths.renderer).href
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     window.webContents.on('will-navigate', (event, destination) => {
@@ -155,7 +155,7 @@ export async function startProof(): Promise<void> {
 
     await window.loadFile(paths.renderer)
   } catch (error) {
-    console.error('Live browser proof startup failed', error)
+    console.error('Browser proof startup failed', error)
     await cleanup()
     app.exit(1)
   }

@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import test from 'node:test'
-import { LiveBrowserClient } from '../dist/live-browser/client.js'
+import { BrowserClient } from '../dist/browser/client.js'
 
 function fakeChild() {
   const child = new EventEmitter()
@@ -26,7 +26,7 @@ function fakeChild() {
 test('main timings use one clock, preserve service durations, and reset for empty listings', async () => {
   const child = fakeChild()
   let now = 100
-  const client = new LiveBrowserClient('service', {
+  const client = new BrowserClient('service', {
     spawn: () => child,
     now: () => now,
     closeTimeoutMs: 1,
@@ -83,7 +83,7 @@ test('main timings use one clock, preserve service durations, and reset for empt
 
 test('waits for ready and closes idempotently', async () => {
   const child = fakeChild()
-  const client = new LiveBrowserClient('trusted.exe', { spawn: () => child })
+  const client = new BrowserClient('trusted.exe', { spawn: () => child })
   const starting = client.start()
   assert.equal(client.pid, 123)
   child.ready()
@@ -99,7 +99,7 @@ test('waits for ready and closes idempotently', async () => {
 })
 
 test('missing executable rejects with build instruction', async () => {
-  const client = new LiveBrowserClient('missing.exe', {
+  const client = new BrowserClient('missing.exe', {
     spawn: () => {
       const error = new Error('missing')
       error.code = 'ENOENT'
@@ -111,7 +111,7 @@ test('missing executable rejects with build instruction', async () => {
 
 test('never-ready child rejects and is terminated', async () => {
   const child = fakeChild()
-  const client = new LiveBrowserClient('service', {
+  const client = new BrowserClient('service', {
     spawn: () => child,
     readyTimeoutMs: 5,
   })
@@ -123,7 +123,7 @@ test('never-ready child rejects and is terminated', async () => {
 
 test('duplicate ready after startup makes the session unavailable', async () => {
   const child = fakeChild()
-  const client = new LiveBrowserClient('service', { spawn: () => child })
+  const client = new BrowserClient('service', { spawn: () => child })
   const starting = client.start()
   child.ready()
   await starting
@@ -135,7 +135,7 @@ test('duplicate ready after startup makes the session unavailable', async () => 
 
 test('close before ready settles startup and does not restart', async () => {
   const child = fakeChild()
-  const client = new LiveBrowserClient('service', {
+  const client = new BrowserClient('service', {
     spawn: () => child,
     closeTimeoutMs: 5,
   })
@@ -147,7 +147,7 @@ test('close before ready settles startup and does not restart', async () => {
 })
 
 test('closing before start does not spawn a process', async () => {
-  const client = new LiveBrowserClient('service', {
+  const client = new BrowserClient('service', {
     spawn: () => assert.fail('must not spawn'),
   })
   const closed = client.close()
@@ -162,7 +162,7 @@ test('pipe errors and incomplete stdout settle startup and clean listeners', asy
     (child) => child.stdout.end('{'),
   ]) {
     const child = fakeChild()
-    const client = new LiveBrowserClient('service', { spawn: () => child })
+    const client = new BrowserClient('service', { spawn: () => child })
     const rejected = assert.rejects(client.start())
     trigger(child)
     await rejected
@@ -179,7 +179,7 @@ test('duplicate ready and malformed output fail the session', async () => {
     '{bad}\n',
   ]) {
     const child = fakeChild()
-    const client = new LiveBrowserClient('service', { spawn: () => child })
+    const client = new BrowserClient('service', { spawn: () => child })
     const starting = client.start()
     child.stdout.write(output)
     await assert.rejects(starting)
@@ -189,7 +189,7 @@ test('duplicate ready and malformed output fail the session', async () => {
 
 test('unexpected exit rejects startup', async () => {
   const child = fakeChild()
-  const client = new LiveBrowserClient('service', { spawn: () => child })
+  const client = new BrowserClient('service', { spawn: () => child })
   const starting = client.start()
   child.emit('exit', 2, null)
   await assert.rejects(starting, /exited/)
@@ -200,7 +200,7 @@ test('close kills a child that does not exit', async () => {
   child.kill = () => {
     child.killCount += 1
   }
-  const client = new LiveBrowserClient('service', {
+  const client = new BrowserClient('service', {
     spawn: () => child,
     closeTimeoutMs: 5,
   })
@@ -225,19 +225,22 @@ test('backpressure queues commands in order and resumes once on drain', async ()
 
     return true
   }
-  const client = new LiveBrowserClient('service', { spawn: () => child })
+  const client = new BrowserClient('service', { spawn: () => child })
   const starting = client.start()
   child.ready()
   await starting
 
-  client.enqueue('first\n')
-  client.enqueue('second\n')
+  const id = client.list('C:\\one', { kind: 'all' }, () => {})
+  client.cancel(id)
   assert.equal(writes.length, 1)
   assert.equal(child.stdin.listenerCount('drain'), 1)
 
   child.stdin.emit('drain')
   assert.equal(writes.length, 2)
-  assert.deepEqual(writes, ['first\n', 'second\n'])
+  assert.deepEqual(
+    writes.map((command) => JSON.parse(command).type),
+    ['list', 'cancel'],
+  )
   assert.equal(child.stdin.listenerCount('drain'), 1)
   await client.close()
 })
@@ -245,13 +248,13 @@ test('backpressure queues commands in order and resumes once on drain', async ()
 test('command queue overflow fails the session visibly', async () => {
   const child = fakeChild()
   child.stdin.write = () => false
-  const client = new LiveBrowserClient('service', { spawn: () => child })
+  const client = new BrowserClient('service', { spawn: () => child })
   const starting = client.start()
   child.ready()
   await starting
 
   for (let index = 0; index < 34; index += 1) {
-    client.enqueue(`item-${index}\n`)
+    client.list(`C:\\item-${index}`, { kind: 'all' }, () => {})
   }
 
   assert.equal(child.killCount, 1)
@@ -262,14 +265,14 @@ test('command queue overflow fails the session visibly', async () => {
 test('close while backpressured settles by deadline and kills the child', async () => {
   const child = fakeChild()
   child.stdin.write = () => false
-  const client = new LiveBrowserClient('service', {
+  const client = new BrowserClient('service', {
     spawn: () => child,
     closeTimeoutMs: 5,
   })
   const starting = client.start()
   child.ready()
   await starting
-  client.enqueue('paused\n')
+  client.list('C:\\one', { kind: 'all' }, () => {})
 
   await client.close()
   assert.equal(child.killCount, 1)
@@ -282,7 +285,7 @@ test('real service sends ready and closes once', async (context) => {
     context.skip('FILEJAM_FS_SERVICE is not configured')
     return
   }
-  const client = new LiveBrowserClient(executable, { spawn })
+  const client = new BrowserClient(executable, { spawn })
   await client.start()
   await client.close()
 })
@@ -294,7 +297,7 @@ test('listing returns before callbacks, retires old ids, and cancels locally bef
     writes.push(JSON.parse(command))
     return true
   }
-  const client = new LiveBrowserClient('service', { spawn: () => child })
+  const client = new BrowserClient('service', { spawn: () => child })
   const starting = client.start()
   child.ready()
   await starting
@@ -354,7 +357,7 @@ test('pulls one batch per next and validates listing sequence', async () => {
     writes.push(JSON.parse(command))
     return true
   }
-  const client = new LiveBrowserClient('service', { spawn: () => child })
+  const client = new BrowserClient('service', { spawn: () => child })
   const starting = client.start()
   child.ready()
   await starting
@@ -388,7 +391,7 @@ test('pulls one batch per next and validates listing sequence', async () => {
 test('unsolicited batch and premature done fail before the error callback', async () => {
   for (const terminal of ['batch', 'done']) {
     const child = fakeChild()
-    const client = new LiveBrowserClient('service', { spawn: () => child })
+    const client = new BrowserClient('service', { spawn: () => child })
     const starting = client.start()
     child.ready()
     await starting
@@ -436,12 +439,10 @@ test('real service listing completes through renderer pulls', async (context) =>
     context.skip('FILEJAM_FS_SERVICE is not configured')
     return
   }
-  const client = new LiveBrowserClient(executable, { spawn })
+  const client = new BrowserClient(executable, { spawn })
   await client.start()
-  const root = new URL(
-    '../../../docs/live-browser-poc/fixtures/',
-    import.meta.url,
-  ).pathname
+  const root = new URL('../../../docs/browser-poc/fixtures/', import.meta.url)
+    .pathname
   const fixturePath =
     process.platform === 'win32'
       ? decodeURIComponent(root).replace(/^\//, '')
@@ -479,7 +480,7 @@ test('real service listing completes through renderer pulls', async (context) =>
 
 test('malformed event for a retired listing still fails protocol validation', async () => {
   const child = fakeChild()
-  const client = new LiveBrowserClient('service', { spawn: () => child })
+  const client = new BrowserClient('service', { spawn: () => child })
   const starting = client.start()
   child.ready()
   await starting

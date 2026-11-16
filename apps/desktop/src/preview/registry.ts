@@ -13,7 +13,11 @@ export interface RegisteredProvider {
 export class PreviewRegistry {
   readonly providers: RegisteredProvider[] = []
 
-  constructor(private overrides: Record<string, string> = {}) {}
+  #overrides: Record<string, string>
+
+  constructor(overrides: Record<string, string> = {}) {
+    this.#overrides = overrides
+  }
 
   async register(packagePath: string, base: string) {
     // Read inert metadata in the host; package code is only imported in a child.
@@ -76,7 +80,7 @@ export class PreviewRegistry {
     mimeType ??= mime.getType(path) ?? undefined
 
     const extension = extname(path).slice(1).toLowerCase()
-    const preferred = this.overrides[extension]
+    const preferred = this.#overrides[extension]
 
     return this.providers
       .filter(

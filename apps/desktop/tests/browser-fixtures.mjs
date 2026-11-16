@@ -52,7 +52,7 @@ export function statistics(values) {
   }
 }
 
-export async function createLiveBrowserFixture(directory) {
+export async function createBrowserFixture(directory) {
   const root = join(directory, 'fixture')
 
   await mkdir(root, { recursive: true })
@@ -71,12 +71,12 @@ export async function createLiveBrowserFixture(directory) {
   }
 
   await writeFile(join(root, 'Alpha', 'inside.txt'), '')
-  await createLargeLiveBrowserFixture(directory)
+  await createLargeBrowserFixture(directory)
 
   return root
 }
 
-export async function createLargeLiveBrowserFixture(directory) {
+export async function createLargeBrowserFixture(directory) {
   const root = join(directory, 'large-fixture')
 
   await mkdir(root, { recursive: true })

@@ -71,13 +71,14 @@ export default function Home() {
         </GridContainer>
       </section>
       <section>
-        {userLibraries[0] ? (
+        {userLibraries[0] && (
           <Files
             folder={{ libraryId: userLibraries[0].id, relativePath: '' }}
           />
-        ) : !loadFailed ? (
+        )}
+        {!userLibraries[0] && !loadFailed && (
           <p role="status">No folder available.</p>
-        ) : null}
+        )}
       </section>
     </Page>
   )

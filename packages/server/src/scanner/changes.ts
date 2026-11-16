@@ -32,11 +32,13 @@ export async function hasIndexedPathChanged(
   }
 
   const metadata = await lstat(resolve(root, path))
-  const kind = metadata.isSymbolicLink()
-    ? 'symlink'
-    : metadata.isDirectory()
-      ? 'directory'
-      : 'file'
+  let kind: 'file' | 'directory' | 'symlink' = 'file'
+
+  if (metadata.isSymbolicLink()) {
+    kind = 'symlink'
+  } else if (metadata.isDirectory()) {
+    kind = 'directory'
+  }
 
   return (
     entry.kind !== kind ||

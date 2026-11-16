@@ -66,12 +66,15 @@ function getSizeRangeGroup(size: number): RangeGroup {
   const order = fileSizeRangeIndex(size)
   const lower = fileSizeThresholds[order - 1] ?? 0
   const upper = fileSizeThresholds[order]
-  const label =
-    upper === undefined
-      ? `${formatFileSize(lower)} and above`
-      : lower === 0
-        ? `Under ${formatFileSize(upper)}`
-        : `${formatFileSize(lower)} – under ${formatFileSize(upper)}`
+  let label: string
+
+  if (upper === undefined) {
+    label = `${formatFileSize(lower)} and above`
+  } else if (lower === 0) {
+    label = `Under ${formatFileSize(upper)}`
+  } else {
+    label = `${formatFileSize(lower)} – under ${formatFileSize(upper)}`
+  }
 
   return { key: String(order), label, order }
 }
@@ -88,20 +91,27 @@ export function groupFileRows(
 
   const groups = rows.reduce((groups, row) => {
     const value = row.getValue(groupBy)
-    const range =
-      value instanceof Date
-        ? getDateRangeGroup(value, referenceDate)
-        : groupBy === 'size' && typeof value === 'number'
-          ? getSizeRangeGroup(value)
-          : undefined
+    let range: RangeGroup | undefined
+
+    if (value instanceof Date) {
+      range = getDateRangeGroup(value, referenceDate)
+    } else if (groupBy === 'size' && typeof value === 'number') {
+      range = getSizeRangeGroup(value)
+    }
+
     const key = range
       ? `${value instanceof Date ? 'date' : 'size'}:${range.key}`
       : (JSON.stringify(value) ?? String(value))
-    const label = range
-      ? range.label
-      : groupBy === 'relativePath'
-        ? row.getValue<string>(groupBy)
-        : formatFileValue(row.original, groupBy, dateFormat)
+    let label: string
+
+    if (range) {
+      label = range.label
+    } else if (groupBy === 'relativePath') {
+      label = row.getValue<string>(groupBy)
+    } else {
+      label = formatFileValue(row.original, groupBy, dateFormat)
+    }
+
     const group = groups.get(key)
 
     if (group) {

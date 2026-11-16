@@ -138,6 +138,8 @@ export default function CollectionEditor({
     }))
   }
 
+  const submitLabel = collection ? 'Save changes' : 'Create'
+
   return (
     <form
       className={styles.form}
@@ -314,7 +316,7 @@ export default function CollectionEditor({
       )}
       <div className={styles.actions}>
         <Button color="primary" type="submit" disabled={saving || !name.trim()}>
-          {saving ? 'Saving…' : collection ? 'Save changes' : 'Create'}
+          {saving ? 'Saving…' : submitLabel}
         </Button>
       </div>
     </form>

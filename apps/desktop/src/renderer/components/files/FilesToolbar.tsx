@@ -278,11 +278,12 @@ export default function FilesToolbar<TData>({
   const currentSortLabel = currentSort
     ? fileColumnLabels[currentSort.id as FileColumn]
     : 'Default order'
-  const currentSortDirection = currentSort
-    ? currentSort.desc
-      ? 'descending'
-      : 'ascending'
-    : undefined
+  let currentSortDirection: string | undefined
+
+  if (currentSort) {
+    currentSortDirection = currentSort.desc ? 'descending' : 'ascending'
+  }
+
   const currentGroupLabel = groupBy ? fileColumnLabels[groupBy] : 'None'
   const canFavorite = Boolean(
     currentFolderPath && !collectionId && !settingsLoading,
@@ -310,17 +311,20 @@ export default function FilesToolbar<TData>({
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
       <OverflowToolbar className={styles.toolbar} trailingFrom={4}>
-        {collectionId ? (
+        {!!collectionId && (
           <IconButton
             target={{ kind: 'collection', id: collectionId }}
             name="collection"
           />
-        ) : libraryId !== undefined && relativePath !== undefined ? (
-          <IconButton
-            target={{ kind: 'entry', libraryId, relativePath }}
-            name={relativePath.split('/').at(-1) || 'folder'}
-          />
-        ) : null}
+        )}
+        {!collectionId &&
+          libraryId !== undefined &&
+          relativePath !== undefined && (
+            <IconButton
+              target={{ kind: 'entry', libraryId, relativePath }}
+              name={relativePath.split('/').at(-1) || 'folder'}
+            />
+          )}
         <div key="view" className={styles.controlGroup}>
           <ButtonGroup role="group" aria-label="File view">
             {(['list', 'grid', 'masonry'] as const).map((mode) => (
