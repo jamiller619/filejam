@@ -3,8 +3,12 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { ServerApi } from '@filejam/server'
 
 export class PreviewAccessError extends Error {
-  constructor(public status: number) {
+  status: number
+
+  constructor(status: number) {
     super(`Preview access denied (${status})`)
+
+    this.status = status
   }
 }
 

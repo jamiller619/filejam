@@ -19,7 +19,13 @@
       "preset": "recommended",
       "style": {
         "noNestedTernary": "error",
-        "useBlockStatements": "error"
+        "useBlockStatements": "error",
+        "useConsistentMemberAccessibility": {
+          "level": "error",
+          "options": {
+            "accessibility": "none"
+          }
+        }
       }
     }
   },
