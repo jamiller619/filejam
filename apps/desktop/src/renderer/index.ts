@@ -1,6 +1,5 @@
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './components/app/App.js'
 
 const root = document.getElementById('root')
 
@@ -8,4 +7,19 @@ if (!root) {
   throw new Error('Renderer root element is missing')
 }
 
-createRoot(root).render(createElement(App))
+const report = (error: unknown) => {
+  console.error('Unable to load the Filejam renderer', error)
+}
+
+const render = async () => {
+  if (window.liveBrowser?.mode === 'live-browser-poc') {
+    const { default: Browser } = await import('./live-browser/Browser.js')
+    createRoot(root).render(createElement(Browser))
+    return
+  }
+
+  const { default: App } = await import('./components/app/App.js')
+  createRoot(root).render(createElement(App))
+}
+
+void render().catch(report)

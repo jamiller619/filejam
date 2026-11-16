@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "poc:test": "node apps/desktop/scripts/test-live-browser.mjs",
+    "poc:bench": "pnpm poc:service:build && pnpm build && node apps/desktop/tests/run-live-browser-bench.mjs",
     "build": "node apps/desktop/scripts/generate-settings.mjs && tsc -b && pnpm --filter @filejam/server copy:migrations && pnpm --filter @filejam/desktop copy:assets",
+    "poc:live": "pnpm poc:service:build && pnpm build && node apps/desktop/scripts/run-live-browser.mjs",
+    "poc:service:build": "cargo build --release --manifest-path packages/fs-service/Cargo.toml",
+    "poc:service:test": "cargo test --manifest-path packages/fs-service/Cargo.toml",
     "typecheck": "node apps/desktop/scripts/generate-settings.mjs && tsc -b --emitDeclarationOnly",
     "check": "biome check .",
     "check:fix": "biome check --write .",

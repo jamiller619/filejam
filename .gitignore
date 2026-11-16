@@ -8,3 +8,5 @@ dist/
 .DS_Store
 *.log
 docs/live-browser-poc
+/packages/fs-service/target/
+/.poc-output/
