@@ -6,7 +6,7 @@ import { type FocusEventHandler, type ReactNode, useRef } from 'react'
 import { pressed } from '../interactions.js'
 import Icon from './Icon/index.js'
 
-const styles = css`
+export const styles = css`
   .triggerAnchor {
     display: inline-flex;
     flex-shrink: 0;
@@ -96,6 +96,13 @@ const styles = css`
     flex: 0 0 16px;
     place-items: center;
   }
+  .itemLabel { flex: 1; }
+  .separator {
+    height: 1px;
+    flex-shrink: 0;
+    margin: var(--suzy-space-1) var(--suzy-space-2);
+    background: var(--suzy-gray-7);
+  }
   .submenuTrigger { justify-content: space-between; }
   .submenuPopup {
     z-index: 6;
@@ -180,9 +187,13 @@ export default function Menu({
 
 export function MenuSubmenu({
   label,
+  icon,
+  disabled,
   children,
 }: {
   label: string
+  icon?: ReactNode
+  disabled?: boolean | undefined
   children: ReactNode
 }) {
   const anchorRef = useRef<HTMLDivElement>(null)
@@ -193,8 +204,12 @@ export function MenuSubmenu({
         <MotionMenuSubmenuTrigger
           className={styles.submenuTrigger}
           whileTap={pressed}
+          disabled={disabled}
         >
-          {label}
+          <span className={styles.itemIndicator} aria-hidden="true">
+            {icon}
+          </span>
+          <span className={styles.itemLabel}>{label}</span>
           <span aria-hidden="true">›</span>
         </MotionMenuSubmenuTrigger>
       </div>

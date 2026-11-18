@@ -2,6 +2,7 @@ import { Button, Input, Select, Theme } from '@filejam/ui'
 import { useEffect, useRef, useState } from 'react'
 import type { Locations } from '../../browser/locations.js'
 import type { ViewOptions } from '../../browser/protocol.js'
+import { normalizePath } from '../utils/normalizePath.js'
 import EntryList from './EntryList.js'
 import { useBrowser } from './useBrowser.js'
 
@@ -21,6 +22,17 @@ export default function Browser() {
   const location = state.resolvedPath
   const options = state.appliedOptions
   const [locations, setLocations] = useState<Locations | null>(null)
+  const favoritePaths = new Set(
+    locations?.favorites.map((item) => normalizePath(item.path)),
+  )
+  const places =
+    locations?.places.filter(
+      (item) => !favoritePaths.has(normalizePath(item.path)),
+    ) ?? []
+  const drives =
+    locations?.drives.filter(
+      (item) => !favoritePaths.has(normalizePath(item.path)),
+    ) ?? []
   const [locationError, setLocationError] = useState('')
   const initialized = useRef(false)
 
@@ -133,8 +145,19 @@ export default function Browser() {
             }}
           >
             <h1 style={{ fontSize: 20 }}>Filejam</h1>
-            <h2 style={{ fontSize: 14 }}>Locations</h2>
-            {locations?.places.map((item) => (
+            {places.length > 0 && <h2 style={{ fontSize: 14 }}>Locations</h2>}
+            {places.map((item) => (
+              <Button
+                key={item.path}
+                type="button"
+                onClick={() => openLocation(item.path)}
+                style={{ display: 'block', width: '100%', textAlign: 'left' }}
+              >
+                {item.name}
+              </Button>
+            ))}
+            {drives.length > 0 && <h2 style={{ fontSize: 14 }}>Drives</h2>}
+            {drives.map((item) => (
               <Button
                 key={item.path}
                 type="button"

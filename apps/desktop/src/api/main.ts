@@ -210,7 +210,7 @@ export function registerApiIpc(
 
       const source = await api.entries.getEntrySource(id)
 
-      if (!source || !entryRegistry || !openPath) {
+      if (!source || !openPath) {
         throw new Error('Entry cannot be activated')
       }
 
@@ -225,17 +225,13 @@ export function registerApiIpc(
         throw new Error('Entry path is outside its library')
       }
 
-      const presentation = await entryRegistry.resolve({
+      const presentation = await entryRegistry?.resolve({
         path: candidate,
         name: source.name,
         kind: source.kind,
       })
 
-      if (presentation?.activation?.type !== 'open-path') {
-        throw new Error('Entry cannot be activated')
-      }
-
-      const error = await openPath(presentation.activation.path)
+      const error = await openPath(presentation?.activation?.path ?? candidate)
 
       if (error) {
         throw new Error(error)

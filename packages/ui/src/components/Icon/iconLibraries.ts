@@ -1,75 +1,83 @@
 export interface IconLibrary {
   name: string
-  folder: string
-  home: string
-  download: string
-  desktop: string
+
   applications: string
+  back: string
+  check: string
+  close: string
+  collection: string
+  columns: string
+  columnView: string
+  desktop: string
   document: string
-  music: string
-  image: string
-  video: string
-  trash: string
+  down: string
+  download: string
+  folder: string
+  forward: string
+  grid: string
+  hardDrive: string
   heart: string
   heartFilled: string
-  recent: string
-  back: string
-  forward: string
-  settings: string
-  grid: string
+  hideDetails: string
+  home: string
+  image: string
+  info: string
+  library: string
   list: string
   masonry: string
-  search: string
-  library: string
-  collection: string
-  preview: string
-  info: string
-  plus: string
-  check: string
   more: string
-  up: string
-  down: string
-  upDown: string
-  close: string
-  columns: string
-  hideDetails: string
+  music: string
+  plus: string
+  preview: string
+  recent: string
+  search: string
+  settings: string
   showDetails: string
+  trash: string
+  up: string
+  upDown: string
+  user: string
+  video: string
 }
 
 export const def: IconLibrary = {
   name: 'keyline-icons',
-  folder: 'folder',
-  home: 'home',
-  download: 'download',
-  desktop: 'monitor',
+
   applications: 'grid-squares',
+  back: 'chevron-left',
+  check: 'check',
+  close: 'x',
+  collection: 'gallery-horizontal-end', // or 'layers'
+  columns: 'table',
+  columnView: 'columns-3',
+  desktop: 'monitor',
   document: 'file',
-  music: 'music-note',
-  image: 'image',
-  video: 'video-2',
-  trash: 'bin-2',
+  down: 'chevron-down',
+  download: 'download',
+  folder: 'folder',
+  forward: 'chevron-right',
+  grid: 'grid-squares',
+  hardDrive: 'hard-drive',
   heart: 'heart',
   heartFilled: 'heart-fill',
-  recent: 'history',
-  back: 'chevron-left',
-  forward: 'chevron-right',
-  settings: 'cog',
-  grid: 'grid-squares',
+  hideDetails: 'panel-right-close',
+  home: 'home',
+  image: 'image',
+  info: 'info',
+  library: 'book-open-2',
   list: 'list',
   masonry: 'layout-dashboard',
-  search: 'search',
-  library: 'book-open-2',
-  collection: 'gallery-horizontal-end', // or 'layers'
-  preview: 'eye',
-  info: 'info',
-  plus: 'plus',
-  check: 'check',
   more: 'more-horizontal',
-  up: 'chevron-up',
-  down: 'chevron-down',
-  upDown: 'chevrons-up-down',
-  close: 'x',
-  columns: 'table',
-  hideDetails: 'panel-right-close',
+  music: 'music-note',
+  plus: 'plus',
+  preview: 'eye',
+  recent: 'history',
+  search: 'search',
+  settings: 'cog',
   showDetails: 'panel-right-open',
+  trash: 'bin-2',
+  up: 'chevron-up',
+  upDown: 'chevrons-up-down',
+  user: 'circle-user',
+  video: 'video-2',
 }

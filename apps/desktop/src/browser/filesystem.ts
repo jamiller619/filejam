@@ -9,6 +9,7 @@ import type {
   PresentedFolderListing,
 } from '../entries/types.js'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
+import { shellPath } from '../utils/shellPath.js'
 import { BrowserClient } from './client.js'
 import type { Entry } from './protocol.js'
 import { validateStartInput } from './validate.js'
@@ -213,7 +214,7 @@ export function registerFilesystemIpc(
       ) {
         throw new TypeError('Invalid file path')
       }
-      const error = await shell.openPath(path)
+      const error = await shell.openPath(shellPath(path))
       if (error) {
         throw new Error(error)
       }

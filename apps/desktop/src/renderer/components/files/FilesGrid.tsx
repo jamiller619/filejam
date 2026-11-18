@@ -93,8 +93,8 @@ export default function FilesGrid({
         {...(entry.kind === 'directory'
           ? {
               ...folderDragProps(folderPath),
-              to: entry.absolutePath
-                ? locationUrl(entry.absolutePath)
+              to: folderPath
+                ? locationUrl(folderPath)
                 : folderUrl({
                     libraryId: entry.libraryId,
                     relativePath: entry.relativePath,
@@ -102,10 +102,7 @@ export default function FilesGrid({
             }
           : {
               onClick: () => onActivateFile(entry.id),
-              onDoubleClick:
-                entry.absolutePath || entry.presentation?.activation
-                  ? () => onOpenEntry(entry.id)
-                  : undefined,
+              onDoubleClick: () => onOpenEntry(entry.id),
               'aria-label': `Show details for ${displayName}`,
               'aria-expanded': selectedId === entry.id,
             })}

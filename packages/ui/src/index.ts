@@ -1,5 +1,11 @@
 export { type ButtonProps, default as Button } from './components/Button.js'
 export { default as ButtonGroup } from './components/ButtonGroup.js'
+export {
+  type ContextMenuItem,
+  type ContextMenuProps,
+  default as ContextMenu,
+  withContextMenu,
+} from './components/ContextMenu.js'
 export { type DialogProps, default as Dialog } from './components/Dialog.js'
 export { default as Eyebrow, type EyebrowProps } from './components/Eyebrow.js'
 export {

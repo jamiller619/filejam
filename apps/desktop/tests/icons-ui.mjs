@@ -56,8 +56,25 @@ async function run() {
       relativePath: 'Design',
       kind: 'directory',
     })
+    const secondFile = await api.entries.upsert({
+      ...base,
+      parentId: root.id,
+      name: 'Second.txt',
+      relativePath: 'Second.txt',
+      kind: 'file',
+    })
 
     await api.entries.completeScan(library.id, [])
+    const collection = await api.collections.create({
+      name: 'Context menu fixtures',
+      definition: {
+        version: 1,
+        match: 'all',
+        rules: [{ field: 'name', operator: 'notEquals', value: 'Projects' }],
+        sort: [{ field: 'name', direction: 'asc' }],
+        limit: null,
+      },
+    })
 
     window = new BrowserWindow({
       width: 1100,
@@ -93,9 +110,30 @@ async function run() {
     }
     ipcMain.handle('scanner:status', () => ({ state: 'idle' }))
     ipcMain.handle('preview:capabilities', () => ({ original: false }))
+    ipcMain.handle('filesystem:list', () => ({ entries: [], scanned: true }))
+    ipcMain.handle('browser:locations', () => ({
+      home: directory,
+      places: [{ name: 'Design', path: join(directory, 'Design') }],
+      drives: [
+        {
+          name: 'Favorite drive',
+          path:
+            process.platform === 'win32'
+              ? `${join(directory, 'Design').toUpperCase().replaceAll('\\', '/')}/`
+              : `${join(directory, 'Design')}/`,
+        },
+      ],
+      favorites: [],
+    }))
     protocol.handle('filejam-icon', createIconHandler(join(directory, 'icons')))
 
-    const js = (code) => window.webContents.executeJavaScript(code)
+    const js = async (code) => {
+      try {
+        return await window.webContents.executeJavaScript(code)
+      } catch (cause) {
+        throw new Error(`Renderer script failed: ${code}`, { cause })
+      }
+    }
     const waitFor = async (code) => {
       for (let attempt = 0; attempt < 150; attempt++) {
         if (await js(code)) {
@@ -105,22 +143,250 @@ async function run() {
         await delay(50)
       }
 
-      throw new Error(`Timed out: ${code}`)
+      throw new Error(
+        `Timed out: ${code}\n${await js('document.body.innerText')}`,
+      )
     }
     const clickText = (text) =>
       js(
         `Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === ${JSON.stringify(text)}).click()`,
       )
-    const openRow = async (id) => {
+    const openMenu = async (id) => {
       await js(
         `document.querySelector('[data-file-id="${id}"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))`,
+      )
+      await waitFor(`document.querySelector('[role="menu"]') !== null`)
+    }
+    const dismissMenu = async () => {
+      window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
+      window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
+      await waitFor(`document.querySelector('[role="menu"]') === null`)
+    }
+    const clickRow = (id, modifiers = {}) =>
+      js(`(() => {
+      const row = document.querySelector('[data-file-id="${id}"]')
+      const action = row.querySelector('button, a') ?? row
+      action.dispatchEvent(new MouseEvent('click', {
+        bubbles: true, cancelable: true, detail: 1, ...${JSON.stringify(modifiers)},
+      }))
+    })()`)
+    const assertSelection = async (ids) => {
+      assert.deepEqual(
+        await js(
+          `Array.from(document.querySelectorAll('[data-file-id][data-selected="true"]'), row => Number(row.dataset.fileId)).sort((a, b) => a - b)`,
+        ),
+        ids.toSorted((a, b) => a - b),
+      )
+    }
+    const openRow = async (id) => {
+      await openMenu(id)
+      assert.equal(
+        await js(
+          `document.querySelector('[data-file-id="${id}"]').dataset.selected`,
+        ),
+        'true',
+      )
+      await js(
+        `Array.from(document.querySelectorAll('[role="menuitem"]')).find(item => item.textContent === 'Change icon…').click()`,
       )
       await waitFor(`document.querySelector('dialog[open]') !== null`)
     }
 
     await window.loadFile(
       fileURLToPath(new URL('../dist/renderer/index.html', import.meta.url)),
+      { hash: `/collections/${collection.id}` },
     )
+    await waitFor(
+      `document.querySelector('[data-file-id="${file.id}"]') !== null`,
+    )
+    await waitFor(
+      `document.querySelector('nav[aria-label="Main navigation"] ol[aria-label="Favorite folders"] a') !== null`,
+    )
+    assert.equal(
+      await js(
+        `Array.from(document.querySelectorAll('nav[aria-label="Main navigation"] a')).filter(link => link.title === ${JSON.stringify(join(directory, 'Design'))}).length`,
+      ),
+      1,
+    )
+    assert.equal(
+      await js(
+        `document.querySelector('nav[aria-label="Main navigation"]').textContent.includes('Favorite drive')`,
+      ),
+      false,
+    )
+    await openMenu(file.id)
+    await delay(100)
+    assert.equal(
+      await js(`(() => {
+        const row = document.querySelector('[data-file-id="${file.id}"]')
+        return getComputedStyle(row.querySelector('iconify-icon')).color === getComputedStyle(row).color
+      })()`),
+      true,
+      'Default file icons inherit the selected row color',
+    )
+    await writeFile(
+      join(directory, 'context-menu.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    )
+    assert.equal(
+      await js(
+        `document.querySelector('[data-file-id="${file.id}"]').dataset.selected`,
+      ),
+      'true',
+    )
+    await dismissMenu()
+    await js(
+      `document.querySelector('[data-file-id="${file.id}"] button').focus()`,
+    )
+    window.webContents.sendInputEvent({
+      type: 'keyDown',
+      keyCode: 'Right',
+      modifiers: ['shift'],
+    })
+    window.webContents.sendInputEvent({
+      type: 'keyUp',
+      keyCode: 'Right',
+      modifiers: ['shift'],
+    })
+    await waitFor(
+      `document.querySelector('[data-file-id="${secondFile.id}"]').dataset.selected === 'true'`,
+    )
+    await openMenu(file.id)
+    assert.equal(
+      await js(
+        `document.querySelectorAll('[data-file-id][data-selected="true"]').length`,
+      ),
+      2,
+    )
+    assert.equal(
+      await js(
+        `Array.from(document.querySelectorAll('[role="menuitem"]')).find(item => item.textContent === 'Change icon…').hasAttribute('data-disabled')`,
+      ),
+      true,
+    )
+    await dismissMenu()
+    await js(
+      `document.querySelector('[data-file-id="${file.id}"]').parentElement.parentElement.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))`,
+    )
+    await waitFor(`document.querySelector('[role="menu"]') !== null`)
+    assert.equal(
+      await js(
+        `document.querySelectorAll('[data-file-id][data-selected="true"]').length`,
+      ),
+      2,
+    )
+    assert.equal(
+      await js(`document.querySelector('[role="menuitem"]').textContent`),
+      'Refresh',
+    )
+    await dismissMenu()
+    await openMenu(folder.id)
+    assert.equal(
+      await js(
+        `document.querySelectorAll('[data-file-id][data-selected="true"]').length`,
+      ),
+      1,
+    )
+    await dismissMenu()
+    assert.equal(
+      await js(
+        `document.querySelector('[data-file-id="${folder.id}"]').dataset.selected`,
+      ),
+      'true',
+    )
+    for (const mode of ['List', 'Grid', 'Masonry']) {
+      await js(
+        `document.querySelector('button[aria-label="${mode} view"]').click()`,
+      )
+      await waitFor(
+        `document.querySelector('[data-file-id="${file.id}"]')?.tagName ${mode === 'List' ? '===' : '!=='} 'TR'`,
+      )
+      await clickRow(secondFile.id)
+      await assertSelection([secondFile.id])
+      await clickRow(folder.id, { shiftKey: true })
+      await assertSelection([folder.id, file.id, secondFile.id])
+      await clickRow(file.id, { shiftKey: true })
+      await assertSelection([file.id, secondFile.id])
+      await clickRow(folder.id, { ctrlKey: true })
+      await assertSelection([folder.id, file.id, secondFile.id])
+      await clickRow(file.id, { ctrlKey: true })
+      await assertSelection([folder.id, secondFile.id])
+      await clickRow(folder.id, { ctrlKey: true })
+      await clickRow(secondFile.id, { ctrlKey: true })
+      await assertSelection([])
+      await clickRow(file.id, { metaKey: true })
+      await assertSelection([file.id])
+      await clickRow(secondFile.id, { ctrlKey: true })
+      await clickRow(folder.id, { ctrlKey: true, shiftKey: true })
+      await assertSelection([folder.id, file.id, secondFile.id])
+      await clickRow(file.id)
+      await assertSelection([file.id])
+      await js(
+        `document.querySelector('[data-file-id="${file.id}"] button').focus()`,
+      )
+      window.webContents.sendInputEvent({
+        type: 'keyDown',
+        keyCode: 'A',
+        modifiers: ['control'],
+      })
+      window.webContents.sendInputEvent({
+        type: 'keyUp',
+        keyCode: 'A',
+        modifiers: ['control'],
+      })
+      await assertSelection([folder.id, file.id, secondFile.id])
+      await js(
+        `document.querySelector('[data-file-id="${file.id}"]').parentElement.parentElement.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))`,
+      )
+      await assertSelection([])
+      await openMenu(file.id)
+      assert.equal(
+        await js(
+          `document.querySelector('[data-file-id="${file.id}"]').dataset.selected`,
+        ),
+        'true',
+      )
+      assert.equal(
+        await js(
+          `document.querySelector('[data-file-id="${folder.id}"]').dataset.selected`,
+        ),
+        'false',
+      )
+      await dismissMenu()
+      await clickRow(folder.id)
+      await assertSelection([folder.id])
+      assert.equal(await js('location.hash'), `#/collections/${collection.id}`)
+      await js(
+        `document.querySelector('[data-file-id="${folder.id}"] a').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, detail: 2 }))`,
+      )
+      await waitFor(`location.hash.startsWith('#/location?')`)
+      await waitFor(
+        `document.querySelector('[data-filesystem-path]')?.dataset.filesystemPath === ${JSON.stringify(join(directory, 'Design'))}`,
+      )
+      assert.equal(
+        await js(
+          `new URLSearchParams(location.hash.split('?')[1]).get('path')`,
+        ),
+        join(directory, 'Design'),
+      )
+      await js(`location.hash = '/collections/${collection.id}'`)
+      await waitFor(
+        `document.querySelector('[data-file-id="${file.id}"]') !== null`,
+      )
+    }
+    await waitFor(
+      `document.querySelector('[data-file-id="${folder.id}"] a') !== null`,
+    )
+    await js(
+      `document.querySelector('[data-file-id="${folder.id}"] a').focus()`,
+    )
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' })
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' })
+    await waitFor(`location.hash.startsWith('#/location?')`)
+    await waitFor(
+      `document.querySelector('[data-filesystem-path]')?.dataset.filesystemPath === ${JSON.stringify(join(directory, 'Design'))}`,
+    )
+    await js(`location.hash = '/collections/${collection.id}'`)
     await waitFor(
       `document.querySelector('[data-file-id="${file.id}"]') !== null`,
     )
@@ -155,8 +421,18 @@ async function run() {
     await waitFor(
       `document.querySelector('[data-file-id="${file.id}"] [data-color="blue"] svg') !== null`,
     )
+    await openMenu(file.id)
+    assert.equal(
+      await js(`(() => {
+        const row = document.querySelector('[data-file-id="${file.id}"]')
+        return getComputedStyle(row.querySelector('[data-color="blue"] svg')).color === getComputedStyle(row).color
+      })()`),
+      true,
+      'Custom file icons inherit the selected row color',
+    )
+    await dismissMenu()
 
-    // Folder customization must appear in the favorite link immediately.
+    // Folder customization remains available through the context menu.
     await openRow(folder.id)
     await js(
       `document.querySelector('dialog button[aria-label="palette"]').click()`,
@@ -164,10 +440,10 @@ async function run() {
     await clickText('Apply')
     await waitFor(`document.querySelector('dialog') === null`)
     assert.equal(
-      await js(
-        `document.querySelector('ol[aria-label="Favorite folders"] [data-color] svg') !== null`,
-      ),
-      true,
+      (await api.appearance.list()).find(
+        (row) => row.target.relativePath === 'Design',
+      ).icon.name,
+      'lucide:palette',
     )
 
     // Select a real file through the trusted import handler, with the dialog stubbed.
@@ -226,7 +502,7 @@ async function run() {
     )
 
     console.log(
-      'Icon UI passed: selection, color, restart, favorite inheritance, upload, collection, reset. Screenshot:',
+      'Icon UI passed: context menu, selection, color, restart, folder, upload, collection, reset. Screenshot:',
       join(directory, 'picker.png'),
     )
     window.destroy()

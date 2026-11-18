@@ -10,6 +10,7 @@ import { useFavoriteFolderDrop } from '../../hooks/useFavoriteFolderDrop.js'
 import { useLocations } from '../../hooks/useLocations.js'
 import { locationUrl } from '../../utils/folderUrl.js'
 import { getLibraryIcon } from '../../utils/libraryIcon.js'
+import { normalizePath } from '../../utils/normalizePath.js'
 import { IconButton } from '../icons/ItemIcon.js'
 
 const styles = css`
@@ -132,6 +133,19 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
   const { collections } = useCollections()
   const { values } = useSettings(['user.favoriteFolders'])
   const favorites = values?.['user.favoriteFolders'] ?? []
+  const homePath = locations ? normalizePath(locations.home) : undefined
+  const homeLocation = locations?.places.find(
+    (place) => normalizePath(place.path) === homePath,
+  )
+  const favoritePaths = new Set(favorites.map(normalizePath))
+  const places =
+    locations?.places.filter(
+      (place) => !favoritePaths.has(normalizePath(place.path)),
+    ) ?? []
+  const drives =
+    locations?.drives.filter(
+      (drive) => !favoritePaths.has(normalizePath(drive.path)),
+    ) ?? []
   const navigate = useNavigate()
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
 
@@ -149,31 +163,64 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             <div className={styles.dropHint}>Drop folders here</div>
           )}
           <ol aria-label="Favorite folders">
-            {favorites.map((path) => (
-              <NavItem
-                key={path}
-                href={locationUrl(path)}
-                name={path.split(/[\\/]/).filter(Boolean).at(-1) ?? path}
-                title={path}
-                icon={<Icon name="folder" size={20} />}
-              />
-            ))}
+            {favorites.map((path) => {
+              const isHome = normalizePath(path) === homePath
+              const folderName =
+                path.split(/[\\/]/).filter(Boolean).at(-1) ?? path
+
+              return (
+                <NavItem
+                  key={path}
+                  href={locationUrl(path)}
+                  name={
+                    isHome ? (homeLocation?.name ?? folderName) : folderName
+                  }
+                  title={path}
+                  icon={<Icon name={isHome ? 'user' : 'folder'} size={20} />}
+                />
+              )
+            })}
           </ol>
           {dropError && <p role="alert">{dropError}</p>}
         </li>
-        <li>
-          <Eyebrow className={styles.eyebrow}>Locations</Eyebrow>
-        </li>
-        {locations?.places.map((place) => (
+        {places.length > 0 && (
+          <li>
+            <Eyebrow className={styles.eyebrow}>Locations</Eyebrow>
+          </li>
+        )}
+        {places.map((place) => (
           <NavItem
             key={place.path}
             href={locationUrl(place.path)}
             name={place.name}
             title={place.path}
-            icon={<Icon name={getLibraryIcon(place.name)} size={20} />}
+            icon={
+              <Icon
+                name={
+                  normalizePath(place.path) === homePath
+                    ? 'user'
+                    : getLibraryIcon(place.name)
+                }
+                size={20}
+              />
+            }
           />
         ))}
         {loadFailed && <li role="status">Unable to load locations.</li>}
+        {drives.length > 0 && (
+          <li>
+            <Eyebrow className={styles.eyebrow}>Drives</Eyebrow>
+          </li>
+        )}
+        {drives.map((drive) => (
+          <NavItem
+            key={drive.path}
+            href={locationUrl(drive.path)}
+            name={drive.name}
+            title={drive.path}
+            icon={<Icon name="hardDrive" size={20} />}
+          />
+        ))}
         <li>
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>

@@ -2,7 +2,6 @@ import { Icon } from '@filejam/ui'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { css } from 'inline-css-modules'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router'
 import { useFolderDrop } from '../../hooks/useFolderDrop.js'
 import { colorForFileValue } from '../../utils/fileColors.js'
 import {
@@ -16,7 +15,6 @@ import {
 } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl, locationUrl } from '../../utils/folderUrl.js'
-import { useAppearance } from '../icons/AppearanceProvider.js'
 import FileName from './FileName.js'
 import FilePreview from './FilePreview.js'
 import { minimumNameColumnWidth } from './Files.constants.js'
@@ -27,7 +25,9 @@ import type {
   Listing,
 } from './Files.types.js'
 import FilesGroupToggle from './FilesGroupToggle.js'
+import FolderLink from './FolderLink.js'
 import { findVerticalScrollElement } from './fileScroll.js'
+import { fileSelectionStyles } from './fileSelectionStyles.js'
 
 const ariaSortLabels = {
   asc: 'ascending',
@@ -179,14 +179,8 @@ const styles = css`
         animation: folder-drag-lift var(--suzy-duration-normal) cubic-bezier(0.2, 1.4, 0.4, 1) both;
         will-change: transform, opacity;
       }
-      > td { background: var(--suzy-gray-3); }
-      &:hover > td, &:focus-within > td { background: var(--suzy-gray-4); }
-      &[data-selected='true'] > td {
-        background: var(--suzy-accent-9);
-        color: var(--suzy-accent-1);
-      }
-      &[data-selected='true'] [data-extension-color] { --file-name-color: var(--suzy-accent-1); }
-      &[data-selected='true'] [data-value-color] { color: var(--suzy-accent-1); }
+      > td { background: var(--file-selection-background, var(--suzy-gray-3)); }
+      &:hover > td, &:focus-within > td { background: var(--file-selection-background, var(--suzy-gray-4)); }
       &:first-child > td:first-child { border-top-left-radius: var(--suzy-radius-4); }
       &:first-child > td:last-child { border-top-right-radius: var(--suzy-radius-4); }
       &:last-child > td:first-child { border-bottom-left-radius: var(--suzy-radius-4); }
@@ -265,7 +259,6 @@ export default function FilesTable({
   onToggleGroup,
   onWidthChange,
 }: FilesTableProps) {
-  const { edit } = useAppearance()
   const containerRef = useRef<HTMLDivElement>(null)
   const [tableElement, setTableElement] = useState<HTMLTableElement | null>(
     null,
@@ -484,28 +477,14 @@ export default function FilesTable({
                 <tr
                   key={item.key}
                   ref={rowVirtualizer.measureElement}
-                  className={styles.row}
+                  className={`${styles.row} ${fileSelectionStyles.selectable}`}
                   data-index={virtualItem.index}
                   aria-rowindex={virtualItem.index + 2}
                   data-selected={selectedIds.has(entry.id)}
                   data-file-id={entry.id}
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    if (entry.absolutePath) {
-                      return
-                    }
-                    edit(
-                      {
-                        kind: 'entry',
-                        libraryId: entry.libraryId,
-                        relativePath: entry.relativePath,
-                      },
-                      entry.name,
-                    )
-                  }}
                   data-folder-drag-preview={entryPath ? true : undefined}
                   onDoubleClick={
-                    entry.absolutePath || entry.presentation?.activation
+                    entry.kind !== 'directory'
                       ? () => onOpenEntry(entry.id)
                       : undefined
                   }
@@ -618,15 +597,15 @@ function FolderNameLink({
   const folderSourceProps = folderDragProps(path)
 
   return (
-    <Link
+    <FolderLink
       {...folderDropProps}
       {...folderSourceProps}
       className={className}
       title={entry.name}
       viewTransition
       to={
-        entry.absolutePath
-          ? locationUrl(entry.absolutePath)
+        path
+          ? locationUrl(path)
           : folderUrl({
               libraryId: entry.libraryId,
               relativePath: entry.relativePath,
@@ -638,6 +617,6 @@ function FolderNameLink({
       }}
     >
       <FileName name={entry.name} isDirectory={true} highlight={highlight} />
-    </Link>
+    </FolderLink>
   )
 }

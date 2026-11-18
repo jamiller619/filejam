@@ -35,6 +35,7 @@ import {
   type SettingsStore,
 } from './settings/index.js'
 import { settingsKeys } from './settings/settings.js'
+import { shellPath } from './utils/shellPath.js'
 
 import { readWindowState, trackWindowState } from './window-state.js'
 
@@ -157,7 +158,7 @@ async function createWindow() {
     currentSettingsApi,
     undefined,
     entryRegistry,
-    (path) => shell.openPath(path),
+    (path) => shell.openPath(shellPath(path)),
     true,
   )
 

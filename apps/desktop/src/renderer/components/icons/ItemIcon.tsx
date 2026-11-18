@@ -12,6 +12,7 @@ import { libraryIcons } from './library.js'
 
 const styles = css`
   .icon {
+    color: var(--file-selection-color, var(--item-icon-color, inherit));
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
@@ -26,35 +27,35 @@ const styles = css`
   }
 
   .icon[data-color='gray'] {
-    color: var(--suzy-gray-11);
+    --item-icon-color: var(--suzy-gray-11);
   }
 
   .icon[data-color='red'] {
-    color: light-dark(#ce2c31, #ff6369);
+    --item-icon-color: light-dark(#ce2c31, #ff6369);
   }
 
   .icon[data-color='orange'] {
-    color: light-dark(#cc4e00, #ffa057);
+    --item-icon-color: light-dark(#cc4e00, #ffa057);
   }
 
   .icon[data-color='yellow'] {
-    color: light-dark(#946800, #f5d90a);
+    --item-icon-color: light-dark(#946800, #f5d90a);
   }
 
   .icon[data-color='green'] {
-    color: light-dark(#18794e, #4cc38a);
+    --item-icon-color: light-dark(#18794e, #4cc38a);
   }
 
   .icon[data-color='blue'] {
-    color: light-dark(#006adc, #70b8ff);
+    --item-icon-color: light-dark(#006adc, #70b8ff);
   }
 
   .icon[data-color='purple'] {
-    color: light-dark(#8145b5, #be93e4);
+    --item-icon-color: light-dark(#8145b5, #be93e4);
   }
 
   .icon[data-color='pink'] {
-    color: light-dark(#cd1d8d, #f65cb6);
+    --item-icon-color: light-dark(#cd1d8d, #f65cb6);
   }
 
   .button {

@@ -1,9 +1,11 @@
+import { type ContextMenuItem, withContextMenu } from '@filejam/ui'
 import {
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import {
+  type ComponentPropsWithRef,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -25,6 +27,7 @@ import {
   fileColumnLabels,
   formatFullPath,
 } from '../../utils/fileColumns.js'
+import { useAppearance } from '../icons/AppearanceProvider.js'
 import { useDetailsPane } from '../layout/DetailsPaneContext.js'
 import { useSearch } from '../layout/SearchContext.js'
 import FileDetails from './FileDetails.js'
@@ -44,6 +47,16 @@ export type { FileColumn } from '../../utils/fileColumns.js'
 export type { Folder } from './Files.types.js'
 
 const emptyEntries: Listing['entries'] = []
+
+const FileMenuArea = withContextMenu(
+  function FileMenuArea({
+    items: _items,
+    ...props
+  }: ComponentPropsWithRef<'div'> & { items: readonly ContextMenuItem[] }) {
+    return <div {...props} />
+  },
+  ({ items }) => items,
+)
 
 function getResponsiveColumnVisibility(
   tableColumns: readonly { id: FileColumn }[],
@@ -135,6 +148,8 @@ function FolderContents({
   reportFolderStats = true,
 }: FilesProps & { preferencesKey: string }) {
   const api = useApi()
+  const { edit } = useAppearance()
+  const [contextFileId, setContextFileId] = useState<number | null>(null)
   const detailsPane = useDetailsPane()
   const { search: searchText } = useSearch()
   const { libraries, loadFailed: librariesFailed } = useLibraries()
@@ -365,6 +380,20 @@ function FolderContents({
     [api, path],
   )
   const visibleRows = table.getRowModel().rows
+  const groupReferenceDate = useMemo(() => new Date(), [])
+  const rowGroups = useMemo(
+    () => groupFileRows(visibleRows, groupBy, dateFormat, groupReferenceDate),
+    [dateFormat, groupBy, groupReferenceDate, visibleRows],
+  )
+  const itemIds = useMemo(
+    () =>
+      rowGroups.flatMap((group) =>
+        collapsedGroupKeys.has(group.key)
+          ? []
+          : group.rows.map((row) => row.original.id),
+      ),
+    [collapsedGroupKeys, rowGroups],
+  )
   const fileIds = useMemo(
     () =>
       visibleRows
@@ -375,6 +404,7 @@ function FolderContents({
   const { containerRef, selectedId, selectedIds, selectFile } =
     useFileSelection({
       fileIds,
+      itemIds,
       detailsHost: detailsPane.host,
       onNavigate: viewFile,
     })
@@ -426,12 +456,6 @@ function FolderContents({
 
   usePageCardSizeControl(cardSizeControl, reportFolderStats)
 
-  const groupReferenceDate = useMemo(() => new Date(), [])
-  const rowGroups = useMemo(
-    () => groupFileRows(visibleRows, groupBy, dateFormat, groupReferenceDate),
-    [dateFormat, groupBy, groupReferenceDate, visibleRows],
-  )
-
   useLayoutEffect(() => {
     void detailsPane.setVisible(detailsOpen)
   }, [detailsOpen, detailsPane])
@@ -474,7 +498,7 @@ function FolderContents({
     }
     void api.entries
       .activate(id)
-      .catch(() => setViewError('Unable to open this application.'))
+      .catch(() => setViewError('Unable to open this file.'))
   }
 
   function toggleGroup(key: string) {
@@ -503,6 +527,34 @@ function FolderContents({
   }
 
   const ariaLabel = collectionId ? 'Collection files' : 'Folder contents'
+  const contextFile =
+    contextFileId === null
+      ? undefined
+      : listing?.entries.find((entry) => entry.id === contextFileId)
+  const multipleSelected = selectedIds.size > 1
+  const contextItems: ContextMenuItem[] = contextFile
+    ? [
+        {
+          label: 'Show details',
+          disabled: multipleSelected || contextFile.kind === 'directory',
+          onClick: () => activateFile(contextFile.id),
+        },
+        { type: 'divider', id: 'appearance' },
+        {
+          label: 'Change icon…',
+          disabled: multipleSelected || !!contextFile.absolutePath,
+          onClick: () =>
+            edit(
+              {
+                kind: 'entry',
+                libraryId: contextFile.libraryId,
+                relativePath: contextFile.relativePath,
+              },
+              contextFile.name,
+            ),
+        },
+      ]
+    : [{ label: 'Refresh', onClick: refresh }]
 
   return (
     <div
@@ -545,44 +597,93 @@ function FolderContents({
         }
       />
       {!listing && <p role="status">Loading files…</p>}
-      {listing && viewMode === 'list' && (
-        <FilesTable
-          table={table}
-          listing={listing}
-          rowGroups={rowGroups}
-          collapsedGroupKeys={collapsedGroupKeys}
-          libraryRoots={libraryRoots}
-          selectedId={selectedId}
-          selectedIds={selectedIds}
-          search={search}
-          dateFormat={dateFormat}
-          showFileExtensions={showFileExtensions}
-          groupReferenceDate={groupReferenceDate}
-          ariaLabel={ariaLabel}
-          onActivateFile={activateFile}
-          onOpenEntry={openEntry}
-          onToggleGroup={toggleGroup}
-          onWidthChange={setTableWidth}
-        />
-      )}
-      {listing && viewMode !== 'list' && (
-        <FilesGrid
-          listing={listing}
-          viewMode={viewMode}
-          cardSize={cardSize}
-          rowGroups={rowGroups}
-          collapsedGroupKeys={collapsedGroupKeys}
-          libraryRoots={libraryRoots}
-          selectedId={selectedId}
-          selectedIds={selectedIds}
-          search={search}
-          showFileExtensions={showFileExtensions}
-          ariaLabel={ariaLabel}
-          onActivateFile={activateFile}
-          onOpenEntry={openEntry}
-          onToggleGroup={toggleGroup}
-        />
-      )}
+      <FileMenuArea
+        items={contextItems}
+        onClickCapture={(event) => {
+          const row =
+            event.target instanceof Element
+              ? event.target.closest<HTMLElement>('[data-file-id]')
+              : null
+
+          if (!row || !event.currentTarget.contains(row)) {
+            if (
+              event.target instanceof Element &&
+              event.currentTarget.contains(event.target) &&
+              !event.target.closest('button, a, input, textarea, select') &&
+              !event.shiftKey &&
+              !event.ctrlKey &&
+              !event.metaKey
+            ) {
+              selectFile(null)
+            }
+
+            return
+          }
+
+          const modified = event.shiftKey || event.ctrlKey || event.metaKey
+
+          if (modified) {
+            // Modified folder clicks select instead of following the link.
+            event.preventDefault()
+            event.stopPropagation()
+          }
+
+          selectFile(Number(row.dataset.fileId), event)
+        }}
+        onContextMenuCapture={(event) => {
+          const target = event.target
+          const row =
+            target instanceof Element
+              ? target.closest<HTMLElement>('[data-file-id]')
+              : null
+          const id = row ? Number(row.dataset.fileId) : null
+
+          setContextFileId(id)
+
+          if (id !== null && !selectedIds.has(id)) {
+            selectFile(id)
+          }
+        }}
+      >
+        {listing && viewMode === 'list' && (
+          <FilesTable
+            table={table}
+            listing={listing}
+            rowGroups={rowGroups}
+            collapsedGroupKeys={collapsedGroupKeys}
+            libraryRoots={libraryRoots}
+            selectedId={selectedId}
+            selectedIds={selectedIds}
+            search={search}
+            dateFormat={dateFormat}
+            showFileExtensions={showFileExtensions}
+            groupReferenceDate={groupReferenceDate}
+            ariaLabel={ariaLabel}
+            onActivateFile={activateFile}
+            onOpenEntry={openEntry}
+            onToggleGroup={toggleGroup}
+            onWidthChange={setTableWidth}
+          />
+        )}
+        {listing && viewMode !== 'list' && (
+          <FilesGrid
+            listing={listing}
+            viewMode={viewMode}
+            cardSize={cardSize}
+            rowGroups={rowGroups}
+            collapsedGroupKeys={collapsedGroupKeys}
+            libraryRoots={libraryRoots}
+            selectedId={selectedId}
+            selectedIds={selectedIds}
+            search={search}
+            showFileExtensions={showFileExtensions}
+            ariaLabel={ariaLabel}
+            onActivateFile={activateFile}
+            onOpenEntry={openEntry}
+            onToggleGroup={toggleGroup}
+          />
+        )}
+      </FileMenuArea>
       {detailsOpen &&
         detailsEntry &&
         detailsPane.host &&

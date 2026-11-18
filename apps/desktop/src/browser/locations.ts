@@ -1,17 +1,24 @@
 import { access } from 'node:fs/promises'
+import { userInfo } from 'node:os'
 import { app, type BrowserWindow, dialog, ipcMain } from 'electron'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
+import { getWindowsVolumeLabels } from './windowsVolumes.js'
 
 export type Location = { name: string; path: string }
 export type Locations = {
   home: string
   places: Location[]
+  drives: Location[]
   favorites: Location[]
 }
 
 export async function registerLocations(window: BrowserWindow) {
+  const volumeLabels =
+    process.platform === 'win32'
+      ? getWindowsVolumeLabels()
+      : Promise.resolve(new Map<string, string>())
   const home = app.getPath('home')
-  const places: Location[] = [{ name: 'Home', path: home }]
+  const places: Location[] = [{ name: userInfo().username, path: home }]
   for (const key of [
     'desktop',
     'documents',
@@ -47,14 +54,23 @@ export async function registerLocations(window: BrowserWindow) {
       }
     }),
   )
+  const labels = await volumeLabels
+  const drives: Location[] = []
+
   for (const path of available) {
     if (path) {
-      places.push({ name: path, path })
+      const label = labels.get(path.toUpperCase())
+
+      drives.push({
+        name: label ? `${label} (${path.slice(0, 2)})` : path,
+        path,
+      })
     }
   }
   const snapshot = (): Locations => ({
     home,
     places,
+    drives,
     favorites: [],
   })
   const authorize = authorizeRenderer(window.webContents)

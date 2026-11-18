@@ -174,6 +174,7 @@ export default function FilePreview({
   const [loadedSource, setLoadedSource] = useState('')
   const [settledSource, setSettledSource] = useState('')
   const detail = Boolean(onOpen)
+  const showInlineIcon = variant === 'list' && !detail && !isMedia
 
   const pixels = Math.min(
     2048,
@@ -203,12 +204,12 @@ export default function FilePreview({
   useEffect(() => {
     const container = containerRef.current
 
-    if (detail || showCustomIcon || !container) {
+    if (detail || showCustomIcon || showInlineIcon || !container) {
       return
     }
 
     return observeVisibility(container, setNearViewport)
-  }, [detail, showCustomIcon])
+  }, [detail, showCustomIcon, showInlineIcon])
 
   if (showCustomIcon) {
     return (
@@ -237,7 +238,13 @@ export default function FilePreview({
         height: detail ? undefined : thumbnailHeight,
       }}
     >
-      {shouldLoad && (
+      {showInlineIcon && (
+        <Icon
+          name={entry.kind === 'directory' ? 'folder' : 'document'}
+          size={typeof size === 'number' ? size / 2 : 24}
+        />
+      )}
+      {!showInlineIcon && shouldLoad && (
         <div
           className={styles.thumbnail}
           style={{ maxHeight: typeof size === 'number' ? size : undefined }}
