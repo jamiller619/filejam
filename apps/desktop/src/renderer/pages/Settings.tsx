@@ -3,9 +3,7 @@ import { css } from 'inline-css-modules'
 import {
   type HTMLAttributes,
   type ReactNode,
-  useEffect,
   useLayoutEffect,
-  useRef,
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -238,7 +236,6 @@ export default function Settings() {
   const [saveFailed, setSaveFailed] = useState(false)
   const [collectionError, setCollectionError] = useState(false)
   const [selection, setSelection] = useState<SettingsSelection | null>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
   const {
     libraries,
     loading: librariesLoading,
@@ -256,49 +253,6 @@ export default function Settings() {
     void detailsPane.setVisible(true)
   }, [detailsPane])
 
-  useEffect(() => {
-    if (!selection) {
-      return
-    }
-
-    function clearSelection() {
-      setSelection(null)
-    }
-
-    function handleOutsideInteraction(event: PointerEvent | FocusEvent) {
-      const target = event.target
-
-      // The details pane contains editors for the selected row.
-      if (target instanceof Node && detailsPane.host?.contains(target)) {
-        return
-      }
-
-      if (
-        target instanceof Element &&
-        contentRef.current?.contains(target) &&
-        target.closest('[data-settings-row]')
-      ) {
-        return
-      }
-
-      clearSelection()
-    }
-
-    document.addEventListener('pointerdown', handleOutsideInteraction, true)
-    document.addEventListener('focusin', handleOutsideInteraction)
-    window.addEventListener('blur', clearSelection)
-
-    return () => {
-      document.removeEventListener(
-        'pointerdown',
-        handleOutsideInteraction,
-        true,
-      )
-      document.removeEventListener('focusin', handleOutsideInteraction)
-      window.removeEventListener('blur', clearSelection)
-    }
-  }, [detailsPane.host, selection])
-
   async function saveSettings(key: SettingsKey, value: SettingValue) {
     setSaving(true)
     setSaveFailed(false)
@@ -315,7 +269,7 @@ export default function Settings() {
 
   return (
     <Page title="Settings">
-      <div ref={contentRef} className={styles.content}>
+      <div className={styles.content}>
         {settingsGroups.map((category) => (
           <Section
             key={category.namespace}

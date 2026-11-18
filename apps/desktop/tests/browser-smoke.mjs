@@ -90,6 +90,7 @@ async function run() {
     )
 
     const window = BrowserWindow.getAllWindows()[0]
+    window.webContents.setBackgroundThrottling(false)
     assert.ok(window)
     window.webContents.on('console-message', (_event, level, message) => {
       if (level >= 2) {

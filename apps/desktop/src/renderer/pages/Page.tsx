@@ -388,7 +388,7 @@ function FolderStatsFooter({
           <span>{formatFileSize(stats.totalSize)}</span>
         </>
       )}
-      <ScanningMeter />
+      {!window.filejam.filesystem && <ScanningMeter />}
       {cardSizeControl && (
         <label className={styles.cardSizeControl} htmlFor={cardSizeId}>
           <span>Card size</span>

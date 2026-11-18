@@ -288,6 +288,8 @@ mod tests {
 
     fn one_entry() -> Vec<Entry> {
         vec![Entry {
+            hidden: None,
+            system: None,
             path: "C:\\folder\\item.txt".to_owned(),
             name: "item.txt".to_owned(),
             kind: EntryKind::File,

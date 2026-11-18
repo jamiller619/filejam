@@ -86,6 +86,8 @@ mod tests {
     fn entries(count: usize) -> Vec<Entry> {
         (0..count)
             .map(|index| Entry {
+                hidden: None,
+                system: None,
                 path: format!("C:\\{index}.txt"),
                 name: format!("{index}.txt"),
                 kind: EntryKind::File,
@@ -115,6 +117,8 @@ mod tests {
     #[test]
     fn encoded_size_counts_quotes_and_backslashes() {
         let entries = vec![Entry {
+            hidden: None,
+            system: None,
             path: "C:\\folder\\\"quoted\".txt".to_owned(),
             name: "\"quoted\"\\name.txt".to_owned(),
             kind: EntryKind::File,

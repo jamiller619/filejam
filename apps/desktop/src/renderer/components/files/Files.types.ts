@@ -16,6 +16,7 @@ export type FileEntry = (
   | FolderListing['entries'][number]
   | CollectionListing['entries'][number]
 ) & {
+  absolutePath?: string
   presentation?: EntryResolution | null
 }
 
@@ -35,6 +36,7 @@ export type FileRowGroup = {
 }
 
 export type FilesProps = {
+  path?: string | undefined
   folder?: Folder | undefined
   collectionId?: string | undefined
   columns?: readonly FileColumn[]

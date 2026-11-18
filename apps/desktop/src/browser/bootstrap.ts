@@ -87,7 +87,7 @@ async function cleanup(): Promise<void> {
   await cleanupPromise
 }
 
-export async function startProof(): Promise<void> {
+export async function startProof(desktop = false): Promise<void> {
   const { app, BrowserWindow } =
     require('electron') as typeof import('electron')
 
@@ -95,7 +95,10 @@ export async function startProof(): Promise<void> {
     const isolatedUserData = process.env.FILEJAM_TEST_USER_DATA
     app.setPath(
       'userData',
-      isolatedUserData || `${app.getPath('userData')}-live-poc`,
+      isolatedUserData ||
+        (desktop
+          ? app.getPath('userData')
+          : `${app.getPath('userData')}-live-poc`),
     )
     await app.whenReady()
 
@@ -115,10 +118,20 @@ export async function startProof(): Promise<void> {
       return
     }
 
-    const window = new BrowserWindow(proofWindowOptions(paths.preload))
+    const windowOptions = proofWindowOptions(paths.preload)
+    const window = new BrowserWindow({
+      ...windowOptions,
+      title: 'Filejam',
+      webPreferences: {
+        ...windowOptions.webPreferences,
+        additionalArguments: desktop ? ['--filejam-desktop-browser'] : [],
+      },
+    })
     session = { window, client }
     disposeProofIpc = registerBrowserIpc(window, client)
-    const rendererUrl = pathToFileURL(paths.renderer).href
+    const developmentUrl =
+      desktop && !app.isPackaged ? process.env.FILEJAM_RENDERER_URL : undefined
+    const rendererUrl = developmentUrl || pathToFileURL(paths.renderer).href
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     window.webContents.on('will-navigate', (event, destination) => {
       if (destination !== rendererUrl) {
@@ -153,7 +166,16 @@ export async function startProof(): Promise<void> {
     })
     app.on('window-all-closed', () => app.quit())
 
-    await window.loadFile(paths.renderer)
+    if (developmentUrl) {
+      await window.loadURL(developmentUrl)
+      process.on('message', (message) => {
+        if (message === 'filejam:dev:quit') {
+          app.quit()
+        }
+      })
+    } else {
+      await window.loadFile(paths.renderer)
+    }
   } catch (error) {
     console.error('Browser proof startup failed', error)
     await cleanup()

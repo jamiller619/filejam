@@ -134,6 +134,8 @@ const styles = css`
 `
 
 type FilesToolbarProps<TData> = {
+  path?: string | undefined
+  onRefresh: () => void
   libraryId?: number | undefined
   libraryRoots: Map<number, string>
   relativePath?: string | undefined
@@ -236,6 +238,8 @@ const viewLabels = {
 } satisfies Record<FileViewMode, string>
 
 export default function FilesToolbar<TData>({
+  path,
+  onRefresh,
   libraryId,
   libraryRoots,
   relativePath,
@@ -260,9 +264,9 @@ export default function FilesToolbar<TData>({
   const rootPath =
     libraryId === undefined ? undefined : libraryRoots.get(libraryId)
 
-  const currentFolderPath = rootPath
-    ? formatFullPath(rootPath, relativePath ?? '')
-    : undefined
+  const currentFolderPath =
+    path ??
+    (rootPath ? formatFullPath(rootPath, relativePath ?? '') : undefined)
 
   const favoritePaths = Array.isArray(settingsValues?.['user.favoriteFolders'])
     ? settingsValues['user.favoriteFolders'].filter(
@@ -325,6 +329,11 @@ export default function FilesToolbar<TData>({
               name={relativePath.split('/').at(-1) || 'folder'}
             />
           )}
+        {path && (
+          <Button key="refresh" aria-label="Refresh folder" onClick={onRefresh}>
+            Refresh
+          </Button>
+        )}
         <div key="view" className={styles.controlGroup}>
           <ButtonGroup role="group" aria-label="File view">
             {(['list', 'grid', 'masonry'] as const).map((mode) => (

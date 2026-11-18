@@ -49,6 +49,8 @@ mod tests {
     fn fixture_entry(root: &Path, name: &str, kind: EntryKind) -> Entry {
         let path = root.join(name);
         Entry {
+            hidden: None,
+            system: None,
             path: path.to_str().unwrap().to_owned(),
             name: name.to_owned(),
             kind,
@@ -118,11 +120,15 @@ mod tests {
     fn case_only_names_sort_a_before_a_then_reverse() {
         let entries = vec![
             Entry {
+                hidden: None,
+                system: None,
                 path: "/fixture/a".to_owned(),
                 name: "a".to_owned(),
                 kind: EntryKind::File,
             },
             Entry {
+                hidden: None,
+                system: None,
                 path: "/fixture/A".to_owned(),
                 name: "A".to_owned(),
                 kind: EntryKind::File,
@@ -154,11 +160,15 @@ mod tests {
     fn identical_names_use_full_path_tie_breaker() {
         let entries = vec![
             Entry {
+                hidden: None,
+                system: None,
                 path: "/fixture/z/same.txt".to_owned(),
                 name: "same.txt".to_owned(),
                 kind: EntryKind::File,
             },
             Entry {
+                hidden: None,
+                system: None,
                 path: "/fixture/a/same.txt".to_owned(),
                 name: "same.txt".to_owned(),
                 kind: EntryKind::File,

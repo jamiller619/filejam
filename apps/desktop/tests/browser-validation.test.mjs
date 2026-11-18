@@ -142,3 +142,22 @@ test('validates start arguments, paths, scalar counts, and UTF-8 limits', () => 
     }),
   )
 })
+
+test('visibility flags are optional booleans and unknown entry fields remain rejected', () => {
+  const entry = { path: 'C:\\folder\\file', name: 'file', kind: 'file' }
+  const batch = (fields) => ({
+    v: 1,
+    type: 'batch',
+    id: 'r-1',
+    offset: 0,
+    entries: [{ ...entry, ...fields }],
+  })
+  assert.equal(
+    parseServiceEvent(batch({ hidden: true, system: true })).entries[0].system,
+    true,
+  )
+  assert.equal(parseServiceEvent(batch({})).entries[0].hidden, undefined)
+  assert.throws(() => parseServiceEvent(batch({ hidden: 'true' })))
+  assert.throws(() => parseServiceEvent(batch({ system: null })))
+  assert.throws(() => parseServiceEvent(batch({ unknown: true })))
+})

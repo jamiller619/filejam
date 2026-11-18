@@ -7,6 +7,7 @@ export function createFavoriteFoldersHandler(
   api: ServerApi,
   settings: SettingsApi,
   scanRoot?: (root: string) => Promise<unknown>,
+  filesystem = false,
 ) {
   let pending = Promise.resolve<string[]>([])
 
@@ -58,7 +59,10 @@ export function createFavoriteFoldersHandler(
         }
 
         for (const path of paths) {
-          if (!libraries.some((library) => contains(library.rootPath, path))) {
+          if (
+            !filesystem &&
+            !libraries.some((library) => contains(library.rootPath, path))
+          ) {
             await api.libraries.ensureRoot(path)
             await scanRoot?.(path)
           }

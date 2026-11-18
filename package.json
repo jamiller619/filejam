@@ -14,8 +14,8 @@
     "check:fix": "biome check --write .",
     "format": "biome format --write .",
     "clean": "tsc -b --clean",
-    "start": "pnpm --filter @filejam/desktop start",
-    "dev": "node apps/desktop/scripts/generate-settings.mjs && pnpm --filter @filejam/desktop dev"
+    "start": "pnpm poc:service:build && pnpm --filter @filejam/desktop start",
+    "dev": "pnpm poc:service:build && node apps/desktop/scripts/generate-settings.mjs && pnpm --filter @filejam/desktop dev"
   },
   "keywords": [],
   "author": "",

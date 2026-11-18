@@ -29,6 +29,14 @@ export type FileColorCoding = boolean
  * Whether file extensions are shown in file names.
  */
 export type ShowFileExtensions = boolean
+/**
+ * Show dotfiles and items marked hidden by the operating system. Protected system items have a separate setting.
+ */
+export type ShowHiddenFiles = boolean
+/**
+ * Show system-managed files and folders, including recycle bins and volume metadata. This does not change filesystem permissions or indexing exclusions.
+ */
+export type ShowProtectedSystemItems = boolean
 
 export interface FilejamDesktopSettingsSchema {
   'window.navbarWidth': NavigationWidth
@@ -39,6 +47,8 @@ export interface FilejamDesktopSettingsSchema {
   'user.dateformat': DateFormat
   'user.files.colorCoding': FileColorCoding
   'user.files.showExtensions': ShowFileExtensions
+  'user.files.showHidden': ShowHiddenFiles
+  'user.files.showSystem': ShowProtectedSystemItems
 }
 /**
  * The last position, size, and display mode of the main window.

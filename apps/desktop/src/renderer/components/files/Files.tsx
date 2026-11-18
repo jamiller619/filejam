@@ -91,6 +91,7 @@ function getResponsiveColumnVisibility(
 
 /** Displays indexed folder contents or a collection. */
 export default function Files({
+  path,
   folder,
   collectionId,
   columns = defaultFileColumns,
@@ -100,6 +101,7 @@ export default function Files({
   const { pathname } = useLocation()
   const preferencesKeyParts = [
     pathname,
+    path ?? null,
     collectionId ?? null,
     folder?.libraryId ?? null,
     folder?.relativePath ?? null,
@@ -111,7 +113,10 @@ export default function Files({
 
   return (
     <FolderContents
+      key={JSON.stringify(preferencesKeyParts)}
       preferencesKey={JSON.stringify(preferencesKeyParts)}
+      path={path}
+      preferencesScope={preferencesScope}
       folder={folder}
       collectionId={collectionId}
       columns={columns}
@@ -122,6 +127,8 @@ export default function Files({
 
 function FolderContents({
   preferencesKey,
+  preferencesScope,
+  path,
   folder,
   collectionId,
   columns = defaultFileColumns,
@@ -134,7 +141,11 @@ function FolderContents({
   const { values: settingsValues } = useSettings([
     'user.dateformat',
     'user.files.showExtensions',
+    'user.files.showHidden',
+    'user.files.showSystem',
   ])
+  const showHidden = settingsValues?.['user.files.showHidden'] ?? false
+  const showSystem = settingsValues?.['user.files.showSystem'] ?? false
   const dateFormat = settingsValues?.['user.dateformat'] ?? 'relative'
   const showFileExtensions =
     settingsValues?.['user.files.showExtensions'] ?? false
@@ -148,7 +159,7 @@ function FolderContents({
     relativePath === ''
       ? libraries.find((library) => library.id === libraryId)?.folderView
       : null
-  const search = folder ? searchText.trim() || undefined : undefined
+  const search = folder || path ? searchText.trim() || undefined : undefined
   const {
     columnVisibility,
     columnSizing,
@@ -187,6 +198,9 @@ function FolderContents({
         }
 
         if (column === 'relativePath') {
+          if (entry.absolutePath) {
+            return entry.absolutePath
+          }
           const root = libraryRoots.get(entry.libraryId)
 
           return root === undefined
@@ -202,6 +216,17 @@ function FolderContents({
     }))
   }, [columns, libraryRoots])
   const request = useCallback(() => {
+    if (path) {
+      return api.filesystem.list({
+        path,
+        showHidden,
+        showSystem,
+        search: search ?? '',
+        recursive: effectiveFlatten,
+        pane: preferencesScope === 'secondary' ? 'secondary' : 'primary',
+      })
+    }
+
     if (collectionId) {
       return api.collections.listEntries(collectionId)
     }
@@ -216,23 +241,59 @@ function FolderContents({
     }
 
     return Promise.reject(new Error('Missing file source'))
-  }, [api, collectionId, effectiveFlatten, libraryId, relativePath, search])
+  }, [
+    api,
+    path,
+    preferencesScope,
+    showHidden,
+    showSystem,
+    collectionId,
+    effectiveFlatten,
+    libraryId,
+    relativePath,
+    search,
+  ])
   const queryKey = useMemo(
     () =>
-      queryKeys.files({
-        collectionId,
-        libraryId,
-        relativePath,
-        flatten: effectiveFlatten,
-        search,
-      }),
-    [collectionId, effectiveFlatten, libraryId, relativePath, search],
+      path
+        ? [
+            'files',
+            'location',
+            path,
+            showHidden,
+            showSystem,
+            effectiveFlatten,
+            search,
+            preferencesScope,
+          ]
+        : queryKeys.files({
+            collectionId,
+            libraryId,
+            relativePath,
+            flatten: effectiveFlatten,
+            search,
+          }),
+    [
+      path,
+      preferencesScope,
+      showHidden,
+      showSystem,
+      collectionId,
+      effectiveFlatten,
+      libraryId,
+      relativePath,
+      search,
+    ],
   )
   const {
     data: listing,
     loadFailed,
     refresh,
-  } = useApiQuery<Listing | null>(queryKey, request, null)
+  } = useApiQuery<Listing | null>(queryKey, request, null, {
+    enabled: !path || settingsValues !== undefined,
+    staleTime: path ? 0 : 30_000,
+    ...(path ? { retry: false } : {}),
+  })
 
   useEffect(() => {
     if (!folder || !listing || listing.scanned) {
@@ -287,6 +348,9 @@ function FolderContents({
   const viewFile = useCallback(
     (id: number) => {
       setDetailsClosing(false)
+      if (path) {
+        return
+      }
 
       void api.collections
         .recordView(id)
@@ -298,7 +362,7 @@ function FolderContents({
         })
         .catch(() => setViewError('Unable to update recently opened files.'))
     },
-    [api],
+    [api, path],
   )
   const visibleRows = table.getRowModel().rows
   const fileIds = useMemo(
@@ -321,7 +385,7 @@ function FolderContents({
   const currentFolder = listing && 'folder' in listing ? listing.folder : null
   const detailsEntry = selectedFile ?? currentFolder
   const folderStats = useMemo(() => {
-    if (!folder || !listing) {
+    if ((!folder && !path) || !listing) {
       return null
     }
 
@@ -344,7 +408,7 @@ function FolderContents({
         scanning: !listing.scanned,
       },
     )
-  }, [folder, listing])
+  }, [folder, path, listing])
 
   usePageFolderStats(folderStats, reportFolderStats)
 
@@ -401,6 +465,13 @@ function FolderContents({
   }
 
   function openEntry(id: number) {
+    const entry = listing?.entries.find((item) => item.id === id)
+    if (entry?.absolutePath) {
+      void api.filesystem
+        .open(entry.absolutePath)
+        .catch(() => setViewError('Unable to open this file.'))
+      return
+    }
     void api.entries
       .activate(id)
       .catch(() => setViewError('Unable to open this application.'))
@@ -421,16 +492,29 @@ function FolderContents({
   }
 
   if (loadFailed) {
-    return <p role="status">Unable to load files.</p>
+    return (
+      <div role="status">
+        Unable to load files.{' '}
+        <button type="button" onClick={refresh}>
+          Retry
+        </button>
+      </div>
+    )
   }
 
   const ariaLabel = collectionId ? 'Collection files' : 'Folder contents'
 
   return (
-    <div ref={containerRef}>
+    <div
+      ref={containerRef}
+      data-filesystem-path={path}
+      data-files-ready={!!listing}
+    >
       {viewError && <p role="alert">{viewError}</p>}
       {librariesFailed && <p role="status">Unable to load full file paths.</p>}
       <FilesToolbar
+        path={path}
+        onRefresh={refresh}
         libraryId={libraryId}
         libraryRoots={libraryRoots}
         relativePath={relativePath}

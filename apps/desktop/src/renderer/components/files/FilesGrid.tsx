@@ -1,7 +1,7 @@
 import { css } from 'inline-css-modules'
 import { formatFullPath } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
-import { folderUrl } from '../../utils/folderUrl.js'
+import { folderUrl, locationUrl } from '../../utils/folderUrl.js'
 import type { FileViewMode } from '../../utils/tablePreferences.js'
 import FilePreview from './FilePreview.js'
 import type { FileEntry, FileRowGroup, Listing } from './Files.types.js'
@@ -61,12 +61,13 @@ export default function FilesGrid({
   function renderFileCard(entry: FileEntry, masonry: boolean) {
     const displayName = entry.presentation?.displayName ?? entry.name
     const folderPath =
-      entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
+      entry.absolutePath ??
+      (entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
         ? formatFullPath(
             libraryRoots.get(entry.libraryId) ?? '',
             entry.relativePath,
           )
-        : undefined
+        : undefined)
 
     return (
       <GridCard
@@ -79,25 +80,32 @@ export default function FilesGrid({
         selected={selectedIds.has(entry.id)}
         previewOnly={masonry}
         fileId={entry.id}
-        iconTarget={{
-          kind: 'entry',
-          libraryId: entry.libraryId,
-          relativePath: entry.relativePath,
-        }}
-        folderPath={folderPath}
+        {...(!entry.absolutePath
+          ? {
+              iconTarget: {
+                kind: 'entry' as const,
+                libraryId: entry.libraryId,
+                relativePath: entry.relativePath,
+              },
+            }
+          : {})}
+        folderPath={entry.absolutePath ? undefined : folderPath}
         {...(entry.kind === 'directory'
           ? {
               ...folderDragProps(folderPath),
-              to: folderUrl({
-                libraryId: entry.libraryId,
-                relativePath: entry.relativePath,
-              }),
+              to: entry.absolutePath
+                ? locationUrl(entry.absolutePath)
+                : folderUrl({
+                    libraryId: entry.libraryId,
+                    relativePath: entry.relativePath,
+                  }),
             }
           : {
               onClick: () => onActivateFile(entry.id),
-              onDoubleClick: entry.presentation?.activation
-                ? () => onOpenEntry(entry.id)
-                : undefined,
+              onDoubleClick:
+                entry.absolutePath || entry.presentation?.activation
+                  ? () => onOpenEntry(entry.id)
+                  : undefined,
               'aria-label': `Show details for ${displayName}`,
               'aria-expanded': selectedId === entry.id,
             })}

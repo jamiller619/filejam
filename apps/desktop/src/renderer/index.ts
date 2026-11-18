@@ -12,14 +12,10 @@ const report = (error: unknown) => {
 }
 
 const render = async () => {
-  if (window.browser?.mode === 'browser-poc') {
-    const { default: Browser } = await import('./browser/Browser.js')
-    createRoot(root).render(createElement(Browser))
-    return
-  }
-
-  const { default: App } = await import('./components/app/App.js')
-  createRoot(root).render(createElement(App))
+  const { default: Component } = window.filejam
+    ? await import('./components/app/App.js')
+    : await import('./browser/Browser.js')
+  createRoot(root).render(createElement(Component))
 }
 
 void render().catch(report)

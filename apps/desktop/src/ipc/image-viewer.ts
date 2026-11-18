@@ -12,6 +12,7 @@ export function registerImageViewerIpc(
   owner: BrowserWindow,
   libraries: Pick<ServerApi['libraries'], 'list'>,
   settings?: SettingsApi,
+  filesystem = false,
 ) {
   const viewers = new Set<BrowserWindow>()
   const saveViewerStates = new Set<() => Promise<void>>()
@@ -33,6 +34,7 @@ export function registerImageViewerIpc(
         libraries,
         libraryId as number,
         path,
+        filesystem,
       )
 
       if (!authorized.info.isFile() || !previewMimeType(authorized.file)) {

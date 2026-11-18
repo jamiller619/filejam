@@ -65,6 +65,7 @@ pub fn prepare_listing(
             .map_err(io_error)
             .map_err(PrepareError::Error)?;
         let kind = classify_entry(&metadata);
+        let (hidden, system) = crate::visibility::classify(&child_path, &name, &metadata);
 
         if entries.len() >= limit {
             return Err(PrepareError::Error(ServiceError {
@@ -74,6 +75,8 @@ pub fn prepare_listing(
         }
 
         entries.push(Entry {
+            hidden: hidden.then_some(true),
+            system: system.then_some(true),
             path: child_path_string.to_owned(),
             name,
             kind,

@@ -1,5 +1,12 @@
 import { realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+} from 'node:path'
 import type { ServerApi } from '@filejam/server'
 
 export class PreviewAccessError extends Error {
@@ -22,7 +29,21 @@ export async function authorizePreview(
   libraries: Pick<ServerApi['libraries'], 'list'>,
   libraryId: number,
   path: string,
+  filesystem = false,
 ) {
+  if (filesystem && libraryId === 0) {
+    if (!isAbsolute(path) || path.includes('\0')) {
+      throw new PreviewAccessError(400)
+    }
+    const file = await realpath(path)
+    return {
+      file,
+      root: dirname(file),
+      library: { rootPath: dirname(file), name: basename(dirname(file)) },
+      info: await stat(file),
+    }
+  }
+
   if (
     !Number.isSafeInteger(libraryId) ||
     libraryId <= 0 ||

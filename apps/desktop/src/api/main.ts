@@ -23,11 +23,13 @@ export function registerApiIpc(
   scanRoot?: (root: string) => Promise<unknown>,
   entryRegistry?: EntryRegistry,
   openPath?: (path: string) => Promise<string>,
+  filesystem = false,
 ) {
   const addFavoriteFolders = createFavoriteFoldersHandler(
     api,
     settings,
     scanRoot,
+    filesystem,
   )
   const moveFolders = createMoveFoldersHandler(api, settings, scanRoot)
 
@@ -83,6 +85,9 @@ export function registerApiIpc(
   ipcMain.handle(
     'libraries:add',
     withIpcMiddleware(async () => {
+      if (filesystem) {
+        throw new Error('Use Open folder to browse a location.')
+      }
       const window = BrowserWindow.fromWebContents(renderer)
 
       if (!window) {

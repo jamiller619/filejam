@@ -302,3 +302,36 @@ test('detail requests select originals in the handler and respect provider capab
     await rm(rootPath, { recursive: true, force: true })
   }
 })
+
+test('filesystem previews require explicit desktop opt-in and absolute paths', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'filesystem-preview-'))
+  const file = join(directory, 'image.png')
+  const libraries = { list: async () => [] }
+  const fetchFile = async () => new Response('image')
+  const legacy = createPreviewHandler(libraries, fetchFile)
+  const filesystem = createPreviewHandler(
+    libraries,
+    fetchFile,
+    undefined,
+    undefined,
+    undefined,
+    true,
+  )
+  const request = (path) =>
+    new Request(
+      `filejam-preview://preview-image?${new URLSearchParams({ libraryId: '0', path })}`,
+    )
+
+  try {
+    await writeFile(file, 'image')
+    assert.equal((await legacy(request(file))).status, 400)
+    assert.equal((await filesystem(request('relative.png'))).status, 400)
+    assert.equal((await filesystem(request(file))).status, 200)
+    assert.equal(
+      (await filesystem(request(join(directory, 'missing.png')))).status,
+      404,
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})

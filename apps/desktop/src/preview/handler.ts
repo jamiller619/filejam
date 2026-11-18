@@ -35,6 +35,7 @@ export function createPreviewHandler(
   service?: PreviewService,
   fileIcon?: FileIconProvider,
   entryRegistry?: EntryRegistry,
+  filesystem = false,
 ) {
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'GET') {
@@ -47,7 +48,7 @@ export function createPreviewHandler(
 
     if (
       !Number.isSafeInteger(libraryId) ||
-      libraryId <= 0 ||
+      (libraryId <= 0 && !(filesystem && libraryId === 0)) ||
       path === null ||
       path.includes('\0') ||
       (url.pathname !== '' && url.pathname !== '/')
@@ -61,6 +62,7 @@ export function createPreviewHandler(
           libraries,
           libraryId,
           path,
+          filesystem,
         )
         const mimeType = mime.getType(file)
 
@@ -122,6 +124,7 @@ export function createPreviewHandler(
         libraries,
         libraryId,
         path,
+        filesystem,
       )
       const original =
         originalRequested ||
@@ -220,7 +223,12 @@ export function createPreviewHandler(
             request.signal,
           )
 
-          const current = await authorizePreview(libraries, libraryId, path)
+          const current = await authorizePreview(
+            libraries,
+            libraryId,
+            path,
+            filesystem,
+          )
 
           if (
             !result ||

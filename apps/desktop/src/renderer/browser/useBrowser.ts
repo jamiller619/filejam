@@ -123,5 +123,5 @@ export function useBrowser(api: BrowserApi) {
     controller?.navigate(path, options)
   const select = (index: number | null) => controller?.select(index)
 
-  return { state, navigate, select, timingNode }
+  return { state, navigate, select, timingNode, ready: controller !== null }
 }

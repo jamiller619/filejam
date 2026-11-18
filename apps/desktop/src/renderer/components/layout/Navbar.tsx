@@ -1,17 +1,15 @@
-import type { Library } from '@filejam/server'
 import type { IconTarget } from '@filejam/server/icons'
 import { Button, Eyebrow, Icon } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import type { HTMLAttributes, ReactNode } from 'react'
-import { Link, matchPath, useLocation, useResolvedPath } from 'react-router'
+import { Link, useLocation, useNavigate, useResolvedPath } from 'react-router'
 import { useSettings } from '~/hooks/useSettings.js'
 import { useCollections } from '../../hooks/useCollections.js'
 import { useFavoriteFolderDrop } from '../../hooks/useFavoriteFolderDrop.js'
-import { useLibraries } from '../../hooks/useLibraries.js'
-import { folderUrl, isCurrentFolderUrl } from '../../utils/folderUrl.js'
+import { useLocations } from '../../hooks/useLocations.js'
+import { locationUrl } from '../../utils/folderUrl.js'
 import { getLibraryIcon } from '../../utils/libraryIcon.js'
-import { normalizePath } from '../../utils/normalizePath.js'
 import { IconButton } from '../icons/ItemIcon.js'
 
 const styles = css`
@@ -130,97 +128,52 @@ const styles = css`
 `
 
 export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
-  const { libraries, loadFailed } = useLibraries()
-
-  const { collections, loadFailed: collectionsFailed } = useCollections()
-
+  const { data: locations, loadFailed } = useLocations()
+  const { collections } = useCollections()
+  const { values } = useSettings(['user.favoriteFolders'])
+  const favorites = values?.['user.favoriteFolders'] ?? []
+  const navigate = useNavigate()
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
-  const favoriteFolders = useFavoriteFolders(libraries)
-
-  const favoriteLibraryIds = new Set(
-    favoriteFolders
-      .filter((favorite) => favorite.relativePath === '')
-      .map((favorite) => favorite.library.id),
-  )
-
-  const otherLibraries = libraries.filter(
-    (library) => !library.isTrash && !favoriteLibraryIds.has(library.id),
-  )
-
-  const trashLibraries = libraries.filter((library) => library.isTrash)
 
   return (
-    <nav {...props} className={clsx(styles.navbar, props.className)}>
+    <nav
+      {...props}
+      aria-label="Main navigation"
+      className={clsx(styles.navbar, props.className)}
+    >
       <ol>
         <NavItem href="/" name="Home" icon={<Icon name="home" size={20} />} />
         <li className={styles.favorites} {...dropTargetProps}>
           <Eyebrow className={styles.eyebrow}>Favorites</Eyebrow>
-          {favoriteFolders.length === 0 && (
+          {favorites.length === 0 && (
             <div className={styles.dropHint}>Drop folders here</div>
           )}
           <ol aria-label="Favorite folders">
-            {favoriteFolders.map(({ path, library, relativePath }) => (
+            {favorites.map((path) => (
               <NavItem
                 key={path}
-                href={folderUrl({ libraryId: library.id, relativePath })}
-                name={
-                  relativePath.split('/').filter(Boolean).at(-1) ?? library.name
-                }
+                href={locationUrl(path)}
+                name={path.split(/[\\/]/).filter(Boolean).at(-1) ?? path}
                 title={path}
-                iconTarget={{
-                  kind: 'entry',
-                  libraryId: library.id,
-                  relativePath,
-                }}
-                icon={
-                  <Icon
-                    name={
-                      relativePath ? 'folder' : getLibraryIcon(library.name)
-                    }
-                    size={20}
-                  />
-                }
+                icon={<Icon name="folder" size={20} />}
               />
             ))}
           </ol>
           {dropError && <p role="alert">{dropError}</p>}
         </li>
         <li>
-          <Eyebrow className={styles.eyebrow}>Libraries</Eyebrow>
+          <Eyebrow className={styles.eyebrow}>Locations</Eyebrow>
         </li>
-        {otherLibraries.map((library) => (
+        {locations?.places.map((place) => (
           <NavItem
-            key={library.id}
-            href={folderUrl({ libraryId: library.id, relativePath: '' })}
-            name={library.name}
-            title={library.rootPath}
-            iconTarget={{
-              kind: 'entry',
-              libraryId: library.id,
-              relativePath: '',
-            }}
-            icon={<Icon name={getLibraryIcon(library.name)} size={20} />}
+            key={place.path}
+            href={locationUrl(place.path)}
+            name={place.name}
+            title={place.path}
+            icon={<Icon name={getLibraryIcon(place.name)} size={20} />}
           />
         ))}
-        {loadFailed && <li role="status">Unable to load libraries</li>}
-        {trashLibraries.map((library) => {
-          const drive = library.rootPath.match(/^[a-z]:/i)?.[0].toUpperCase()
-
-          const label =
-            trashLibraries.length > 1 && drive
-              ? `${drive} ${library.name}`
-              : library.name
-
-          return (
-            <NavItem
-              key={library.id}
-              href={folderUrl({ libraryId: library.id, relativePath: '' })}
-              name={label}
-              title={library.rootPath}
-              icon={<Icon name="trash" size={20} />}
-            />
-          )
-        })}
+        {loadFailed && <li role="status">Unable to load locations.</li>}
         <li>
           <Eyebrow className={styles.eyebrow}>Collections</Eyebrow>
         </li>
@@ -232,13 +185,20 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             iconTarget={{ kind: 'collection', id: collection.id }}
           />
         ))}
-        {collectionsFailed && (
-          <li role="status">Unable to load collections.</li>
-        )}
         <li className={styles.actions}>
-          <Button block size="sm">
+          <Button
+            block
+            size="sm"
+            onClick={() => {
+              void window.filejam.filesystem.chooseFolder().then((path) => {
+                if (path) {
+                  void navigate(locationUrl(path))
+                }
+              })
+            }}
+          >
             <Icon size={22} name="folder" />
-            <span>Add library</span>
+            <span>Open folder</span>
           </Button>
           <Button block size="sm">
             <Icon size={22} name="list" />
@@ -274,18 +234,11 @@ function NavItem({
 }: NavItemProps) {
   const location = useLocation()
   const destination = useResolvedPath(href)
-  const libraryRoute = matchPath('/libraries/:libraryId', destination.pathname)
-
-  const current = libraryRoute
-    ? isCurrentFolderUrl(location, {
-        libraryId: Number(libraryRoute.params.libraryId),
-        relativePath:
-          new URLSearchParams(destination.search).get('folder') ?? '',
-      })
-    : !!matchPath(
-        { path: destination.pathname, end: destination.pathname === '/' },
-        location.pathname,
-      )
+  const current =
+    location.pathname === destination.pathname &&
+    (destination.pathname !== '/location' ||
+      new URLSearchParams(location.search).get('path') ===
+        new URLSearchParams(destination.search).get('path'))
 
   return (
     <li className={clsx(styles.item, className)} {...props}>
@@ -309,37 +262,4 @@ function NavItem({
       </Button>
     </li>
   )
-}
-
-function useFavoriteFolders(libraries: Library[]) {
-  const { values } = useSettings(['user.favoriteFolders'])
-  const favoritePaths = values?.['user.favoriteFolders'] ?? []
-
-  const favoriteFolders = favoritePaths.flatMap((path) => {
-    const library = libraries.find((item) => {
-      if (item.isTrash) {
-        return false
-      }
-
-      const root = normalizePath(item.rootPath)
-      const target = normalizePath(path)
-
-      return target === root || target.startsWith(`${root}/`)
-    })
-
-    if (!library) {
-      return []
-    }
-
-    const root = library.rootPath.replace(/[\\/]+$/, '')
-
-    const relativePath = path
-      .slice(root.length)
-      .replace(/^[\\/]+/, '')
-      .replaceAll('\\', '/')
-
-    return [{ path, library, relativePath }]
-  })
-
-  return favoriteFolders
 }

@@ -7,9 +7,8 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router'
-import { useLibraries } from '../../hooks/useLibraries.js'
-import { formatFullPath } from '../../utils/fileColumns.js'
-import { folderUrl } from '../../utils/folderUrl.js'
+import { useLocations } from '../../hooks/useLocations.js'
+import { locationUrl } from '../../utils/folderUrl.js'
 
 const style = css`
   .toolbar {
@@ -131,18 +130,45 @@ function NavButtons() {
 }
 
 function Breadcrumbs() {
-  const match = useMatch('/libraries/:libraryId')
+  const match = useMatch('/location')
   const [searchParams] = useSearchParams()
-  const { libraries } = useLibraries()
-
-  const library = match
-    ? libraries.find((item) => item.id === Number(match.params.libraryId))
-    : undefined
-
-  const segments = (searchParams.get('folder') ?? '').split('/').filter(Boolean)
+  const { data: locations } = useLocations()
   const isHome = useMatch('/') !== null
-  const relativePath = segments.join('/')
-  const fullPath = library ? formatFullPath(library.rootPath, relativePath) : ''
+  let fullPath = ''
+  if (match) {
+    fullPath = searchParams.get('path') ?? ''
+  } else if (isHome) {
+    fullPath = locations?.home ?? ''
+  }
+
+  const normalized = fullPath.replaceAll('\\', '/')
+  let normalizedRoot = normalized.match(/^[A-Za-z]:\//)?.[0] ?? ''
+  if (normalized.startsWith('//?/UNC/')) {
+    normalizedRoot = `${normalized.split('/').slice(0, 6).join('/')}/`
+  } else if (normalized.startsWith('//?/')) {
+    normalizedRoot = normalized.slice(0, 7)
+  } else if (normalized.startsWith('//')) {
+    normalizedRoot = `${normalized.split('/').slice(0, 4).join('/')}/`
+  } else if (normalized.startsWith('/')) {
+    normalizedRoot = '/'
+  }
+
+  // Preserve verbatim Windows roots in links, while showing familiar drive labels.
+  const root = fullPath.slice(0, normalizedRoot.length)
+  const separator = fullPath.includes('\\') ? '\\' : '/'
+  const segments = normalized.slice(root.length).split('/').filter(Boolean)
+  const crumbs = root
+    ? [
+        {
+          name: normalizedRoot.replace('//?/UNC/', '//').replace('//?/', ''),
+          path: root,
+        },
+        ...segments.map((name, index) => ({
+          name,
+          path: root + segments.slice(0, index + 1).join(separator),
+        })),
+      ]
+    : []
 
   return (
     <div className={style.location}>
@@ -157,45 +183,22 @@ function Breadcrumbs() {
         >
           <Icon name="home" size={18} />
         </Button>
-        {library && (
-          <>
+        {crumbs.map((crumb, index) => (
+          <span key={crumb.path} className={style.crumb}>
             <span aria-hidden="true">/</span>
-            {segments.length ? (
+            {index === crumbs.length - 1 ? (
+              <span aria-current="page">{crumb.name}</span>
+            ) : (
               <Link
                 className={style.link}
-                to={folderUrl({ libraryId: library.id, relativePath: '' })}
+                to={locationUrl(crumb.path)}
                 viewTransition
               >
-                {library.name}
+                {crumb.name}
               </Link>
-            ) : (
-              <span aria-current="page">{library.name}</span>
             )}
-            {segments.map((segment, index) => {
-              const segmentPath = segments.slice(0, index + 1).join('/')
-
-              return (
-                <span key={segmentPath} className={style.crumb}>
-                  <span aria-hidden="true">/</span>
-                  {index === segments.length - 1 ? (
-                    <span aria-current="page">{segment}</span>
-                  ) : (
-                    <Link
-                      className={style.link}
-                      to={folderUrl({
-                        libraryId: library.id,
-                        relativePath: segmentPath,
-                      })}
-                      viewTransition
-                    >
-                      {segment}
-                    </Link>
-                  )}
-                </span>
-              )
-            })}
-          </>
-        )}
+          </span>
+        ))}
       </nav>
       {fullPath && (
         <span className={style.path} title={fullPath}>

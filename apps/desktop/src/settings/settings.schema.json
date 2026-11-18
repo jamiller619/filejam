@@ -103,6 +103,18 @@
       "type": "boolean",
       "default": false,
       "description": "Whether file extensions are shown in file names."
+    },
+    "user.files.showHidden": {
+      "title": "Show hidden files",
+      "type": "boolean",
+      "default": false,
+      "description": "Show dotfiles and items marked hidden by the operating system. Protected system items have a separate setting."
+    },
+    "user.files.showSystem": {
+      "title": "Show protected system items",
+      "type": "boolean",
+      "default": false,
+      "description": "Show system-managed files and folders, including recycle bins and volume metadata. This does not change filesystem permissions or indexing exclusions."
     }
   },
   "$defs": {

@@ -7,6 +7,13 @@ const router = createHashRouter([
     hydrateFallbackElement: <p role="status">Loading Filejam…</p>,
     children: [
       {
+        path: '/location',
+        lazy: async () => {
+          const { default: Component } = await import('../../pages/Location.js')
+          return { Component }
+        },
+      },
+      {
         path: '/collections/:collectionId',
         lazy: async () => {
           const { default: Component } = await import(
@@ -28,14 +35,6 @@ const router = createHashRouter([
         path: '/settings',
         lazy: async () => {
           const { default: Component } = await import('../../pages/Settings.js')
-
-          return { Component }
-        },
-      },
-      {
-        path: '/libraries/:libraryId',
-        lazy: async () => {
-          const { default: Component } = await import('../../pages/Library.js')
 
           return { Component }
         },

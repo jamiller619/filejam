@@ -11,6 +11,7 @@ import { watchLibraries } from './scanner/watch.js'
 let running: ReturnType<typeof start> | undefined
 
 type BootOptions = {
+  browsingOnly?: boolean
   resolveDefaultFolder?: ResolveDefaultFolder
   trashRoots?: string[]
 }
@@ -55,43 +56,45 @@ async function start(options: BootOptions) {
     database = await initDatabase(databasePath)
 
     const api = createApi(database.db)
-    if (options.resolveDefaultFolder) {
-      await api.libraries.initializeDefaults(
-        options.resolveDefaultFolder,
+    if (!options.browsingOnly) {
+      if (options.resolveDefaultFolder) {
+        await api.libraries.initializeDefaults(
+          options.resolveDefaultFolder,
+          (message, error) => logger.warn(message, error),
+        )
+      }
+
+      await api.libraries.ensureTrashRoots(options.trashRoots ?? [])
+
+      // Keep background indexing bounded. Scans are dominated by filesystem and
+      // SQLite I/O, so matching worker count to CPU cores only creates contention
+      // with interactive reads such as file previews.
+      scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
+
+      // A round trip confirms the worker loaded before exposing the server.
+      await scanner.status()
+
+      // Include previously seeded libraries: their setup marker may predate
+      // automatic scanning. A batch acknowledges its start without delaying boot
+      // until indexing finishes, and the pool processes roots concurrently.
+      const libraries = await api.libraries.list()
+
+      stopWatching = watchLibraries(
+        libraries.map((library) => library.rootPath),
+        scanner,
+        [
+          config.get('appdata.dbPath'),
+          config.get('appdata.cachePath'),
+          config.get('appdata.logsPath'),
+        ],
         (message, error) => logger.warn(message, error),
+        database.db,
       )
+
+      await scanner.startAll(libraries.map((library) => library.rootPath))
+
+      logger.info('Server started', { queuedLibraries: libraries.length })
     }
-
-    await api.libraries.ensureTrashRoots(options.trashRoots ?? [])
-
-    // Keep background indexing bounded. Scans are dominated by filesystem and
-    // SQLite I/O, so matching worker count to CPU cores only creates contention
-    // with interactive reads such as file previews.
-    scanner = new FileScanner(config.get('appdata.cachePath'), databasePath)
-
-    // A round trip confirms the worker loaded before exposing the server.
-    await scanner.status()
-
-    // Include previously seeded libraries: their setup marker may predate
-    // automatic scanning. A batch acknowledges its start without delaying boot
-    // until indexing finishes, and the pool processes roots concurrently.
-    const libraries = await api.libraries.list()
-
-    stopWatching = watchLibraries(
-      libraries.map((library) => library.rootPath),
-      scanner,
-      [
-        config.get('appdata.dbPath'),
-        config.get('appdata.cachePath'),
-        config.get('appdata.logsPath'),
-      ],
-      (message, error) => logger.warn(message, error),
-      database.db,
-    )
-
-    await scanner.startAll(libraries.map((library) => library.rootPath))
-
-    logger.info('Server started', { queuedLibraries: libraries.length })
 
     let closing: Promise<void> | undefined
 

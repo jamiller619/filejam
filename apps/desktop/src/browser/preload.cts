@@ -32,3 +32,10 @@ const browser: BrowserApi = {
 }
 
 contextBridge.exposeInMainWorld('browser', browser)
+if (process.argv.includes('--filejam-desktop-browser')) {
+  contextBridge.exposeInMainWorld('locations', {
+    get: () => ipcRenderer.invoke('browser:locations'),
+    favorite: (path: string, enabled: boolean) =>
+      ipcRenderer.invoke('browser:favorite', path, enabled),
+  })
+}

@@ -5,6 +5,8 @@ export type ViewOptions = {
 }
 
 export type Entry = {
+  hidden?: boolean
+  system?: boolean
   path: string
   name: string
   kind: 'file' | 'directory' | 'symlink' | 'other'
@@ -70,6 +72,13 @@ export type BrowserApi = {
 
 declare global {
   interface Window {
+    locations?: {
+      get(): Promise<import('./locations.js').Locations>
+      favorite(
+        path: string,
+        enabled: boolean,
+      ): Promise<import('./locations.js').Locations>
+    }
     browser?: BrowserApi
   }
 }

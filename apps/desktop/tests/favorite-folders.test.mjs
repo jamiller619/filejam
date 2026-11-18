@@ -63,3 +63,31 @@ test('folder drops persist, deduplicate, validate and register external roots', 
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+test('filesystem favorites never register or scan library roots', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'filesystem-favorites-'))
+  let favorites = []
+  const add = createFavoriteFoldersHandler(
+    {
+      libraries: {
+        list: async () => [],
+        ensureRoot: () => assert.fail('Must not create a library'),
+      },
+    },
+    {
+      get: async () => favorites,
+      set: async (_key, value) => {
+        favorites = value
+      },
+    },
+    () => assert.fail('Must not start indexing'),
+    true,
+  )
+
+  try {
+    assert.deepEqual(await add([directory]), [directory])
+    assert.deepEqual(await add([directory]), [directory])
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})

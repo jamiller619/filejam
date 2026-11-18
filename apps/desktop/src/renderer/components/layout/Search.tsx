@@ -22,7 +22,7 @@ const style = css`
 `
 
 export default function Search() {
-  const libraryMatch = useMatch('/libraries/:libraryId')
+  const libraryMatch = useMatch('/location')
   const homeMatch = useMatch('/')
   const location = useLocation()
   const { search, setSearch } = useSearch()

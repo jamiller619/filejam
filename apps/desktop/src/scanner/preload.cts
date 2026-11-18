@@ -13,6 +13,13 @@ import electron = require('electron')
 const { contextBridge, ipcRenderer } = electron
 
 type FilejamApi = {
+  filesystem: {
+    list(
+      input: import('../browser/filesystem.js').FilesystemRequest,
+    ): Promise<PresentedFolderListing>
+    open(path: string): Promise<void>
+    chooseFolder(): Promise<string | null>
+  }
   getDroppedFilePath: (file: File) => string
   addFavoriteFolders: (paths: string[]) => Promise<string[]>
   openImage: (libraryId: number, path: string) => Promise<void>
@@ -39,6 +46,11 @@ type FilejamApi = {
 }
 
 const filejam: FilejamApi = {
+  filesystem: {
+    list: (input) => ipcRenderer.invoke('filesystem:list', input),
+    open: (path) => ipcRenderer.invoke('filesystem:open', path),
+    chooseFolder: () => ipcRenderer.invoke('browser:choose-folder'),
+  },
   getDroppedFilePath: (file) => electron.webUtils.getPathForFile(file),
   addFavoriteFolders: (paths) =>
     ipcRenderer.invoke('favorites:addFolders', paths),
@@ -109,3 +121,7 @@ declare global {
     scanner: ScannerApi & { onUpdated(listener: () => void): () => void }
   }
 }
+
+contextBridge.exposeInMainWorld('locations', {
+  get: () => ipcRenderer.invoke('browser:locations'),
+})

@@ -16,7 +16,8 @@ import {
   REACT_DEVELOPER_TOOLS,
 } from 'electron-devtools-installer'
 import { registerApiIpc } from './api/main.js'
-import { resolveDefaultFolder } from './defaultFolders.js'
+import { registerFilesystemIpc } from './browser/filesystem.js'
+import { registerLocations } from './browser/locations.js'
 import { createEntryRegistry } from './entries/create-registry.js'
 import type { EntryRegistry } from './entries/registry.js'
 import { createIconHandler } from './icons/assets.js'
@@ -26,7 +27,7 @@ import { createPreviewService } from './preview/create-service.js'
 import { createFileIconProvider } from './preview/file-icons.js'
 import { createPreviewHandler } from './preview/handler.js'
 import type { PreviewService } from './preview/service.js'
-import { registerScannerIpc } from './scanner/main.js'
+
 import {
   createSettingsApi,
   initSettings,
@@ -34,8 +35,12 @@ import {
   type SettingsStore,
 } from './settings/index.js'
 import { settingsKeys } from './settings/settings.js'
-import { getOsTrashRoots } from './trash/roots.js'
+
 import { readWindowState, trackWindowState } from './window-state.js'
+
+if (process.env.FILEJAM_TEST_USER_DATA) {
+  app.setPath('userData', process.env.FILEJAM_TEST_USER_DATA)
+}
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'filejam-icon', privileges: { standard: true, secure: true } },
@@ -55,6 +60,9 @@ if (!app.isPackaged && process.env.FILEJAM_RENDERER_URL) {
 
 app.whenReady().then(async () => {
   try {
+    if (process.env.FILEJAM_TEST_USER_DATA || app.isPackaged) {
+      return
+    }
     await installExtension(REACT_DEVELOPER_TOOLS)
 
     console.log(`React DevTools installed successfully.`)
@@ -65,7 +73,8 @@ app.whenReady().then(async () => {
 
 let server: Awaited<ReturnType<typeof boot>> | undefined
 let window: BrowserWindow | undefined
-let removeScannerIpc: (() => void) | undefined
+let closeFilesystem: (() => Promise<void>) | undefined
+let removeLocations: (() => void) | undefined
 let removeApiIpc: (() => void) | undefined
 let removeImageViewerIpc: (() => Promise<void>) | undefined
 let startup: Promise<void> | undefined
@@ -136,19 +145,20 @@ async function createWindow() {
     current,
     server.api.libraries,
     currentSettingsApi,
+    true,
   )
 
-  removeScannerIpc = registerScannerIpc(server.scanner, current.webContents)
-
-  const scanner = server.scanner
+  closeFilesystem = registerFilesystemIpc(current, entryRegistry)
+  removeLocations = await registerLocations(current)
 
   removeApiIpc = registerApiIpc(
     server.api,
     current.webContents,
     currentSettingsApi,
-    (root) => scanner.start(root),
+    undefined,
     entryRegistry,
     (path) => shell.openPath(path),
+    true,
   )
 
   // The scanner bridge is privileged: this window only hosts local app content.
@@ -167,8 +177,8 @@ async function createWindow() {
     removeImageViewerIpc = undefined
     removeApiIpc?.()
     removeApiIpc = undefined
-    removeScannerIpc?.()
-    removeScannerIpc = undefined
+    void closeFilesystem?.()
+    removeLocations?.()
     window = undefined
   })
 
@@ -241,8 +251,8 @@ if (!app.requestSingleInstanceLock()) {
         // Startup may fail after boot succeeded (for example, loading the page).
         // Still close any server instance that was already created.
         await startup?.catch(() => undefined)
-        removeScannerIpc?.()
-        removeScannerIpc = undefined
+        await closeFilesystem?.()
+        removeLocations?.()
         removeApiIpc?.()
         removeApiIpc = undefined
         await removeImageViewerIpc?.()
@@ -278,11 +288,7 @@ if (!app.requestSingleInstanceLock()) {
       return
     }
 
-    server = await boot({
-      resolveDefaultFolder: (folder) =>
-        resolveDefaultFolder(folder, (name) => app.getPath(name)),
-      trashRoots: await getOsTrashRoots(),
-    })
+    server = await boot({ browsingOnly: true })
 
     const legacyConfig = server.config.getStore() as unknown as Record<
       string,
@@ -370,6 +376,7 @@ if (!app.requestSingleInstanceLock()) {
         previews,
         fileIcons,
         entryRegistry,
+        true,
       ),
     )
 

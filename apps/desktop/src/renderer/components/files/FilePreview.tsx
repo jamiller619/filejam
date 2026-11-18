@@ -70,6 +70,8 @@ const styles = css`
   .thumbnail {
     position: relative;
     display: flex;
+    justify-content: center;
+    width: 100%;
     max-width: 100%;
     max-height: 100%;
 

@@ -13,9 +13,7 @@ import DetailsPane from '../layout/DetailsPane.js'
 import FileCollections from './FileCollections.js'
 import FilePreview from './FilePreview.js'
 
-type FileEntry = Awaited<
-  ReturnType<Window['filejam']['entries']['listChildren']>
->['entries'][number]
+import type { FileEntry } from './Files.types.js'
 
 const metadata: readonly FileColumn[] = [
   'name',
@@ -173,7 +171,10 @@ export default function FileDetails({
     sectionSelection.entryId === entry.id ? sectionSelection.name : 'preview'
 
   const fullPath =
-    rootPath === undefined ? '—' : formatFullPath(rootPath, entry.relativePath)
+    entry.absolutePath ??
+    (rootPath === undefined
+      ? '—'
+      : formatFullPath(rootPath, entry.relativePath))
 
   return (
     <DetailsPane
@@ -202,7 +203,7 @@ export default function FileDetails({
               <Icon name="list" size={21} />
               <span>Info</span>
             </Button>
-            {!isFolder && (
+            {!isFolder && !entry.absolutePath && (
               <Button
                 variant="ghost"
                 aria-pressed={activeSection === 'collections'}
@@ -218,15 +219,17 @@ export default function FileDetails({
         </nav>
       }
     >
-      <IconButton
-        target={{
-          kind: 'entry',
-          libraryId: entry.libraryId,
-          relativePath: entry.relativePath,
-        }}
-        name={displayName}
-        label
-      />
+      {!entry.absolutePath && (
+        <IconButton
+          target={{
+            kind: 'entry',
+            libraryId: entry.libraryId,
+            relativePath: entry.relativePath,
+          }}
+          name={displayName}
+          label
+        />
+      )}
       <div ref={previewSection} className={styles.preview}>
         {isVideo ? (
           // biome-ignore lint/a11y/useMediaCaption: Local videos do not include a separate captions source.
@@ -257,16 +260,18 @@ export default function FileDetails({
       </div>
       {imageError?.id === entry.id && <p role="alert">{imageError.message}</p>}
       <dl ref={infoSection} className={styles.metadata}>
-        {metadata.map((column) => (
-          <div key={column}>
-            <dt>{fileColumnLabels[column]}</dt>
-            <dd title={formatFileValueTitle(entry, column, dateFormat)}>
-              {column === 'relativePath'
-                ? fullPath
-                : formatFileValue(entry, column, dateFormat)}
-            </dd>
-          </div>
-        ))}
+        {metadata
+          .filter((column) => !entry.absolutePath || column !== 'indexedAt')
+          .map((column) => (
+            <div key={column}>
+              <dt>{fileColumnLabels[column]}</dt>
+              <dd title={formatFileValueTitle(entry, column, dateFormat)}>
+                {column === 'relativePath'
+                  ? fullPath
+                  : formatFileValue(entry, column, dateFormat)}
+              </dd>
+            </div>
+          ))}
         {Object.entries(entry.presentation?.details ?? {}).map(
           ([label, value]) => (
             <div key={label}>
@@ -276,7 +281,7 @@ export default function FileDetails({
           ),
         )}
       </dl>
-      {!isFolder && (
+      {!isFolder && !entry.absolutePath && (
         <div ref={collectionsSection}>
           <FileCollections
             key={entry.id}

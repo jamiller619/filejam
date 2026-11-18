@@ -7,8 +7,10 @@ import {
 import { useCallback } from 'react'
 
 type ApiQueryOptions<T> = {
+  enabled?: boolean
   keepPreviousData?: boolean
   placeholderData?: () => T | undefined
+  retry?: boolean
   staleTime?: number
 }
 
@@ -31,6 +33,14 @@ export function useApiQuery<T>(
       previousData ?? options.placeholderData?.()) as NonNullable<
       typeof queryOptions.placeholderData
     >
+  }
+
+  if (options.enabled !== undefined) {
+    queryOptions.enabled = options.enabled
+  }
+
+  if (options.retry !== undefined) {
+    queryOptions.retry = options.retry
   }
 
   if (options.staleTime !== undefined) {

@@ -15,10 +15,20 @@ export type PresentedLibrary = Awaited<
 
 type FolderListing = Awaited<ReturnType<ServerApi['entries']['listChildren']>>
 
-export type PresentedEntry = FolderListing['entries'][number] & {
+export type PresentedEntry = Omit<
+  FolderListing['entries'][number],
+  'createdAt' | 'indexedAt'
+> & {
+  absolutePath?: string
+  createdAt: Date | null
+  indexedAt: Date | null
   presentation?: EntryResolution | null
 }
 
-export type PresentedFolderListing = Omit<FolderListing, 'entries'> & {
+export type PresentedFolderListing = Omit<
+  FolderListing,
+  'entries' | 'folder'
+> & {
+  folder: PresentedEntry | null
   entries: PresentedEntry[]
 }

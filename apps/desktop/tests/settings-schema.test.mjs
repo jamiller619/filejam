@@ -27,6 +27,8 @@ test('schema validation enforces enums, bounds, types, references and array uniq
   for (const [key, value] of [
     ['user.dateformat', 'invalid'],
     ['user.files.showExtensions', 'false'],
+    ['user.files.showHidden', 'false'],
+    ['user.files.showSystem', 1],
     ['window.navbarWidth', 119],
     ['window.navbarWidth', 160.5],
     ['window.detailsWidth', Infinity],
@@ -91,6 +93,12 @@ test('settings groups exclude internal state and use schema category titles', ()
   assert.equal(groups[0].title, 'User')
   assert.deepEqual(
     groups[0].settings.map(({ key }) => key),
-    ['user.dateformat', 'user.files.colorCoding', 'user.files.showExtensions'],
+    [
+      'user.dateformat',
+      'user.files.colorCoding',
+      'user.files.showExtensions',
+      'user.files.showHidden',
+      'user.files.showSystem',
+    ],
   )
 })

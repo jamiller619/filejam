@@ -122,7 +122,15 @@ export function validateRequestId(value: unknown): string {
 }
 
 function validEntry(value: unknown): boolean {
-  if (!isRecord(value) || !hasKeys(value, ['path', 'name', 'kind'])) {
+  if (
+    !isRecord(value) ||
+    !['path', 'name', 'kind'].every((key) => key in value) ||
+    Object.keys(value).some(
+      (key) => !['path', 'name', 'kind', 'hidden', 'system'].includes(key),
+    ) ||
+    ('hidden' in value && typeof value.hidden !== 'boolean') ||
+    ('system' in value && typeof value.system !== 'boolean')
+  ) {
     return false
   }
 

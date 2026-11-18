@@ -168,6 +168,10 @@ pub enum EntryKind {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system: Option<bool>,
     pub path: String,
     pub name: String,
     pub kind: EntryKind,

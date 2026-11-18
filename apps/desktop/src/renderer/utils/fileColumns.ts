@@ -5,7 +5,10 @@ type FileEntry = Awaited<
   ReturnType<Window['filejam']['entries']['listChildren']>
 >['entries'][number]
 
-export type FileColumn = Exclude<keyof FileEntry, 'presentation'>
+export type FileColumn = Exclude<
+  keyof FileEntry,
+  'presentation' | 'absolutePath'
+>
 export type FileColumnType = 'text' | 'number' | 'date' | 'boolean'
 export type DateFormat = Settings['user.dateformat']
 

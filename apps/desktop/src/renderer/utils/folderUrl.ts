@@ -19,3 +19,7 @@ export function isCurrentFolderUrl(
 
   return currentRelativePath === folder.relativePath
 }
+
+export function locationUrl(path: string) {
+  return `/location?${new URLSearchParams({ path })}`
+}

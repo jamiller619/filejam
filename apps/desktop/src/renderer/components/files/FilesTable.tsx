@@ -15,15 +15,15 @@ import {
   formatFullPath,
 } from '../../utils/fileColumns.js'
 import { folderDragProps } from '../../utils/folderDrag.js'
-import { folderUrl } from '../../utils/folderUrl.js'
+import { folderUrl, locationUrl } from '../../utils/folderUrl.js'
 import { useAppearance } from '../icons/AppearanceProvider.js'
 import FileName from './FileName.js'
 import FilePreview from './FilePreview.js'
 import { minimumNameColumnWidth } from './Files.constants.js'
 import type {
+  FileEntry,
   FileRowGroup,
   FilesTableModel,
-  FolderListing,
   Listing,
 } from './Files.types.js'
 import FilesGroupToggle from './FilesGroupToggle.js'
@@ -472,12 +472,13 @@ export default function FilesTable({
               const entry = row.original
               const displayName = entry.presentation?.displayName ?? entry.name
               const entryPath =
-                entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
+                entry.absolutePath ??
+                (entry.kind === 'directory' && libraryRoots.has(entry.libraryId)
                   ? formatFullPath(
                       libraryRoots.get(entry.libraryId) ?? '',
                       entry.relativePath,
                     )
-                  : undefined
+                  : undefined)
 
               return (
                 <tr
@@ -490,6 +491,9 @@ export default function FilesTable({
                   data-file-id={entry.id}
                   onContextMenu={(event) => {
                     event.preventDefault()
+                    if (entry.absolutePath) {
+                      return
+                    }
                     edit(
                       {
                         kind: 'entry',
@@ -501,7 +505,7 @@ export default function FilesTable({
                   }}
                   data-folder-drag-preview={entryPath ? true : undefined}
                   onDoubleClick={
-                    entry.presentation?.activation
+                    entry.absolutePath || entry.presentation?.activation
                       ? () => onOpenEntry(entry.id)
                       : undefined
                   }
@@ -605,12 +609,12 @@ function FolderNameLink({
   highlight,
   className,
 }: {
-  entry: FolderListing['entries'][number]
+  entry: FileEntry
   path: string | undefined
   highlight: string | undefined
   className: string | undefined
 }) {
-  const folderDropProps = useFolderDrop(path)
+  const folderDropProps = useFolderDrop(entry.absolutePath ? undefined : path)
   const folderSourceProps = folderDragProps(path)
 
   return (
@@ -620,10 +624,14 @@ function FolderNameLink({
       className={className}
       title={entry.name}
       viewTransition
-      to={folderUrl({
-        libraryId: entry.libraryId,
-        relativePath: entry.relativePath,
-      })}
+      to={
+        entry.absolutePath
+          ? locationUrl(entry.absolutePath)
+          : folderUrl({
+              libraryId: entry.libraryId,
+              relativePath: entry.relativePath,
+            })
+      }
       onDragEnd={(event) => {
         folderSourceProps.onDragEnd(event)
         folderDropProps.onDragEnd()
