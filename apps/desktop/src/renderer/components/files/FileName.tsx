@@ -70,6 +70,7 @@ export default function FileName({
   return (
     <span
       className={styles.name}
+      data-file-name={name}
       title={name}
       data-extension-color={isDirectory ? undefined : colorForFileName(name)}
     >

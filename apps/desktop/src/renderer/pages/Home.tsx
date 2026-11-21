@@ -1,3 +1,4 @@
+import { css } from 'inline-css-modules'
 import FilePreview from '../components/files/FilePreview.js'
 import Files from '../components/files/Files.js'
 import GridCard from '../components/files/GridCard.js'
@@ -9,6 +10,14 @@ import { folderDragProps } from '../utils/folderDrag.js'
 import { locationUrl } from '../utils/folderUrl.js'
 import Page from './Page.js'
 
+const styles = css`
+  .heading {
+    font-size: 18px;
+    font-weight: 500;
+    margin-block: var(--suzy-space-2);
+  }
+`
+
 export default function Home() {
   const { data: locations, loadFailed } = useLocations()
   const { values } = useSettings(['user.favoriteFolders'])
@@ -18,6 +27,7 @@ export default function Home() {
     <Page title="Home">
       <section>
         <PageHeader />
+        <h2 className={styles.heading}>Favorites</h2>
         <GridContainer aria-label="Favorite folders">
           {favorites.map((path) => (
             <GridCard

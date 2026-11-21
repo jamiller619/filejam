@@ -85,16 +85,20 @@ export default function DetailsPane({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (
+        event.key === 'Escape' &&
+        !event.defaultPrevented &&
+        !document.querySelector('dialog:modal')
+      ) {
         event.preventDefault()
         closeCallback.current?.()
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keydown', handleKeyDown)
     }
   }, [closing, closable])
 

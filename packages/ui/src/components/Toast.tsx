@@ -56,7 +56,11 @@ export function Toast({ toast }: ToastProps) {
       <BaseToast.Content>
         <BaseToast.Title className={styles.title} />
         <BaseToast.Description className={styles.description} />
-        {toast.actionProps && <BaseToast.Action className={styles.action} />}
+        {toast.actionProps && (
+          <BaseToast.Action
+            render={<Button className={styles.action} size="sm" />}
+          />
+        )}
       </BaseToast.Content>
       <BaseToast.Close
         render={

@@ -10,14 +10,22 @@ import {
 import type { Table } from '@tanstack/react-table'
 import { css } from 'inline-css-modules'
 import { useId, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { useSettings } from '../../hooks/useSettings.js'
 import {
   type FileColumn,
   fileColumnLabels,
   formatFullPath,
 } from '../../utils/fileColumns.js'
+import {
+  folderUrl,
+  locationBreadcrumbs,
+  locationUrl,
+} from '../../utils/folderUrl.js'
 import type { FileViewMode } from '../../utils/tablePreferences.js'
 import { IconButton } from '../icons/ItemIcon.js'
+
+const toolbarIconSize = 20
 
 const styles = css`
   .toolbar {
@@ -192,7 +200,10 @@ function FavoriteSetting({ busy, isFavorite, onChange }: FavoriteSettingProps) {
         onClick={handleClick}
       >
         <span className={styles.favoriteIcon}>
-          <Icon name={isFavorite ? 'heartFilled' : 'heart'} size={20} />
+          <Icon
+            name={isFavorite ? 'heartFilled' : 'heart'}
+            size={toolbarIconSize}
+          />
           {burstId > 0 && (
             <span key={burstId} aria-hidden="true">
               {confettiPieces.map((piece) => (
@@ -261,6 +272,30 @@ export default function FilesToolbar<TData>({
     updateSettings,
   } = useSettings(['user.favoriteFolders'])
 
+  const navigate = useNavigate()
+  const location = useLocation()
+  const navigation = window.navigation
+  const canGoBack = navigation?.currentEntry
+    ? navigation.canGoBack
+    : location.key !== 'default' && window.history.state?.idx > 0
+  const canGoForward = navigation?.currentEntry
+    ? navigation.canGoForward
+    : window.history.state?.idx < window.history.length - 1
+  let parentUrl: string | undefined
+
+  if (path) {
+    const parent = locationBreadcrumbs(path).at(-2)
+
+    if (parent) {
+      parentUrl = locationUrl(parent.path)
+    }
+  } else if (!collectionId && libraryId !== undefined && relativePath) {
+    parentUrl = folderUrl({
+      libraryId,
+      relativePath: relativePath.split('/').slice(0, -1).join('/'),
+    })
+  }
+
   const rootPath =
     libraryId === undefined ? undefined : libraryRoots.get(libraryId)
 
@@ -270,8 +305,8 @@ export default function FilesToolbar<TData>({
 
   const favoritePaths = Array.isArray(settingsValues?.['user.favoriteFolders'])
     ? settingsValues['user.favoriteFolders'].filter(
-        (path): path is string => typeof path === 'string',
-      )
+      (path): path is string => typeof path === 'string',
+    )
     : []
 
   const [favoriteError, setFavoriteError] = useState('')
@@ -314,11 +349,57 @@ export default function FilesToolbar<TData>({
   return (
     <>
       {favoriteError && <p role="alert">{favoriteError}</p>}
-      <OverflowToolbar className={styles.toolbar} trailingFrom={4}>
+      <OverflowToolbar
+        className={styles.toolbar}
+        trailingFrom={
+          collectionId ||
+            (libraryId !== undefined && relativePath !== undefined)
+            ? 5
+            : 4
+        }
+      >
+        <ButtonGroup key="navigation" role="group" aria-label="File navigation">
+          <Button
+            aria-label="Back"
+            title="Back"
+            disabled={!canGoBack}
+            onClick={() => navigate(-1)}
+          >
+            <Icon name="back" size={toolbarIconSize} />
+          </Button>
+          <Button
+            aria-label="Up"
+            title="Up to parent folder"
+            disabled={!parentUrl}
+            onClick={() => {
+              if (parentUrl) {
+                void navigate(parentUrl, { viewTransition: true })
+              }
+            }}
+          >
+            <Icon name="up" size={toolbarIconSize} />
+          </Button>
+          <Button
+            aria-label="Refresh folder"
+            title="Refresh"
+            onClick={onRefresh}
+          >
+            <Icon name="refresh" size={toolbarIconSize} />
+          </Button>
+          <Button
+            aria-label="Forward"
+            title="Forward"
+            disabled={!canGoForward}
+            onClick={() => navigate(1)}
+          >
+            <Icon name="forward" size={toolbarIconSize} />
+          </Button>
+        </ButtonGroup>
         {!!collectionId && (
           <IconButton
             target={{ kind: 'collection', id: collectionId }}
             name="collection"
+            size={toolbarIconSize}
           />
         )}
         {!collectionId &&
@@ -327,13 +408,9 @@ export default function FilesToolbar<TData>({
             <IconButton
               target={{ kind: 'entry', libraryId, relativePath }}
               name={relativePath.split('/').at(-1) || 'folder'}
+              size={toolbarIconSize}
             />
           )}
-        {path && (
-          <Button key="refresh" aria-label="Refresh folder" onClick={onRefresh}>
-            Refresh
-          </Button>
-        )}
         <div key="view" className={styles.controlGroup}>
           <ButtonGroup role="group" aria-label="File view">
             {(['list', 'grid', 'masonry'] as const).map((mode) => (
@@ -344,7 +421,7 @@ export default function FilesToolbar<TData>({
                 aria-pressed={viewMode === mode}
                 onClick={() => onViewModeChange(mode)}
               >
-                <Icon name={mode} size={18} />
+                <Icon name={mode} size={toolbarIconSize} />
               </Button>
             ))}
           </ButtonGroup>
@@ -365,9 +442,8 @@ export default function FilesToolbar<TData>({
                 { id, desc: isCurrentSort ? !currentSort.desc : false },
               ])
             }}
-            displayValue={`${currentSortLabel}${
-              currentSortDirection ? ` (${currentSortDirection})` : ''
-            }`}
+            displayValue={`${currentSortLabel}${currentSortDirection ? ` (${currentSortDirection})` : ''
+              }`}
           >
             <Select.MenuItem value={null}>Default order</Select.MenuItem>
             {table.getAllLeafColumns().map((column) => (
@@ -409,7 +485,7 @@ export default function FilesToolbar<TData>({
           <Menu
             key="columns"
             label="Columns"
-            trigger={<Icon name="columns" size={18} />}
+            trigger={<Icon name="columns" size={toolbarIconSize} />}
           >
             <ColumnSettings table={table} />
           </Menu>
@@ -439,7 +515,7 @@ export default function FilesToolbar<TData>({
             id={fileExtensionsSwitchId}
             title="Show file extensions"
             checked={false}
-            onCheckedChange={() => {}}
+            onCheckedChange={() => { }}
           />
         </label>
         <div key="details" className={styles.controlGroup}>
@@ -452,7 +528,7 @@ export default function FilesToolbar<TData>({
           >
             <Icon
               name={detailsOpen ? 'hideDetails' : 'showDetails'}
-              size={18}
+              size={toolbarIconSize}
             />
           </Button>
         </div>

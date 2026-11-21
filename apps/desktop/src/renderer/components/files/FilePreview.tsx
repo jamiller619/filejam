@@ -1,6 +1,6 @@
 import { imageMimeType } from '@filejam/preview-images/formats'
 import { iconTargetKey } from '@filejam/server/icons'
-import { Button, Icon } from '@filejam/ui'
+import { Button, Icon, type IconName } from '@filejam/ui'
 import { clsx } from 'clsx'
 import { css } from 'inline-css-modules'
 import { useEffect, useRef, useState } from 'react'
@@ -143,12 +143,14 @@ export default function FilePreview({
   entry,
   size = 40,
   variant = 'list',
+  locationIcon,
   onOpen,
   naturalSize = false,
 }: {
   entry: Entry
   size?: number | '100%'
   variant?: 'list' | 'grid'
+  locationIcon?: IconName | undefined
   onOpen?: () => void
   naturalSize?: boolean
 }) {
@@ -161,20 +163,23 @@ export default function FilePreview({
       relativePath: entry.relativePath,
     }),
   )
+  const isFolder = entry.kind === 'directory'
   const isVideo = entry.mimeType?.startsWith('video/')
   const isMedia = entry.mimeType?.startsWith('image/') || isVideo
   const showCustomIcon =
     customIcon &&
     (customIcon.kind !== 'upload' ||
       customIcon.assetId !== failedCustomAsset) &&
-    !onOpen &&
+    (!onOpen || isFolder) &&
     (variant === 'list' || !isMedia)
   const containerRef = useRef<HTMLDivElement>(null)
   const [nearViewport, setNearViewport] = useState(Boolean(onOpen))
   const [loadedSource, setLoadedSource] = useState('')
   const [settledSource, setSettledSource] = useState('')
   const detail = Boolean(onOpen)
-  const showInlineIcon = variant === 'list' && !detail && !isMedia
+  const showInlineIcon =
+    Boolean(locationIcon) || (variant === 'list' && !detail && !isMedia)
+  const fullWidthIconSize = detail ? 80 : 24
 
   const pixels = Math.min(
     2048,
@@ -240,8 +245,8 @@ export default function FilePreview({
     >
       {showInlineIcon && (
         <Icon
-          name={entry.kind === 'directory' ? 'folder' : 'document'}
-          size={typeof size === 'number' ? size / 2 : 24}
+          name={locationIcon ?? (isFolder ? 'folder' : 'document')}
+          size={typeof size === 'number' ? size / 2 : fullWidthIconSize}
         />
       )}
       {!showInlineIcon && shouldLoad && (

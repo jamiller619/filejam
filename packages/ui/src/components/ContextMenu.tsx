@@ -1,6 +1,13 @@
 import { ContextMenu as BaseContextMenu } from '@base-ui/react/context-menu'
 import { motion } from 'motion/react'
-import type { ComponentType, ReactElement, ReactNode } from 'react'
+import {
+  type ComponentType,
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  useContext,
+  useRef,
+} from 'react'
 import { pressed } from '../interactions.js'
 import { MenuSubmenu, styles } from './Menu.js'
 
@@ -25,7 +32,51 @@ export type ContextMenuProps = {
   items: readonly ContextMenuItem[]
 }
 
+export const ContextMenuInspector = createContext<
+  ((x: number, y: number) => void) | undefined
+>(undefined)
+
 const MotionItem = motion.create(BaseContextMenu.Item)
+
+function visibleItems(items: readonly ContextMenuItem[]): ContextMenuItem[] {
+  const visible: ContextMenuItem[] = []
+  let separator: ContextMenuItem | undefined
+
+  for (const item of items) {
+    if (item.type === 'divider') {
+      if (visible.length) {
+        separator ??= item
+      }
+
+      continue
+    }
+
+    if (item.disabled) {
+      continue
+    }
+
+    let entry = item
+
+    if (item.children) {
+      const children = visibleItems(item.children)
+
+      if (!children.length) {
+        continue
+      }
+
+      entry = { ...item, children }
+    }
+
+    if (separator) {
+      visible.push(separator)
+      separator = undefined
+    }
+
+    visible.push(entry)
+  }
+
+  return visible
+}
 
 function MenuItems({ items }: Pick<ContextMenuProps, 'items'>) {
   return items.map((item) => {
@@ -50,7 +101,6 @@ function MenuItems({ items }: Pick<ContextMenuProps, 'items'>) {
           key={item.id ?? item.label}
           label={item.label}
           icon={item.icon}
-          disabled={item.disabled}
         >
           <MenuItems items={item.children} />
         </MenuSubmenu>
@@ -62,7 +112,6 @@ function MenuItems({ items }: Pick<ContextMenuProps, 'items'>) {
         key={item.id ?? item.label}
         className={styles.item}
         whileTap={pressed}
-        disabled={item.disabled}
         onClick={item.onClick}
       >
         {content}
@@ -72,13 +121,34 @@ function MenuItems({ items }: Pick<ContextMenuProps, 'items'>) {
 }
 
 export default function ContextMenu({ trigger, items }: ContextMenuProps) {
+  const inspect = useContext(ContextMenuInspector)
+  const position = useRef({ x: 0, y: 0 })
+  const availableItems = visibleItems(items)
+
+  if (inspect) {
+    if (availableItems.length) {
+      availableItems.push({ type: 'divider', id: 'inspect-divider' })
+    }
+
+    availableItems.push({
+      id: 'inspect-element',
+      label: 'Inspect Element',
+      onClick: () => inspect(position.current.x, position.current.y),
+    })
+  }
+
   return (
-    <BaseContextMenu.Root disabled={items.length === 0}>
-      <BaseContextMenu.Trigger render={trigger} />
+    <BaseContextMenu.Root disabled={availableItems.length === 0}>
+      <BaseContextMenu.Trigger
+        render={trigger}
+        onContextMenu={(event) => {
+          position.current = { x: event.clientX, y: event.clientY }
+        }}
+      />
       <BaseContextMenu.Portal>
         <BaseContextMenu.Positioner className={styles.positioner}>
           <BaseContextMenu.Popup className={styles.popup}>
-            <MenuItems items={items} />
+            <MenuItems items={availableItems} />
           </BaseContextMenu.Popup>
         </BaseContextMenu.Positioner>
       </BaseContextMenu.Portal>

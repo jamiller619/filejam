@@ -1,4 +1,4 @@
-import { rm, stat } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { boot } from '@filejam/server'
@@ -330,25 +330,6 @@ if (!app.requestSingleInstanceLock()) {
         .map((library) => library.rootPath)
 
       await settings.set('user.favoriteFolders', favorites)
-    }
-
-    // Recover the gap between a successful filesystem move and its DB commit.
-    for (const operation of await server.api.moveHistory.list()) {
-      for (const item of operation.items) {
-        if (item.status === 'completed' || !item.appearance?.length) {
-          continue
-        }
-
-        const sourceMissing = await stat(item.sourcePath).then(
-          () => false,
-          (error: NodeJS.ErrnoException) => error.code === 'ENOENT',
-        )
-        const target = await stat(item.targetPath).catch(() => null)
-
-        if (sourceMissing && target?.isDirectory()) {
-          await server.api.moveHistory.markItemMoved(item.id)
-        }
-      }
     }
 
     for (const id of await server.api.appearance.collectUnusedAssets()) {

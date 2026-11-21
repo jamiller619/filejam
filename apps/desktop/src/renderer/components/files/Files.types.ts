@@ -27,6 +27,7 @@ export type Listing = (
 
 export type FileRow = Row<FileEntry>
 export type FilesTableModel = Table<FileEntry>
+export type FileClipboardKind = 'copy' | 'cut'
 
 export type FileRowGroup = {
   key: string

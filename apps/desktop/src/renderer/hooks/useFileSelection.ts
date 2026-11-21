@@ -11,6 +11,7 @@ type SelectionModifiers = {
   shiftKey?: boolean
   ctrlKey?: boolean
   metaKey?: boolean
+  detail?: number
 }
 
 /** Shares the selection anchor between pointer ranges and keyboard navigation. */
@@ -20,7 +21,7 @@ export function useFileSelection({
   detailsHost,
   onNavigate,
 }: FileSelectionOptions) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLElement>(null)
   const [selection, setSelection] = useState<{
     activeId: number | null
     anchorId: number | null
@@ -55,9 +56,12 @@ export function useFileSelection({
           }
         }
 
-        const ids = additive ? new Set(current.ids) : new Set<number>()
+        const deselect =
+          current.ids.has(id) && (additive || (modifiers.detail ?? 0) > 0)
+        const ids =
+          additive || deselect ? new Set(current.ids) : new Set<number>()
 
-        if (additive && ids.has(id)) {
+        if (deselect) {
           ids.delete(id)
         } else {
           ids.add(id)

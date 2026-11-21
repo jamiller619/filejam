@@ -13,6 +13,7 @@ import electron = require('electron')
 const { contextBridge, ipcRenderer } = electron
 
 type FilejamApi = {
+  operations: import('../operations/types.js').OperationsApi
   filesystem: {
     list(
       input: import('../browser/filesystem.js').FilesystemRequest,
@@ -23,6 +24,8 @@ type FilejamApi = {
   getDroppedFilePath: (file: File) => string
   addFavoriteFolders: (paths: string[]) => Promise<string[]>
   openImage: (libraryId: number, path: string) => Promise<void>
+  canInspect: () => Promise<boolean>
+  inspectElement: (x: number, y: number) => Promise<void>
   setControlsColor: (color: string) => Promise<void>
   appearance: Pick<ServerApi['appearance'], 'list' | 'set'> & {
     import: () => Promise<CustomIcon | null>
@@ -40,12 +43,26 @@ type FilejamApi = {
       folder: Parameters<ServerApi['entries']['listChildren']>[0],
     ) => Promise<PresentedFolderListing>
     activate: (id: number) => Promise<void>
-    moveFolders: (paths: string[], destination: string) => Promise<string[]>
   }
-  moveHistory: Pick<ServerApi['moveHistory'], 'list'>
 }
 
 const filejam: FilejamApi = {
+  canInspect: () => ipcRenderer.invoke('window:canInspect'),
+  inspectElement: (x, y) => ipcRenderer.invoke('window:inspectElement', x, y),
+  operations: {
+    rename: (paths, name) =>
+      ipcRenderer.invoke('operations:rename', { paths, name }),
+    start: (request) => ipcRenderer.invoke('operations:start', request),
+    trash: (paths) => ipcRenderer.invoke('operations:trash', paths),
+    list: () => ipcRenderer.invoke('operations:list'),
+    cancel: (id) => ipcRenderer.invoke('operations:cancel', id),
+    undo: (id) => ipcRenderer.invoke('operations:undo', id),
+    redo: () => ipcRenderer.invoke('operations:redo'),
+    recover: (id) => ipcRenderer.invoke('operations:recover', id),
+    retry: (id) => ipcRenderer.invoke('operations:retry', id),
+    items: (id, offset) =>
+      ipcRenderer.invoke('operations:items', { id, offset }),
+  },
   filesystem: {
     list: (input) => ipcRenderer.invoke('filesystem:list', input),
     open: (path) => ipcRenderer.invoke('filesystem:open', path),
@@ -83,12 +100,8 @@ const filejam: FilejamApi = {
     listChildren: (folder) =>
       ipcRenderer.invoke('entries:listChildren', folder),
     activate: (id) => ipcRenderer.invoke('entries:activate', id),
-    moveFolders: (paths, destination) =>
-      ipcRenderer.invoke('entries:moveFolders', paths, destination),
   },
-  moveHistory: {
-    list: () => ipcRenderer.invoke('moveHistory:list'),
-  },
+
   libraries: {
     list: () => ipcRenderer.invoke('libraries:list'),
     add: () => ipcRenderer.invoke('libraries:add'),

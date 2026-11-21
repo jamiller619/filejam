@@ -18,9 +18,10 @@ Folder listings are never inserted into SQLite.
 Favorites use the existing settings store, independently of libraries. View
 preferences remain in the existing per-view storage. Collections retain their
 existing metadata UI, but assigning unindexed filesystem entries to collections,
-path-based custom icons, and filesystem folder moves need their persistence and
-operation contracts migrated separately. Those indexed-entry controls are not
-exposed for transient filesystem rows.
+and path-based custom icons need their persistence contracts migrated separately.
+Those indexed-entry controls are not exposed for transient filesystem rows.
+Filesystem mutations use the shared operation service described in
+[Filesystem operations](file-operations.md).
 
 The authorized cleanup removed 13 library records and dependent indexed entries.
 No filesystem files were removed. The one-off cleanup script remains at

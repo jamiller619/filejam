@@ -1,14 +1,17 @@
 import { Button, ButtonGroup, Icon } from '@filejam/ui'
 import { css } from 'inline-css-modules'
 import { useRef, useState } from 'react'
+import { useLocations } from '../../hooks/useLocations.js'
 import type { DateFormat, FileColumn } from '../../utils/fileColumns.js'
 import {
   fileColumnLabels,
+  formatFileSize,
   formatFileValue,
   formatFileValueTitle,
   formatFullPath,
 } from '../../utils/fileColumns.js'
-import { IconButton } from '../icons/ItemIcon.js'
+import { getLocationIcon } from '../../utils/libraryIcon.js'
+import ItemIcon, { IconButton } from '../icons/ItemIcon.js'
 import DetailsPane from '../layout/DetailsPane.js'
 import FileCollections from './FileCollections.js'
 import FilePreview from './FilePreview.js'
@@ -25,6 +28,14 @@ const metadata: readonly FileColumn[] = [
   'modifiedAt',
   'indexedAt',
 ]
+
+function entryIconTarget(entry: FileEntry) {
+  return {
+    kind: 'entry' as const,
+    libraryId: entry.libraryId,
+    relativePath: entry.relativePath,
+  }
+}
 
 const styles = css`
   .sectionNav {
@@ -74,6 +85,46 @@ const styles = css`
   }
 
   .details {
+    .stackPreview {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 180px;
+      height: 180px;
+      color: var(--suzy-action);
+
+      > svg {
+        position: absolute;
+        padding: 12px;
+        border: 1px solid var(--suzy-gray-7);
+        border-radius: var(--suzy-radius-3);
+        background: var(--suzy-gray-4);
+
+        &:first-child {
+          transform: translate(-18px, -8px) rotate(-12deg);
+        }
+
+        &:last-child {
+          transform: translate(18px, 8px) rotate(12deg);
+        }
+      }
+    }
+
+    .names {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: var(--suzy-space-2);
+
+      > li {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--suzy-space-2);
+      }
+    }
+
     .preview {
       display: flex;
       justify-content: center;
@@ -119,14 +170,16 @@ const styles = css`
 
 export default function FileDetails({
   entry,
-  rootPath,
+  selectedEntries = [],
+  libraryRoots,
   dateFormat,
   closing,
   onClose,
   onCollectionsChange,
 }: {
   entry: FileEntry
-  rootPath: string | undefined
+  selectedEntries?: readonly FileEntry[]
+  libraryRoots: ReadonlyMap<number, string>
   dateFormat: DateFormat
   closing: boolean
   onClose: () => void
@@ -140,10 +193,26 @@ export default function FileDetails({
     entryId: number
     name: 'preview' | 'info' | 'collections'
   }>({ entryId: entry.id, name: 'preview' })
+  const { data: locations } = useLocations()
 
   const previewSection = useRef<HTMLDivElement>(null)
   const infoSection = useRef<HTMLDListElement>(null)
   const collectionsSection = useRef<HTMLDivElement>(null)
+  const multipleSelected = selectedEntries.length > 1
+  const selectedFiles = selectedEntries.filter(
+    (item) => item.kind !== 'directory',
+  )
+  const folderCount = selectedEntries.length - selectedFiles.length
+  const totalSize = selectedFiles.reduce(
+    (total, item) => total + (item.size ?? 0),
+    0,
+  )
+  const unknownSizeCount = selectedFiles.filter(
+    (item) => item.size == null,
+  ).length
+  const title = multipleSelected
+    ? `${selectedEntries.length} items selected`
+    : (entry.presentation?.displayName ?? entry.name)
   const isFolder = entry.kind === 'directory'
   const displayName = entry.presentation?.displayName ?? entry.name
   const isVideo = entry.mimeType?.startsWith('video/') ?? false
@@ -170,17 +239,32 @@ export default function FileDetails({
   const activeSection =
     sectionSelection.entryId === entry.id ? sectionSelection.name : 'preview'
 
-  const fullPath =
-    entry.absolutePath ??
-    (rootPath === undefined
-      ? '—'
-      : formatFullPath(rootPath, entry.relativePath))
+  function fullPathFor(item: FileEntry) {
+    if (item.absolutePath) {
+      return item.absolutePath
+    }
+
+    const rootPath = libraryRoots.get(item.libraryId)
+
+    return rootPath === undefined
+      ? undefined
+      : formatFullPath(rootPath, item.relativePath)
+  }
+
+  const fullPath = fullPathFor(entry)
+  const locationIcon = isFolder
+    ? getLocationIcon(locations, fullPath)
+    : undefined
 
   return (
     <DetailsPane
       bodyClassName={styles.details}
-      ariaLabel={`${isFolder ? 'Folder' : 'File'} details: ${displayName}`}
-      title={displayName}
+      ariaLabel={
+        multipleSelected
+          ? `Selection details: ${title}`
+          : `${isFolder ? 'Folder' : 'File'} details: ${displayName}`
+      }
+      title={title}
       closing={closing}
       showCloseButton={false}
       onClose={onClose}
@@ -203,7 +287,7 @@ export default function FileDetails({
               <Icon name="list" size={21} />
               <span>Info</span>
             </Button>
-            {!isFolder && !entry.absolutePath && (
+            {!multipleSelected && !isFolder && !entry.absolutePath && (
               <Button
                 variant="ghost"
                 aria-pressed={activeSection === 'collections'}
@@ -219,29 +303,39 @@ export default function FileDetails({
         </nav>
       }
     >
-      {!entry.absolutePath && (
+      {!multipleSelected && !entry.absolutePath && (
         <IconButton
-          target={{
-            kind: 'entry',
-            libraryId: entry.libraryId,
-            relativePath: entry.relativePath,
-          }}
+          target={entryIconTarget(entry)}
           name={displayName}
+          fallback={locationIcon && <Icon name={locationIcon} size={20} />}
           label
         />
       )}
       <div ref={previewSection} className={styles.preview}>
-        {isVideo ? (
+        {multipleSelected && (
+          <div
+            className={styles.stackPreview}
+            role="img"
+            aria-label="Stack of selected documents"
+          >
+            <Icon name="document" size={80} />
+            <Icon name="document" size={80} />
+            <Icon name="document" size={80} />
+          </div>
+        )}
+        {!multipleSelected && isVideo && (
           // biome-ignore lint/a11y/useMediaCaption: Local videos do not include a separate captions source.
           <video key={videoSource} controls preload="metadata">
             <source src={videoSource} type={entry.mimeType ?? undefined} />
             Your browser does not support playing this video.
           </video>
-        ) : (
+        )}
+        {!multipleSelected && !isVideo && (
           <FilePreview
             entry={entry}
             size="100%"
             variant="grid"
+            locationIcon={locationIcon}
             onOpen={() => {
               setImageError(null)
 
@@ -258,30 +352,90 @@ export default function FileDetails({
           />
         )}
       </div>
-      {imageError?.id === entry.id && <p role="alert">{imageError.message}</p>}
+      {!multipleSelected && imageError?.id === entry.id && (
+        <p role="alert">{imageError.message}</p>
+      )}
       <dl ref={infoSection} className={styles.metadata}>
-        {metadata
-          .filter((column) => !entry.absolutePath || column !== 'indexedAt')
-          .map((column) => (
-            <div key={column}>
-              <dt>{fileColumnLabels[column]}</dt>
-              <dd title={formatFileValueTitle(entry, column, dateFormat)}>
-                {column === 'relativePath'
-                  ? fullPath
-                  : formatFileValue(entry, column, dateFormat)}
+        {multipleSelected ? (
+          <>
+            <div>
+              <dt>Items</dt>
+              <dd>{selectedEntries.length}</dd>
+            </div>
+            <div>
+              <dt>Files</dt>
+              <dd>{selectedFiles.length}</dd>
+            </div>
+            <div>
+              <dt>Folders</dt>
+              <dd>{folderCount}</dd>
+            </div>
+            <div>
+              <dt>Total file size</dt>
+              <dd>
+                {formatFileSize(totalSize)}
+                {unknownSizeCount > 0 && ' (some sizes unavailable)'}
+                {folderCount > 0 && ' (folder contents excluded)'}
               </dd>
             </div>
-          ))}
-        {Object.entries(entry.presentation?.details ?? {}).map(
-          ([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
+            <div>
+              <dt>Names</dt>
+              <dd>
+                <ul className={styles.names}>
+                  {selectedEntries.map((item) => {
+                    const path = fullPathFor(item)
+                    const folderIcon = item.kind === 'directory' && (
+                      <Icon
+                        name={getLocationIcon(locations, path) ?? 'folder'}
+                        size={16}
+                      />
+                    )
+
+                    return (
+                      <li key={item.id} title={path ?? item.relativePath}>
+                        {folderIcon &&
+                          (item.absolutePath ? (
+                            folderIcon
+                          ) : (
+                            <ItemIcon
+                              target={entryIconTarget(item)}
+                              size={16}
+                              fallback={folderIcon}
+                            />
+                          ))}
+                        <span>{item.name}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </dd>
             </div>
-          ),
+          </>
+        ) : (
+          metadata
+            .filter((column) => !entry.absolutePath || column !== 'indexedAt')
+            .map((column) => (
+              <div key={column}>
+                <dt>{fileColumnLabels[column]}</dt>
+                <dd title={formatFileValueTitle(entry, column, dateFormat)}>
+                  {column === 'relativePath'
+                    ? (fullPath ?? '—')
+                    : formatFileValue(entry, column, dateFormat)}
+                </dd>
+              </div>
+            ))
         )}
+        {!multipleSelected &&
+          Object.entries(entry.presentation?.details ?? {}).map(
+            ([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ),
+          )}
       </dl>
-      {!isFolder && !entry.absolutePath && (
+      {!multipleSelected && !isFolder && !entry.absolutePath && (
         <div ref={collectionsSection}>
           <FileCollections
             key={entry.id}

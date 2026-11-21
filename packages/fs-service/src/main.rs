@@ -9,6 +9,16 @@ use filejam_fs_service::protocol::{Response, decode_command};
 use filejam_fs_service::worker::{new_mailbox, stop, submit, worker_loop};
 
 fn main() -> ExitCode {
+    if std::env::args().nth(1).as_deref() == Some("--operations") {
+        return match filejam_fs_service::operations::run() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("operation worker failed: {error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+
     let (sender, receiver) = mpsc::sync_channel(32);
     let mailbox = new_mailbox();
 

@@ -1,6 +1,7 @@
 export { type ButtonProps, default as Button } from './components/Button.js'
 export { default as ButtonGroup } from './components/ButtonGroup.js'
 export {
+  ContextMenuInspector,
   type ContextMenuItem,
   type ContextMenuProps,
   default as ContextMenu,
@@ -31,6 +32,7 @@ export {
 } from './components/Select.js'
 export { default as Surface } from './components/Surface.js'
 export { default as Switch, type SwitchProps } from './components/Switch.js'
+export { default as Tabs } from './components/Tabs.js'
 export { default as Textbox } from './components/Textbox.js'
 export { default as Theme } from './components/Theme.js'
 export {

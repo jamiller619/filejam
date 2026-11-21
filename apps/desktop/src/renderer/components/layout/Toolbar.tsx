@@ -1,32 +1,21 @@
-import { Button, ButtonGroup, Icon } from '@filejam/ui'
+import { Button, Icon } from '@filejam/ui'
 import { css } from 'inline-css-modules'
-import {
-  Link,
-  useLocation,
-  useMatch,
-  useNavigate,
-  useSearchParams,
-} from 'react-router'
+import { Link, useMatch, useSearchParams } from 'react-router'
 import { useLocations } from '../../hooks/useLocations.js'
-import { locationUrl } from '../../utils/folderUrl.js'
+import { locationBreadcrumbs, locationUrl } from '../../utils/folderUrl.js'
 
 const style = css`
   .toolbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
     width: 100%;
     min-width: 0;
     max-width: 100%;
     app-region: drag;
-    gap: var(--suzy-space-4);
 
     button, a, input {
       app-region: no-drag;
-    }
-
-    > :first-child {
-      justify-self: start;
     }
 
     .breadcrumbs {
@@ -95,37 +84,8 @@ const style = css`
 export default function Toolbar() {
   return (
     <div className={style.toolbar}>
-      <NavButtons />
       <Breadcrumbs />
     </div>
-  )
-}
-
-function NavButtons() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const canGoBack = location.key !== 'default' && window.history.state?.idx > 0
-  const canGoForward = window.history.state?.idx < window.history.length - 1
-
-  return (
-    <ButtonGroup>
-      <Button
-        aria-label="Back"
-        title="Back"
-        disabled={!canGoBack}
-        onClick={() => navigate(-1)}
-      >
-        <Icon name="back" />
-      </Button>
-      <Button
-        aria-label="Forward"
-        title="Forward"
-        disabled={!canGoForward}
-        onClick={() => navigate(1)}
-      >
-        <Icon name="forward" />
-      </Button>
-    </ButtonGroup>
   )
 }
 
@@ -141,34 +101,7 @@ function Breadcrumbs() {
     fullPath = locations?.home ?? ''
   }
 
-  const normalized = fullPath.replaceAll('\\', '/')
-  let normalizedRoot = normalized.match(/^[A-Za-z]:\//)?.[0] ?? ''
-  if (normalized.startsWith('//?/UNC/')) {
-    normalizedRoot = `${normalized.split('/').slice(0, 6).join('/')}/`
-  } else if (normalized.startsWith('//?/')) {
-    normalizedRoot = normalized.slice(0, 7)
-  } else if (normalized.startsWith('//')) {
-    normalizedRoot = `${normalized.split('/').slice(0, 4).join('/')}/`
-  } else if (normalized.startsWith('/')) {
-    normalizedRoot = '/'
-  }
-
-  // Preserve verbatim Windows roots in links, while showing familiar drive labels.
-  const root = fullPath.slice(0, normalizedRoot.length)
-  const separator = fullPath.includes('\\') ? '\\' : '/'
-  const segments = normalized.slice(root.length).split('/').filter(Boolean)
-  const crumbs = root
-    ? [
-        {
-          name: normalizedRoot.replace('//?/UNC/', '//').replace('//?/', ''),
-          path: root,
-        },
-        ...segments.map((name, index) => ({
-          name,
-          path: root + segments.slice(0, index + 1).join(separator),
-        })),
-      ]
-    : []
+  const crumbs = locationBreadcrumbs(fullPath)
 
   return (
     <div className={style.location}>

@@ -9,7 +9,7 @@ import { useCollections } from '../../hooks/useCollections.js'
 import { useFavoriteFolderDrop } from '../../hooks/useFavoriteFolderDrop.js'
 import { useLocations } from '../../hooks/useLocations.js'
 import { locationUrl } from '../../utils/folderUrl.js'
-import { getLibraryIcon } from '../../utils/libraryIcon.js'
+import { getLocationIcon } from '../../utils/libraryIcon.js'
 import { normalizePath } from '../../utils/normalizePath.js'
 import { IconButton } from '../icons/ItemIcon.js'
 
@@ -147,6 +147,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
       (drive) => !favoritePaths.has(normalizePath(drive.path)),
     ) ?? []
   const navigate = useNavigate()
+  console.log(`jus rendered this bitch ${navigate.name}`)
   const { dropError, dropTargetProps } = useFavoriteFolderDrop()
 
   return (
@@ -176,7 +177,12 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
                     isHome ? (homeLocation?.name ?? folderName) : folderName
                   }
                   title={path}
-                  icon={<Icon name={isHome ? 'user' : 'folder'} size={20} />}
+                  icon={
+                    <Icon
+                      name={getLocationIcon(locations, path) ?? 'folder'}
+                      size={20}
+                    />
+                  }
                 />
               )
             })}
@@ -196,11 +202,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             title={place.path}
             icon={
               <Icon
-                name={
-                  normalizePath(place.path) === homePath
-                    ? 'user'
-                    : getLibraryIcon(place.name)
-                }
+                name={getLocationIcon(locations, place.path) ?? 'folder'}
                 size={20}
               />
             }
@@ -232,7 +234,11 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             iconTarget={{ kind: 'collection', id: collection.id }}
           />
         ))}
-        <li className={styles.actions}>
+        <li>
+          <Button block>Add collection</Button>
+        </li>
+        {/* {<NavItem href="/" name="Add collection" iconTarget={{ kind: 'collection', id: '' }} />} */}
+        {/* <li className={styles.actions}>
           <Button
             block
             size="sm"
@@ -251,7 +257,7 @@ export default function Navbar(props: HTMLAttributes<HTMLDivElement>) {
             <Icon size={22} name="list" />
             <span>Add collection</span>
           </Button>
-        </li>
+        </li> */}
         <NavItem
           className={styles.settings}
           href="/settings"

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { writeFile } from 'node:fs/promises'
+import { unlink, writeFile } from 'node:fs/promises'
 import { join, toNamespacedPath } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { app, BrowserWindow, ipcMain } from 'electron'
@@ -86,6 +86,25 @@ async function run() {
         ),
       'Rust folder listing',
     )
+    assert.deepEqual(
+      await evaluate(`(() => {
+        const toolbar = document.querySelector('[role="toolbar"]');
+        const group = toolbar.firstElementChild.querySelector('[aria-label="File navigation"]');
+        return [...group.querySelectorAll('button')].map(button => [button.getAttribute('aria-label'), button.textContent.trim()]);
+      })()`),
+      [
+        ['Back', ''],
+        ['Up', ''],
+        ['Refresh folder', ''],
+        ['Forward', ''],
+      ],
+    )
+    assert.equal(
+      await evaluate(
+        `document.querySelector('header button[aria-label="Back"], header button[aria-label="Forward"]')`,
+      ),
+      null,
+    )
     assert.equal(
       await evaluate(
         'document.querySelectorAll("table[aria-label=\\"Folder contents\\"]").length',
@@ -103,6 +122,47 @@ async function run() {
       ),
       ['zebra.txt', 'pixel.png', 'direct.txt', 'child'],
     )
+    const childFolder = toNamespacedPath(join(folder, 'child'))
+    const waitForFolder = (path, label) =>
+      until(
+        () =>
+          evaluate(
+            `document.querySelector('[data-files-ready="true"]')?.dataset.filesystemPath === ${JSON.stringify(path)}`,
+          ),
+        label,
+      )
+    const clickNavigation = (label) =>
+      evaluate(
+        `document.querySelector('[aria-label="File navigation"] button[aria-label="${label}"]').click()`,
+      )
+
+    await evaluate(`document.querySelector('a[title="child"]').click()`)
+    await waitForFolder(childFolder, 'child navigation')
+    await clickNavigation('Back')
+    await waitForFolder(folder, 'back navigation')
+    await clickNavigation('Forward')
+    await waitForFolder(childFolder, 'forward navigation')
+
+    const refreshFile = join(folder, 'child', 'refresh-check.txt')
+    await writeFile(refreshFile, 'new file')
+    await clickNavigation('Refresh folder')
+    await until(
+      () =>
+        evaluate(
+          `Boolean(document.querySelector('[title="refresh-check.txt"]'))`,
+        ),
+      'refresh picks up a new file',
+    )
+    await unlink(refreshFile)
+
+    await clickNavigation('Up')
+    await waitForFolder(toNamespacedPath(folder), 'parent folder navigation')
+    await clickNavigation('Back')
+    await waitForFolder(childFolder, 'back after up')
+    await clickNavigation('Back')
+    await waitForFolder(folder, 'restore starting folder')
+    console.log('Files toolbar order, back, forward, refresh, and up passed')
+
     const setSearch = (value) =>
       evaluate(
         `(() => { const input = document.querySelector('input[type="search"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`,
@@ -229,30 +289,6 @@ async function run() {
         ).includes(folder) ===
         (process.env.FILEJAM_SMOKE_SECOND !== '1'),
       'favorite persistence',
-    )
-    // Folder links and back navigation remain part of the original router.
-    await evaluate(
-      `[...document.querySelectorAll('a')].find(a => a.title === 'child').click()`,
-    )
-    await until(
-      () =>
-        evaluate(
-          `document.querySelector('[data-files-ready="true"]')?.dataset.filesystemPath === ${JSON.stringify(toNamespacedPath(join(folder, 'child')))}`,
-        ),
-      'child navigation',
-    )
-    await evaluate(
-      `document.querySelector('button[aria-label="Back"]').click()`,
-    )
-    await until(
-      () =>
-        evaluate(
-          `document.querySelector('[data-files-ready="true"]')?.dataset.filesystemPath === ${JSON.stringify(folder)}`,
-        ),
-      'back navigation',
-    )
-    await evaluate(
-      `document.querySelector('button[aria-label="Refresh folder"]').click()`,
     )
     assert.equal(
       await evaluate('(await window.filejam.libraries.list()).length'),

@@ -8,6 +8,8 @@ export interface IconLibrary {
   collection: string
   columns: string
   columnView: string
+  copy: string
+  cut: string
   desktop: string
   document: string
   down: string
@@ -26,10 +28,14 @@ export interface IconLibrary {
   list: string
   masonry: string
   more: string
+  move: string
   music: string
+  paste: string
   plus: string
   preview: string
   recent: string
+  refresh: string
+  rename: string
   search: string
   settings: string
   showDetails: string
@@ -50,6 +56,8 @@ export const def: IconLibrary = {
   collection: 'gallery-horizontal-end', // or 'layers'
   columns: 'table',
   columnView: 'columns-3',
+  copy: 'copy',
+  cut: 'scissors',
   desktop: 'monitor',
   document: 'file',
   down: 'chevron-down',
@@ -68,15 +76,20 @@ export const def: IconLibrary = {
   list: 'list',
   masonry: 'layout-dashboard',
   more: 'more-horizontal',
+  move: 'move',
   music: 'music-note',
+  paste: 'clipboard-paste',
   plus: 'plus',
   preview: 'eye',
   recent: 'history',
+  refresh: 'rotate-cw',
+  rename: 'text-cursor-input',
   search: 'search',
   settings: 'cog',
   showDetails: 'panel-right-open',
   trash: 'bin-2',
-  up: 'chevron-up',
+  // up: 'chevron-up',
+  up: 'corner-left-up',
   upDown: 'chevrons-up-down',
   user: 'circle-user',
   video: 'video-2',

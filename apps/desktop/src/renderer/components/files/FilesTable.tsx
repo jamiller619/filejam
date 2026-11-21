@@ -19,6 +19,7 @@ import FileName from './FileName.js'
 import FilePreview from './FilePreview.js'
 import { minimumNameColumnWidth } from './Files.constants.js'
 import type {
+  FileClipboardKind,
   FileEntry,
   FileRowGroup,
   FilesTableModel,
@@ -230,6 +231,9 @@ type FilesTableProps = {
   libraryRoots: ReadonlyMap<number, string>
   selectedId: number | null
   selectedIds: ReadonlySet<number>
+  clipboardKindForPath: (
+    path: string | undefined,
+  ) => FileClipboardKind | undefined
   search: string | undefined
   dateFormat: DateFormat
   showFileExtensions: boolean
@@ -249,6 +253,7 @@ export default function FilesTable({
   libraryRoots,
   selectedId,
   selectedIds,
+  clipboardKindForPath,
   search,
   dateFormat,
   showFileExtensions,
@@ -481,7 +486,10 @@ export default function FilesTable({
                   data-index={virtualItem.index}
                   aria-rowindex={virtualItem.index + 2}
                   data-selected={selectedIds.has(entry.id)}
+                  data-clipboard={clipboardKindForPath(entry.absolutePath)}
                   data-file-id={entry.id}
+                  data-file-path={entry.absolutePath}
+                  draggable={!!entry.absolutePath}
                   data-folder-drag-preview={entryPath ? true : undefined}
                   onDoubleClick={
                     entry.kind !== 'directory'

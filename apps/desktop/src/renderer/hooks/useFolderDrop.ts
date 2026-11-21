@@ -17,7 +17,7 @@ export function useFolderDrop(destination: string | undefined) {
 
     event.preventDefault()
     event.stopPropagation()
-    event.dataTransfer.dropEffect = 'move'
+    event.dataTransfer.dropEffect = event.ctrlKey ? 'copy' : 'move'
     setIsDragging(true)
     setDropFailed(false)
   }
@@ -60,16 +60,11 @@ export function useFolderDrop(destination: string | undefined) {
         return
       }
 
-      const favorites = await window.filejam.entries.moveFolders(
-        folderPaths,
+      await window.filejam.operations.start({
+        kind: event.ctrlKey ? 'copy' : 'move',
+        paths: folderPaths,
         destination,
-      )
-
-      window.dispatchEvent(
-        new CustomEvent('filejam:settings-updated', {
-          detail: { key: 'user.favoriteFolders', value: favorites },
-        }),
-      )
+      })
     } catch (error) {
       console.error('Unable to move folder', error)
       setDropFailed(true)

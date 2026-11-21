@@ -11,9 +11,9 @@ import type {
 } from '../entries/types.js'
 import { maximumIconBytes, storeIcon } from '../icons/assets.js'
 import { authorizeRenderer, withIpcMiddleware } from '../ipc/middleware.js'
+import { registerOperationsIpc } from '../operations/ipc.js'
 import type { SettingsApi } from '../settings/index.js'
 import { createFavoriteFoldersHandler } from './favoriteFolders.js'
-import { createMoveFoldersHandler } from './moveFolders.js'
 
 /** Only the owning window's main frame may call the server API. */
 export function registerApiIpc(
@@ -31,7 +31,7 @@ export function registerApiIpc(
     scanRoot,
     filesystem,
   )
-  const moveFolders = createMoveFoldersHandler(api, settings, scanRoot)
+  const removeOperationsIpc = registerOperationsIpc(renderer, settings)
 
   ipcMain.handle(
     'appearance:list',
@@ -240,23 +240,6 @@ export function registerApiIpc(
   )
 
   ipcMain.handle(
-    'entries:moveFolders',
-    withIpcMiddleware(
-      (_event, paths: unknown, destination: unknown) =>
-        moveFolders(paths, destination),
-      authorizeRenderer(renderer),
-    ),
-  )
-
-  ipcMain.handle(
-    'moveHistory:list',
-    withIpcMiddleware(
-      () => api.moveHistory.list(),
-      authorizeRenderer(renderer),
-    ),
-  )
-
-  ipcMain.handle(
     'collections:list',
     withIpcMiddleware(
       (_event) => api.collections.list(),
@@ -356,7 +339,6 @@ export function registerApiIpc(
     ipcMain.removeHandler('libraries:list')
     ipcMain.removeHandler('entries:listChildren')
     ipcMain.removeHandler('entries:activate')
-    ipcMain.removeHandler('entries:moveFolders')
-    ipcMain.removeHandler('moveHistory:list')
+    removeOperationsIpc()
   }
 }

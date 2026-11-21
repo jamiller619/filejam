@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 import { useFolderDrop } from '../../hooks/useFolderDrop.js'
 import ItemIcon from '../icons/ItemIcon.js'
 import FileName from './FileName.js'
+import type { FileClipboardKind } from './Files.types.js'
 import FolderLink from './FolderLink.js'
 import { fileSelectionStyles } from './fileSelectionStyles.js'
 
@@ -69,6 +70,7 @@ type GridCardProps = {
   iconTarget?: IconTarget
   as?: 'div' | 'li'
   fileId?: number
+  filePath?: string | undefined
   draggable?: boolean
   onDragStart?: DragEventHandler<HTMLAnchorElement>
   onDragEnd?: DragEventHandler<HTMLAnchorElement>
@@ -80,6 +82,7 @@ type GridCardProps = {
   title?: string
   children: ReactNode
   selected?: boolean
+  clipboardKind?: FileClipboardKind | undefined
   previewOnly?: boolean
 } & (
   | { to: string }
@@ -100,11 +103,13 @@ export default function GridCard(props: GridCardProps) {
       {props.children}
       {!props.previewOnly && (
         <span
+          data-grid-file-label
           style={{
             display: 'inline-flex',
             gap: 6,
             alignItems: 'center',
-            maxWidth: '100%',
+            justifyContent: 'center',
+            width: '100%',
           }}
         >
           {props.iconTarget && (
@@ -127,7 +132,10 @@ export default function GridCard(props: GridCardProps) {
       className={`${styles.card} ${fileSelectionStyles.selectable}`}
       data-preview-only={props.previewOnly || undefined}
       data-selected={props.selected ?? false}
+      data-clipboard={props.clipboardKind}
       data-file-id={props.fileId}
+      data-file-path={props.filePath}
+      draggable={props.draggable}
       data-folder-drag-preview={props.draggable || undefined}
     >
       {'to' in props ? (

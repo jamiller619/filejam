@@ -25,6 +25,10 @@ the sequence of ideas easy to follow.
   conventions. Preserve intentional blank lines when formatting.
 - Use meaningful names and comments that explain intent; avoid compressed code
   and comments that merely repeat the next statement.
+- Write new tests in TypeScript (`.ts`), consistent with the application code.
+  Do not use `.mjs` for new tests.
+- When working in an existing `.mjs` file, convert it to `.ts` if doing so is
+  straightforward and requires little additional work.
 
 Apply these conventions to application code, shared packages, scripts, and tests.
 Do not manually restyle generated files, vendored assets, dependencies, or build

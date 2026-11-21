@@ -4,7 +4,12 @@ import { folderDragProps } from '../../utils/folderDrag.js'
 import { folderUrl, locationUrl } from '../../utils/folderUrl.js'
 import type { FileViewMode } from '../../utils/tablePreferences.js'
 import FilePreview from './FilePreview.js'
-import type { FileEntry, FileRowGroup, Listing } from './Files.types.js'
+import type {
+  FileClipboardKind,
+  FileEntry,
+  FileRowGroup,
+  Listing,
+} from './Files.types.js'
 import FilesGroupToggle from './FilesGroupToggle.js'
 import GridCard from './GridCard.js'
 import GridContainer from './GridContainer.js'
@@ -34,6 +39,9 @@ type FilesGridProps = {
   libraryRoots: ReadonlyMap<number, string>
   selectedId: number | null
   selectedIds: ReadonlySet<number>
+  clipboardKindForPath: (
+    path: string | undefined,
+  ) => FileClipboardKind | undefined
   search: string | undefined
   showFileExtensions: boolean
   ariaLabel: string
@@ -51,6 +59,7 @@ export default function FilesGrid({
   libraryRoots,
   selectedId,
   selectedIds,
+  clipboardKindForPath,
   search,
   showFileExtensions,
   ariaLabel,
@@ -78,8 +87,11 @@ export default function FilesGrid({
         highlight={search}
         showExtension={showFileExtensions}
         selected={selectedIds.has(entry.id)}
+        clipboardKind={clipboardKindForPath(entry.absolutePath)}
         previewOnly={masonry}
         fileId={entry.id}
+        filePath={entry.absolutePath}
+        draggable={!!entry.absolutePath}
         {...(!entry.absolutePath
           ? {
               iconTarget: {

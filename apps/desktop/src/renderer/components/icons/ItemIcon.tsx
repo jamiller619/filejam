@@ -123,10 +123,23 @@ export function CustomIconImage({
   )
 }
 
+function collectionIconName(id: string) {
+  switch (id) {
+    case 'favorites':
+      return 'heart'
+    case 'recents':
+      return 'recent'
+    default:
+      return 'collection'
+  }
+}
+
 export default function ItemIcon({
   target,
   size,
-  fallback,
+  fallback = target.kind === 'collection' ? (
+    <Icon name={collectionIconName(target.id)} size={size} />
+  ) : undefined,
 }: {
   target: IconTarget
   size: number
